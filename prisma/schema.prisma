@@ -1,0 +1,48 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Colleague {
+  id      Int       @id @default(autoincrement())
+  name    String    @unique
+  role    String    @default("USER") // ADMIN or USER
+  records SPMRecord[]
+  createdAt DateTime @default(now())
+}
+
+model SPMRecord {
+  id              Int       @id @default(autoincrement())
+  // Identification (from Excel merging)
+  uniqueKey       String    @unique // Combination of spmNumber + accountCode + deductionAmount
+  spmNumber       String
+  spmDate         DateTime
+  accountCode     String
+  deductionAmount Float
+  
+  // Details (from the two source excels)
+  sp2dNumber      String?
+  sp2dDate        DateTime?
+  description     String?
+  recipient       String?
+  totalValue      Float?
+  
+  // Tracking
+  status          String    @default("PENDING") // PENDING, COMPLETED
+  assigneeId      Int?
+  assignee        Colleague? @relation(fields: [assigneeId], references: [id])
+  completionDate  DateTime?
+  docLink         String?
+  notes           String?
+  
+  // Metadata
+  importDate      DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}

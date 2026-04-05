@@ -1,0 +1,43 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+export const runtime = 'nodejs';
+
+export async function GET() {
+  try {
+    const colleagues = await prisma.colleague.findMany({
+      include: {
+        _count: {
+          select: { records: true }
+        }
+      }
+    });
+    return NextResponse.json(colleagues);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const { name, role } = await req.json();
+    if (!name) throw new Error("Name is required");
+
+    const colleague = await prisma.colleague.create({
+      data: { name, role: role || "USER" }
+    });
+    return NextResponse.json(colleague);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { id } = await req.json();
+    await prisma.colleague.delete({ where: { id: Number(id) } });
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
