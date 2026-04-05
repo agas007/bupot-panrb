@@ -30,7 +30,10 @@ import {
   FileText,
   PanelLeftClose,
   PanelLeftOpen,
-  Search
+  Search,
+  KeyRound,
+  ShieldCheck,
+  AtSign
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -47,13 +50,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { language, setLanguage, t } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
-  const [announcementTab, setAnnouncementTab] = useState<"v1.1.0" | "v1.0.0">("v1.1.0");
+  const [announcementTab, setAnnouncementTab] = useState<"v1.2.0" | "v1.1.0">("v1.2.0");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [currentUser, setCurrentUser] = useState<Colleague | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const MODAL_VERSION = "1.1.0";
+  const MODAL_VERSION = "1.2.0";
 
   useEffect(() => {
     setMounted(true);
@@ -249,22 +252,81 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="container max-w-full">{children}</div>
       </main>
 
-      {/* Fast Announcement Rendering */}
+      {/* Modern Announcement Modal v1.2.0 */}
       {showAnnouncement && mounted && (
          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-9999 flex items-center justify-center p-4">
-            <div className="glass-card w-full max-w-xl p-8 flex flex-col gap-8 shadow-2xl animate-in zoom-in">
-               <div className="flex justify-between items-center">
+            <div className="glass-card w-full max-w-xl p-8 flex flex-col gap-8 shadow-2xl animate-in zoom-in duration-300">
+               <div className="flex justify-between items-center text-left">
                   <div className="flex items-center gap-4">
-                     <div className="bg-accent/20 text-accent p-3 rounded-2xl"><Sparkles size={32} /></div>
-                     <h2 className="text-2xl font-bold uppercase">{announcementTab === "v1.1.0" ? "Rilis v1.1.0" : "Rilis v1.0.0"}</h2>
+                     <div className="bg-accent/20 text-accent p-3 rounded-2xl animate-pulse">
+                        <Sparkles size={32} />
+                     </div>
+                     <div className="flex flex-col">
+                        <h2 className="text-2xl font-black uppercase tracking-tight">Rilis v1.2.0 Stabil</h2>
+                        <span className="text-accent text-[10px] font-bold uppercase tracking-[0.2em]">Security & Authentication Update</span>
+                     </div>
                   </div>
-                  <button onClick={() => setShowAnnouncement(false)} className="p-2 hover:bg-white/10 rounded-full"><X size={24}/></button>
+                  <button onClick={() => setShowAnnouncement(false)} className="p-2 hover:bg-white/10 rounded-full transition-all text-white/40 hover:text-white"><X size={24}/></button>
                </div>
+               
                <div className="flex gap-2 bg-white/5 p-1 rounded-xl">
-                  <button onClick={() => setAnnouncementTab("v1.1.0")} className={`flex-1 py-2 text-xs font-bold rounded-lg ${announcementTab === "v1.1.0" ? "bg-accent text-white" : "text-white/40"}`}>LATEST</button>
-                  <button onClick={() => setAnnouncementTab("v1.0.0")} className={`flex-1 py-2 text-xs font-bold rounded-lg ${announcementTab === "v1.0.0" ? "bg-white/20" : "text-white/40"}`}>OLDER</button>
+                  <button onClick={() => setAnnouncementTab("v1.2.0")} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.2.0" ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-white/40"}`}>LATEST v1.2.0</button>
+                  <button onClick={() => setAnnouncementTab("v1.1.0")} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.1.0" ? "bg-white/20 text-white" : "text-white/40"}`}>PREVIOUS v1.1.0</button>
                </div>
-               <button onClick={() => { setShowAnnouncement(false); localStorage.setItem("bupot_announcement_seen", MODAL_VERSION); }} className="premium-button py-4 font-bold uppercase tracking-widest">OK, GUNAKAN!</button>
+
+               {announcementTab === "v1.2.0" ? (
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                      <ShieldCheck className="text-emerald-400 shrink-0 mt-1" size={18} />
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-white leading-none">Login Berbasis Kredensial</span>
+                        <p className="text-[11px] text-white/50 leading-relaxed">Sistem kini mewajibkan login dengan Username & Password resmi untuk keamanan data.</p>
+                      </div>
+                   </div>
+                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                      <AtSign className="text-indigo-400 shrink-0 mt-1" size={18} />
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-white leading-none">Manajemen Akun Custom</span>
+                        <p className="text-[11px] text-white/50 leading-relaxed">Admin dapat menentukan username dan password khusus saat mengundang anggota baru.</p>
+                      </div>
+                   </div>
+                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                      <History className="text-amber-400 shrink-0 mt-1" size={18} />
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-white leading-none">Audit Aktivitas Sesi</span>
+                        <p className="text-[11px] text-white/50 leading-relaxed">Semua riwayat login, logout, dan percobaan masuk tidak sah kini tercatat di Log Aktivitas.</p>
+                      </div>
+                   </div>
+                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                      <Code className="text-purple-400 shrink-0 mt-1" size={18} />
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-white leading-none">Akses Dokumentasi API</span>
+                        <p className="text-[11px] text-white/50 leading-relaxed">Technical reference sekarang dapat diakses secara publik (guest) untuk transparansi sistem.</p>
+                      </div>
+                   </div>
+                 </div>
+               ) : (
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10">
+                      <Languages className="text-sky-400 shrink-0 mt-1" size={18} />
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-white leading-none">Bilingual Support</span>
+                        <p className="text-[11px] text-white/50 leading-relaxed">Dukungan penuh Bahasa Indonesia & English di seluruh modul aplikasi.</p>
+                      </div>
+                   </div>
+                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10">
+                      <Moon className="text-indigo-400 shrink-0 mt-1" size={18} />
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-white leading-none">Premium Dark Mode</span>
+                        <p className="text-[11px] text-white/50 leading-relaxed">Pengalaman visual yang lebih nyaman untuk penggunaan durasi panjang.</p>
+                      </div>
+                   </div>
+                 </div>
+               )}
+
+               <button onClick={() => { setShowAnnouncement(false); localStorage.setItem("bupot_announcement_seen", MODAL_VERSION); }} className="premium-button py-4 font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3">
+                  SIAP, GUNAKAN SEKARANG! <Check size={20} />
+               </button>
             </div>
          </div>
       )}
