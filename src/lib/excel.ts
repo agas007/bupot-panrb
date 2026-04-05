@@ -95,11 +95,13 @@ export const mergeExcelData = (
     const spmBase = spmFull.split("/")[0];
     const totalValue = sppMap.get(spmBase) || 0;
 
+    const deductionAmount = safeIndoNum(potongan["Jumlah"]);
+
     return {
-      uniqueKey: `${spmFull}-${potongan["Akun"]}-${potongan["Jumlah"]}`,
+      uniqueKey: `${spmFull}-${potongan["Akun"]}-${deductionAmount}`,
       spmNumber: spmFull,
       accountCode: potongan["Akun"]?.toString() || "",
-      deductionAmount: safeIndoNum(potongan["Jumlah"]),
+      deductionAmount: deductionAmount,
       
       // Use Potongan file as primary source for dates and numbers
       spmDate: safeDateID(potongan["TGL.SPM"]) || new Date(),

@@ -56,7 +56,10 @@ export const translations = {
       modal_title: "Selesaikan Data",
       doc_link: "Link Dokumen",
       notes: "Catatan",
-      save: "Simpan"
+      save: "Simpan",
+      rows_per_page: "Data per halaman",
+      of: "dari",
+      show_all: "Semua"
     },
     team: {
       title: "Manajemen Tim",
@@ -143,7 +146,10 @@ export const translations = {
       modal_title: "Mark as Done",
       doc_link: "Document Link",
       notes: "Notes",
-      save: "Save"
+      save: "Save",
+      rows_per_page: "Rows per page",
+      of: "of",
+      show_all: "All"
     },
     team: {
       title: "Team Management",

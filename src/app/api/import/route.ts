@@ -23,36 +23,47 @@ export async function POST(req: NextRequest) {
 
     const mergedData = mergeExcelData(potonganData as any, sppData as any);
 
-    // Batch upsert to database
-    // We use a transaction to ensure atomic updates
-    const results = await prisma.$transaction(
-      mergedData.map((data) =>
-        prisma.sPMRecord.upsert({
-          where: { uniqueKey: data.uniqueKey },
-          update: {
-            // Only update fields that come from the Excel
-            spmDate: data.spmDate,
-            sp2dNumber: data.sp2dNumber,
-            sp2dDate: data.sp2dDate,
-            description: data.description,
-            recipient: data.recipient,
-            totalValue: data.totalValue,
-            // We DO NOT update status or assignee here to preserve manual work
-          },
-          create: {
-            ...data,
-            status: "PENDING",
-          },
-        })
-      )
-    );
+    console.log(`[Import Log] Starting import for ${mergedData.length} records...`);
+
+    // Splitting into smaller chunks (batches) to avoid DB timeouts & connection limits
+    const CHUNK_SIZE = 50; 
+    let resultsCount = 0;
+
+    for (let i = 0; i < mergedData.length; i += CHUNK_SIZE) {
+      const chunk = mergedData.slice(i, i + CHUNK_SIZE);
+      console.log(`[Import Log] Processing batch ${Math.floor(i / CHUNK_SIZE) + 1} (${chunk.length} items)...`);
+      
+      const chunkResults = await prisma.$transaction(
+        chunk.map((data) =>
+          prisma.sPMRecord.upsert({
+            where: { uniqueKey: data.uniqueKey },
+            update: {
+              spmDate: data.spmDate,
+              sp2dNumber: data.sp2dNumber,
+              sp2dDate: data.sp2dDate,
+              description: data.description,
+              recipient: data.recipient,
+              totalValue: data.totalValue,
+              deductionAmount: data.deductionAmount,
+            },
+            create: {
+              ...data,
+              status: "PENDING",
+            },
+          })
+        )
+      );
+      resultsCount += chunkResults.length;
+    }
+
+    console.log(`[Import Log] Import complete! Total: ${resultsCount} records.`);
 
     return NextResponse.json({
       success: true,
-      count: results.length,
+      count: resultsCount,
     });
   } catch (error: any) {
-    console.error("Import error:", error);
+    console.error("[Import Error] Global catch:", error);
     return NextResponse.json(
       { error: "Failed to process files: " + error.message },
       { status: 500 }

@@ -4,7 +4,8 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { 
   Search, Filter, ChevronDown, Calendar, 
   Clock, AlertCircle, ArrowUpDown, Check, 
-  RotateCcw, ExternalLink, X, ClipboardCheck
+  ExternalLink, X, ClipboardCheck,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -19,9 +20,14 @@ export default function RecordsPage() {
   const [colleagues, setColleagues] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Filtering & Sorting states
   const [searchQuery, setSearchQuery] = useState("");
   const [accountFilter, setAccountFilter] = useState("all");
   const [sortConfig, setSortConfig] = useState<SortConfig>(null);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState<number | "max">(25);
 
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -120,7 +126,7 @@ export default function RecordsPage() {
     return Array.from(accounts).sort();
   }, [records]);
 
-  const processedRecords = useMemo(() => {
+  const filteredAndSortedRecords = useMemo(() => {
     let result = [...records];
 
     if (searchQuery) {
@@ -169,15 +175,33 @@ export default function RecordsPage() {
       });
     }
 
+    // Reset to page 1 if criteria changes
     return result;
   }, [records, searchQuery, accountFilter, sortConfig, colleagues]);
+
+  // Reset page when filtering or sorting changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, accountFilter, sortConfig]);
+
+  const totalPages = useMemo(() => {
+    if (rowsPerPage === "max") return 1;
+    return Math.ceil(filteredAndSortedRecords.length / rowsPerPage);
+  }, [filteredAndSortedRecords, rowsPerPage]);
+
+  const paginatedRecords = useMemo(() => {
+    if (rowsPerPage === "max") return filteredAndSortedRecords;
+    const start = (currentPage - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    return filteredAndSortedRecords.slice(start, end);
+  }, [filteredAndSortedRecords, currentPage, rowsPerPage]);
 
   const SortHeader = ({ label, sortKey }: { label: string, sortKey: string }) => (
     <th 
       className="cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group p-4"
       onClick={() => handleSort(sortKey)}
     >
-      <div className="flex items-center gap-2 text-xs uppercase tracking-widest font-semibold">
+      <div className="flex items-center justify-center gap-2 text-xs uppercase tracking-widest font-semibold">
         {label}
         <ArrowUpDown size={14} className={`transition-opacity ${sortConfig?.key === sortKey ? "opacity-100 text-accent" : "opacity-0 group-hover:opacity-40"}`} />
       </div>
@@ -283,17 +307,17 @@ export default function RecordsPage() {
                 <SortHeader label={t.worksheet.recipient_amount} sortKey="recipient" />
                 <SortHeader label={t.worksheet.deadline} sortKey="deadline" />
                 <SortHeader label={t.worksheet.assignee} sortKey="assignee" />
-                <th className="text-left font-semibold text-xs uppercase tracking-widest p-4">{t.worksheet.status}</th>
-                <th className="text-left font-semibold text-xs uppercase tracking-widest p-4">{t.worksheet.action}</th>
+                <th className="text-center font-semibold text-xs uppercase tracking-widest p-4">{t.worksheet.status}</th>
+                <th className="text-center font-semibold text-xs uppercase tracking-widest p-4">{t.worksheet.action}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr><td colSpan={8} className="text-center p-12 text-muted-foreground italic">{t.worksheet.loading}</td></tr>
-              ) : processedRecords.length === 0 ? (
+              ) : filteredAndSortedRecords.length === 0 ? (
                 <tr><td colSpan={8} className="text-center p-12 text-muted-foreground italic">{t.worksheet.not_found}</td></tr>
               ) : (
-                processedRecords.map((record) => {
+                paginatedRecords.map((record) => {
                   const deadline = getDeadlineStatus(record.sp2dDate);
                   return (
                     <tr key={record.id}>
@@ -313,7 +337,7 @@ export default function RecordsPage() {
                           </span>
                         </div>
                       </td>
-                      <td>
+                      <td className="text-center">
                          <span className="badge bg-primary/5 text-primary border border-primary/10 font-mono text-xs">
                            {record.accountCode}
                          </span>
@@ -331,8 +355,8 @@ export default function RecordsPage() {
                           </div>
                         </div>
                       </td>
-                      <td>
-                        <div className={`p-2 rounded-xl flex flex-col gap-1 ${
+                      <td className="text-center">
+                        <div className={`p-2 rounded-xl flex flex-col items-center gap-1 ${
                           deadline.type === "overdue" ? "bg-rose-500/10 text-rose-500" : 
                           deadline.type === "soon" ? "bg-amber-500/10 text-amber-500" : "bg-emerald-500/10 text-emerald-500"
                         }`}>
@@ -345,9 +369,9 @@ export default function RecordsPage() {
                           </span>
                         </div>
                       </td>
-                      <td>
+                      <td className="text-center">
                         <select 
-                          className="bg-muted border-none rounded-lg p-2 text-xs outline-none focus:ring-2 focus:ring-accent cursor-pointer w-full max-w-[140px] transition-all"
+                          className="bg-muted border-none rounded-lg p-2 text-xs outline-none focus:ring-2 focus:ring-accent cursor-pointer w-full max-w-[140px] transition-all text-center"
                           value={record.assigneeId || ""}
                           onChange={(e) => assignColleague(record.id, e.target.value ? Number(e.target.value) : null)}
                         >
@@ -357,13 +381,13 @@ export default function RecordsPage() {
                           ))}
                         </select>
                       </td>
-                      <td>
+                      <td className="text-center">
                         <div className={`badge ${record.status === "COMPLETED" ? "badge-completed" : "badge-pending"}`}>
                           {record.status === "COMPLETED" ? t.worksheet.completed : t.worksheet.pending}
                         </div>
                       </td>
-                      <td>
-                        <div className="flex items-center gap-1">
+                      <td className="text-center">
+                        <div className="flex items-center justify-center gap-1">
                           {record.status === "PENDING" ? (
                             <button 
                               onClick={() => openUpdateModal(record)}
@@ -373,7 +397,7 @@ export default function RecordsPage() {
                               <Check size={16} /> {t.worksheet.mark_done}
                             </button>
                           ) : (
-                            <div className="flex flex-col gap-1 p-2">
+                            <div className="flex flex-col items-center gap-1 p-2">
                               {record.docLink && (
                                 <a href={record.docLink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-accent hover:underline flex items-center gap-1 font-bold">
                                   <ExternalLink size={10} /> {language === "ID" ? "Lihat Dokumen" : "View Document"}
@@ -386,7 +410,7 @@ export default function RecordsPage() {
                               )}
                               <button 
                                 onClick={() => updateStatus(record.id, "PENDING")}
-                                className="text-[10px] text-rose-500 hover:underline mt-1 self-start font-medium"
+                                className="text-[10px] text-rose-500 hover:underline mt-1 font-medium"
                               >
                                 {t.worksheet.revert}
                               </button>
@@ -401,6 +425,88 @@ export default function RecordsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        {!isLoading && filteredAndSortedRecords.length > 0 && (
+          <div className="p-4 border-t border-border bg-muted/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span>{t.worksheet.rows_per_page}:</span>
+                <select 
+                  className="bg-muted border-none rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+                  value={rowsPerPage}
+                  onChange={(e) => {
+                    const val = e.target.value === "max" ? "max" : Number(e.target.value);
+                    setRowsPerPage(val);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value="max">{t.worksheet.show_all}</option>
+                </select>
+              </div>
+              <div className="font-medium whitespace-nowrap">
+                {rowsPerPage === "max" ? (
+                  <span>{filteredAndSortedRecords.length} {t.worksheet.of} {filteredAndSortedRecords.length}</span>
+                ) : (
+                  <span>
+                    {(currentPage - 1) * (rowsPerPage as number) + 1} - {Math.min(currentPage * (rowsPerPage as number), filteredAndSortedRecords.length)} {t.worksheet.of} {filteredAndSortedRecords.length}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {rowsPerPage !== "max" && (
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg hover:bg-accent/10 disabled:opacity-20 transition-colors"
+                >
+                  <ChevronsLeft size={16} />
+                </button>
+                
+                <div className="flex items-center gap-1">
+                  {/* Page Numbers */}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => {
+                      if (totalPages <= 7) return true;
+                      if (p === 1 || p === totalPages) return true;
+                      return Math.abs(p - currentPage) <= 1;
+                    })
+                    .map((p, i, arr) => (
+                      <div key={p} className="flex items-center">
+                        {i > 0 && p - arr[i-1] > 1 && <span className="px-2 text-muted-foreground opacity-50">...</span>}
+                        <button
+                          onClick={() => setCurrentPage(p)}
+                          className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+                            currentPage === p 
+                            ? "bg-accent text-white shadow-lg shadow-accent/20" 
+                            : "hover:bg-accent/10 text-muted-foreground"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      </div>
+                    ))
+                  }
+                </div>
+
+                <button 
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg hover:bg-accent/10 disabled:opacity-20 transition-colors"
+                >
+                  <ChevronsRight size={16} />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
