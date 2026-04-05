@@ -190,7 +190,7 @@ export default function Dashboard() {
         {/* Monthly Compliance */}
         <section className="glass-card p-6 flex flex-col gap-6">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <Calendar size={20} className="text-accent" /> Compliance by Month
+            <Calendar size={20} className="text-accent" /> Compliance by Month / Masa Pajak
           </h2>
           <div className="flex flex-col gap-4">
             {stats.monthlyStats.map((month: any) => (

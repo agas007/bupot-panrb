@@ -52,15 +52,18 @@ export async function GET(req: NextRequest) {
         : 0
     }));
 
-    // Format monthly compliance (All records for the trend line, even beyond filter)
+    // Format monthly compliance (Based on SP2D Date / Masa Pajak)
     const allRecords = await prisma.sPMRecord.findMany({
-      where: year ? { spmDate: { gte: new Date(Number(year), 0, 1), lte: new Date(Number(year), 11, 31) } } : {},
-      select: { spmDate: true, status: true }
+      where: { 
+        sp2dDate: { not: null },
+        ...(year ? { sp2dDate: { gte: new Date(Number(year), 0, 1), lte: new Date(Number(year), 11, 31) } } : {})
+      },
+      select: { sp2dDate: true, status: true }
     });
 
     const monthlyStatsMap: Record<string, { total: number; completed: number }> = {};
     allRecords.forEach((rec: any) => {
-      const date = new Date(rec.spmDate);
+      const date = new Date(rec.sp2dDate!);
       const monthIdx = date.getMonth() + 1; // 1-12
       const yearVal = date.getFullYear();
       const key = `${yearVal}-${monthIdx}`;
