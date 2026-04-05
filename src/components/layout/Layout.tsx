@@ -16,13 +16,16 @@ import {
   Sparkles,
   Info,
   Check,
-  Calendar,
-  Search,
   Sun,
   Moon,
   Languages,
   Clock,
-  History
+  History,
+  ChevronLeft,
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -43,6 +46,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [colleagues, setColleagues] = useState<Colleague[]>([]);
   const [currentUser, setCurrentUser] = useState<Colleague | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const MODAL_VERSION = "1.1.0";
 
@@ -63,6 +67,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         setTheme("dark");
         document.documentElement.setAttribute("data-theme", "dark");
       }
+
+      const savedCollapsed = localStorage.getItem("bupot_sidebar_collapsed");
+      if (savedCollapsed === "true") {
+        setIsSidebarCollapsed(true);
+      }
     }
 
     const savedUser = localStorage.getItem("sim_user");
@@ -79,6 +88,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const toggleSidebar = () => {
+    const newState = !isSidebarCollapsed;
+    setIsSidebarCollapsed(newState);
+    localStorage.setItem("bupot_sidebar_collapsed", String(newState));
   };
 
   const handleSwitchUser = (user: Colleague | null) => {
@@ -125,31 +140,46 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="w-64 glass-card fixed h-[calc(100vh-2rem)] m-4 flex flex-col p-4 gap-6 z-50">
-        <div className="flex items-center gap-3 px-2 py-2">
-          <div className="bg-accent text-accent-foreground p-2 rounded-xl">
+      <aside className={`${isSidebarCollapsed ? "w-20" : "w-64"} glass-card !overflow-visible fixed h-[calc(100vh-2rem)] m-4 flex flex-col p-4 gap-6 z-50 transition-all duration-300 ease-in-out`}>
+        {/* Toggle Button */}
+        <button 
+          onClick={toggleSidebar}
+          className="absolute -right-4 top-1/2 -translate-y-1/2 bg-accent text-accent-foreground p-2 rounded-full shadow-xl hover:scale-110 transition-all z-[60] border-2 border-background"
+        >
+          {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+        </button>
+
+        {/* Logo/Brand */}
+        <div className={`flex items-center gap-3 px-2 py-2 overflow-hidden ${isSidebarCollapsed ? "justify-center" : ""}`}>
+          <div className="bg-accent text-accent-foreground p-2 rounded-xl shrink-0">
             <FileSpreadsheet size={24} />
           </div>
-          <div className="flex flex-col">
-            <span suppressHydrationWarning className="font-bold text-lg tracking-tight leading-none mb-1">
-              Bupot PANRB
-            </span>
-            <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">
-              Internal System
-            </span>
-          </div>
+          {!isSidebarCollapsed && (
+            <div className="flex flex-col animate-in fade-in slide-in-from-left-4 duration-300">
+              <span suppressHydrationWarning className="font-bold text-lg tracking-tight leading-none mb-1">
+                Bupot PANRB
+              </span>
+              <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">
+                Internal System
+              </span>
+            </div>
+          )}
         </div>
 
-        <div className="bg-muted/50 p-3 rounded-xl flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${currentUser?.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
+        {/* User Context */}
+        <div className={`bg-muted/50 p-3 rounded-xl flex items-center gap-3 overflow-hidden ${isSidebarCollapsed ? "justify-center" : ""}`}>
+          <div className={`p-2 rounded-lg shrink-0 ${currentUser?.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
             {currentUser?.role === "ADMIN" ? <Shield size={18} /> : <UserIcon size={18} />}
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-bold truncate">{currentUser?.name || "Visitor (Unset)"}</span>
-            <span className="text-[10px] text-muted-foreground">{currentUser?.role || "GUEST"} MODE</span>
-          </div>
+          {!isSidebarCollapsed && (
+            <div className="flex flex-col min-w-0 animate-in fade-in slide-in-from-left-4 duration-300">
+              <span className="text-xs font-bold truncate">{currentUser?.name || "Visitor (Unset)"}</span>
+              <span className="text-[10px] text-muted-foreground uppercase">{currentUser?.role || "GUEST"} MODE</span>
+            </div>
+          )}
         </div>
 
+        {/* Navigation */}
         <nav className="flex flex-col gap-1 flex-1">
           {filteredNavItems.map((item) => {
             const Icon = item.icon;
@@ -158,55 +188,62 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
+                title={isSidebarCollapsed ? item.label : undefined}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   isActive
                     ? "bg-primary text-primary-foreground shadow-lg"
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`}
+                } ${isSidebarCollapsed ? "justify-center" : ""}`}
               >
-                <Icon size={20} />
-                <span className="font-medium">{item.label}</span>
+                <Icon size={20} className="shrink-0" />
+                {!isSidebarCollapsed && <span className="font-medium animate-in fade-in slide-in-from-left-4 duration-300">{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
-        <div className="mt-auto border-t border-border pt-4 px-2 flex flex-col gap-1 text-left">
-          <div className="flex items-center gap-1">
+        {/* Footer Actions */}
+        <div className="mt-auto border-t border-border pt-4 px-2 flex flex-col gap-1 text-left overflow-hidden">
+          <div className={`flex items-center gap-1 ${isSidebarCollapsed ? "flex-col" : "flex-row"}`}>
             <button 
               onClick={toggleTheme}
-              className="flex-1 flex items-center gap-2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-2 rounded-lg hover:bg-muted"
+              title={isSidebarCollapsed ? (theme === "light" ? t.nav.mode_gelap : t.nav.mode_terang) : undefined}
+              className="flex-1 flex items-center gap-2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-2 rounded-lg hover:bg-muted justify-center"
             >
               {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
-              <span className="font-medium text-[11px] uppercase tracking-wider">{theme === "light" ? t.nav.mode_gelap : t.nav.mode_terang}</span>
+              {!isSidebarCollapsed && <span className="font-medium text-[11px] uppercase tracking-wider animate-in fade-in slide-in-from-left-4 duration-300">{theme === "light" ? t.nav.mode_gelap : t.nav.mode_terang}</span>}
             </button>
             <button 
               onClick={() => setLanguage(language === "ID" ? "EN" : "ID")}
-              className="flex-1 flex items-center gap-2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-2 rounded-lg hover:bg-muted"
+              title={isSidebarCollapsed ? t.nav.ganti_bahasa : undefined}
+              className="flex-1 flex items-center gap-2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-2 rounded-lg hover:bg-muted justify-center"
             >
               <Languages size={16} />
-              <span className="font-medium text-[11px] uppercase tracking-wider text-center flex-1">{language}</span>
+              {!isSidebarCollapsed && <span className="font-medium text-[11px] uppercase tracking-wider text-center flex-1 animate-in fade-in slide-in-from-left-4 duration-300">{language}</span>}
             </button>
           </div>
 
           <button 
             onClick={() => setShowAnnouncement(true)}
-            className="w-full flex items-center gap-3 text-muted-foreground hover:text-accent cursor-pointer transition-colors p-2 rounded-lg hover:bg-accent/5 group"
+            title={isSidebarCollapsed ? t.nav.fitur_baru : undefined}
+            className={`w-full flex items-center gap-3 text-muted-foreground hover:text-accent cursor-pointer transition-colors p-2 rounded-lg hover:bg-accent/5 group ${isSidebarCollapsed ? "justify-center" : ""}`}
           >
-            <Sparkles size={18} className="group-hover:animate-pulse" />
-            <span className="font-medium text-sm">{t.nav.fitur_baru} v1.1.0</span>
+            <Sparkles size={18} className="group-hover:animate-pulse shrink-0" />
+            {!isSidebarCollapsed && <span className="font-medium text-sm animate-in fade-in slide-in-from-left-4 duration-300">{t.nav.fitur_baru}</span>}
           </button>
           
           <button 
             onClick={() => setShowSwitchModal(true)}
-            className="w-full flex items-center gap-3 text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-2 rounded-lg hover:bg-muted"
+            title={isSidebarCollapsed ? t.nav.ganti_pengguna : undefined}
+            className={`w-full flex items-center gap-3 text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-2 rounded-lg hover:bg-muted ${isSidebarCollapsed ? "justify-center" : ""}`}
           >
-            <LogIn size={20} />
-            <span className="font-medium text-sm">{t.nav.ganti_pengguna}</span>
+            <LogIn size={20} className="shrink-0" />
+            {!isSidebarCollapsed && <span className="font-medium text-sm animate-in fade-in slide-in-from-left-4 duration-300">{t.nav.ganti_pengguna}</span>}
           </button>
         </div>
       </aside>
 
+      {/* Announcements Modal */}
       {showAnnouncement && mounted && (
         <div className="bg-overlay flex items-center justify-center p-4 z-[9999]">
           <div className="glass-card w-full max-w-xl p-8 flex flex-col gap-8 shadow-2xl animate-in fade-in zoom-in duration-300">
@@ -349,6 +386,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
+      {/* Switch User Modal */}
       {showSwitchModal && (
         <div className="bg-overlay flex items-center justify-center p-4">
           <div className="glass-card w-full max-w-md p-6 flex flex-col gap-6 shadow-2xl animate-in">
@@ -364,7 +402,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </button>
             </div>
             
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground text-left">
               {language === "ID" ? "Pilih rekan kerja untuk simulasikan akun mereka di sistem." : "Select a colleague to simulate their perspective in the system."}
             </p>
 
@@ -391,12 +429,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   {currentUser?.id === col.id && <CircleCheck size={18} className="text-accent" />}
                 </button>
               ))}
-              
-              {colleagues.length === 0 && (
-                <div className="p-8 text-center text-muted-foreground text-sm italic">
-                  No colleagues found. Please add them in the Team Management page first.
-                </div>
-              )}
             </div>
 
             <button 
@@ -409,8 +441,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <main className="flex-1 ml-72 p-8 pt-12">
-        <div className="container">
+      {/* Main Content Area */}
+      <main className={`flex-1 p-8 pt-12 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? "ml-24" : "ml-72"}`}>
+        <div className="container max-w-full">
           {children}
         </div>
       </main>

@@ -48,13 +48,12 @@
     --accent-foreground: 222 47% 11%;
     --secondary: 217 32% 17%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217 32% 17%;
+    --muted: 217 32% 20%;
     --muted-foreground: 215 20% 65%;
-    --background: 222 47% 5%;
+    --background: 222 47% 4%;
     --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
-    --border: 217 32% 17%;
+    --card: 222 47% 8%;
+    --border: 217 32% 22%;
   }
 
   body {
@@ -64,16 +63,22 @@
 
 @layer components {
   .container {
-    @apply max-w-[1280px] mx-auto px-8;
+    @apply max-w-[1400px] mx-auto px-8;
   }
 
   .glass-card {
-    background: hsla(var(--card), 0.8);
-    backdrop-filter: blur(12px);
-    border: 1px solid hsla(var(--border), 0.5);
-    border-radius: var(--radius);
-    box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.1);
+    background: hsla(var(--card), 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid hsla(var(--border), 1);
+    border-radius: var(--radius-2xl);
+    box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.2);
     overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  [data-theme='dark'] .glass-card {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
   }
 
   .premium-button {
@@ -84,16 +89,24 @@
     @apply w-full border-collapse border-spacing-0;
   }
 
+  .premium-table thead tr {
+    @apply bg-muted/50;
+  }
+
   .premium-table th {
-    @apply bg-muted text-muted-foreground text-left p-4 font-semibold text-xs uppercase tracking-widest border-b border-border;
+    @apply text-muted-foreground text-left p-4 font-semibold text-xs uppercase tracking-widest border-b border-border;
   }
 
   .premium-table td {
-    @apply p-4 border-b border-border text-[0.95rem];
+    @apply p-4 border-b border-border text-[0.9rem];
   }
 
   .premium-table tr:hover {
-    background-color: hsla(var(--accent), 0.03);
+    background-color: hsla(var(--accent), 0.05);
+  }
+
+  [data-theme='dark'] .premium-table tr:hover {
+    background-color: rgba(255, 255, 255, 0.03);
   }
 
   .badge {
