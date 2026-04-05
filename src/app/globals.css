@@ -71,6 +71,11 @@ body {
   .lg\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
+.grid-auto-fill { 
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
+}
+
 .gap-1 { gap: 0.25rem; }
 .gap-2 { gap: 0.5rem; }
 .gap-3 { gap: 0.75rem; }
@@ -180,6 +185,7 @@ body {
   border: 1px solid hsla(var(--border), 0.5);
   border-radius: var(--radius);
   box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
 .premium-button {

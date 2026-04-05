@@ -109,11 +109,11 @@ export default function ColleaguesPage() {
         {/* Colleagues List */}
         <section className="lg:col-span-2 flex flex-col gap-4">
           <h2 className="text-lg font-semibold">Active Members</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid-auto-fill gap-4">
             {isLoading ? (
-              <div className="col-span-2 text-center p-8 opacity-50">Loading team...</div>
+              <div className="col-span-full text-center p-8 opacity-50">Loading team...</div>
             ) : colleagues.length === 0 ? (
-              <div className="col-span-2 text-center p-8 border-2 border-dashed border-border rounded-xl opacity-50">
+              <div className="col-span-full text-center p-8 border-2 border-dashed border-border rounded-xl opacity-50">
                 No members added yet.
               </div>
             ) : (
