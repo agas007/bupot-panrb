@@ -94,6 +94,33 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [mounted, pathname, router]);
 
+  const INACTIVITY_LIMIT = 5 * 60 * 1000; // 5 Minutes
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let logoutTimer: NodeJS.Timeout;
+
+    const resetTimer = () => {
+      if (logoutTimer) clearTimeout(logoutTimer);
+      logoutTimer = setTimeout(() => {
+        console.log("[Security] User inactive for 5 minutes. Logging out...");
+        handleLogout();
+      }, INACTIVITY_LIMIT);
+    };
+
+    // Events to track activity
+    const events = ["mousedown", "mousemove", "keydown", "scroll", "touchstart"];
+    events.forEach(event => window.addEventListener(event, resetTimer));
+
+    resetTimer();
+
+    return () => {
+      if (logoutTimer) clearTimeout(logoutTimer);
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, [currentUser, pathname]);
+  
   const handleLogout = async () => {
     try {
       if (currentUser) {
