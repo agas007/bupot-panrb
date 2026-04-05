@@ -11,10 +11,8 @@
   "dependencies": {
     "@prisma/client": "^6.2.1",
     "@types/xlsx": "^0.0.35",
-    "autoprefixer": "^10.4.27",
     "lucide-react": "^1.7.0",
     "next": "16.2.2",
-    "postcss": "^8.5.8",
     "prisma": "^6.2.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -22,12 +20,16 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-latest/xlsx-latest.tgz"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^20.19.39",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.27",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3"
   }
 }
