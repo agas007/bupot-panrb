@@ -147,7 +147,7 @@ export default function AdminPage() {
         </button>
 
         {status && (
-          <div className={`p-6 rounded-2xl flex items-center items-start gap-4 animate-in slide-in-from-bottom-4 transition-all ${
+          <div className={`p-6 rounded-2xl flex items-start gap-4 animate-in slide-in-from-bottom-4 transition-all ${
             status.type === "success" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
           }`}>
             {status.type === "success" ? <CheckCircle size={24} className="shrink-0 mt-0.5" /> : <AlertCircle size={24} className="shrink-0 mt-0.5" />}

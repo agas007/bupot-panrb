@@ -285,7 +285,7 @@ export default function RecordsPage() {
     <div className="flex flex-col gap-8 pb-10">
       {/* Update/Completion Modal */}
       {isUpdateModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000]">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-1000">
           <div className="glass-card p-8 rounded-3xl w-full max-w-md flex flex-col gap-6 shadow-2xl animate-in fade-in zoom-in duration-300">
             <div className="flex justify-between items-center text-left">
               <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardCheck className="text-accent" /> {t.worksheet.modal_title}</h2>
@@ -302,7 +302,7 @@ export default function RecordsPage() {
 
       {/* Detail Modal */}
       {isDetailModalOpen && selectedRecord && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000]">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-1000">
           <div className="glass-card p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-8 shadow-2xl animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
              <div className="flex justify-between items-center bg-muted/-5 p-2 rounded-2xl">
                <div className="flex items-center gap-4">
@@ -333,7 +333,7 @@ export default function RecordsPage() {
 
       {/* Floating Bulk Action Bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-8 duration-300 w-[92%] md:w-auto">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-100 animate-in slide-in-from-bottom-8 duration-300 w-[92%] md:w-auto">
            <div className="bg-slate-900 shadow-2xl px-6 md:px-12 py-3 md:py-4 rounded-3xl md:rounded-full border border-white/10 flex flex-col md:flex-row items-center gap-4 md:gap-8 min-w-[280px]">
               <div className="flex items-center gap-4 md:gap-10">
                 <div className="flex flex-col items-center">

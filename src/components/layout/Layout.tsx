@@ -149,7 +149,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       {/* Mobile Top Bar */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 glass-card !rounded-none z-[100] flex items-center justify-between px-6 border-b border-white/5">
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 glass-card rounded-none! z-100 flex items-center justify-between px-6 border-b border-white/5">
         <div className="flex items-center gap-3">
           <div className="bg-accent text-accent-foreground p-2 rounded-xl">
             <FileSpreadsheet size={20} />
@@ -166,18 +166,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar Overlay */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[110]" onClick={() => setIsMobileMenuOpen(false)} />
+        <div className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-110" onClick={() => setIsMobileMenuOpen(false)} />
       )}
 
       <aside className={`
-        fixed left-0 top-0 h-full z-[120] lg:z-50 transition-all duration-500 ease-in-out flex flex-col p-4 gap-6
+        fixed left-0 top-0 h-full z-120 lg:z-50 transition-all duration-500 ease-in-out flex flex-col p-4 gap-6
         ${isMobileMenuOpen ? "translate-x-0 w-[280px]" : "-translate-x-full w-[280px] lg:translate-x-0"} 
         ${isSidebarCollapsed ? "lg:w-22" : "lg:w-60"}
-        glass-card !overflow-visible lg:h-[calc(100vh-2rem)] lg:m-4
+        glass-card overflow-visible! lg:h-[calc(100vh-2rem)] lg:m-4
       `}>
         <button 
           onClick={toggleSidebar}
-          className="hidden lg:flex absolute -right-4 top-1/2 -translate-y-1/2 bg-accent text-accent-foreground p-2 rounded-full shadow-xl hover:scale-110 transition-all z-[60] border-2 border-background"
+          className="hidden lg:flex absolute -right-4 top-1/2 -translate-y-1/2 bg-accent text-accent-foreground p-2 rounded-full shadow-xl hover:scale-110 transition-all z-60 border-2 border-background"
         >
           {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
         </button>
@@ -251,7 +251,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Fast Announcement Rendering */}
       {showAnnouncement && mounted && (
-         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-9999 flex items-center justify-center p-4">
             <div className="glass-card w-full max-w-xl p-8 flex flex-col gap-8 shadow-2xl animate-in zoom-in">
                <div className="flex justify-between items-center">
                   <div className="flex items-center gap-4">

@@ -52,7 +52,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950 flex items-center justify-center p-4 z-[9999] overflow-hidden">
+    <div className="fixed inset-0 bg-slate-950 flex items-center justify-center p-4 z-9999 overflow-hidden">
       {/* Dynamic Background Effects */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/20 blur-[120px] rounded-full animate-pulse" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full animate-pulse delay-700" />
@@ -102,7 +102,7 @@ export default function LoginPage() {
               {error && (
                 <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs p-4 rounded-xl flex items-start gap-3 animate-shake overflow-hidden">
                    <ShieldAlert size={16} className="shrink-0 mt-0.5" />
-                   <span className="font-bold leading-relaxed break-words">{error}</span>
+                   <span className="font-bold leading-relaxed wrap-break-word">{error}</span>
                 </div>
               )}
 

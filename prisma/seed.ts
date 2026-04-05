@@ -5,17 +5,21 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Seeding database...')
 
-  // Create first Admin
+  const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "Placeholder123";
+
+  // Create first Admin (agastya.arnanda)
   const admin = await prisma.colleague.upsert({
-    where: { name: 'Admin Utama' },
+    where: { username: 'agastya.arnanda' },
     update: {},
     create: {
-      name: 'Admin Utama',
+      name: 'Agastya Arnanda',
+      username: 'agastya.arnanda',
+      password: defaultPassword,
       role: 'ADMIN',
     },
   })
 
-  console.log(`✅ Default Admin created: ${admin.name}`)
+  console.log(`✅ Default Admin created: ${admin.username}`)
 }
 
 main()
