@@ -12,7 +12,12 @@ import {
   X,
   Shield,
   User as UserIcon,
-  CircleCheck
+  CircleCheck,
+  Sparkles,
+  Info,
+  Check,
+  Calendar,
+  Search
 } from "lucide-react";
 
 interface Colleague {
@@ -33,11 +38,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [showSwitchModal, setShowSwitchModal] = useState(false);
+  const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [colleagues, setColleagues] = useState<Colleague[]>([]);
   const [currentUser, setCurrentUser] = useState<Colleague | null>(null);
 
+  const MODAL_VERSION = "1.0.0";
+
   useEffect(() => {
     setMounted(true);
+    
+    // Announcement check
+    if (typeof window !== "undefined") {
+      const lastSeen = localStorage.getItem("bupot_announcement_seen");
+      if (lastSeen !== MODAL_VERSION) {
+        setTimeout(() => setShowAnnouncement(true), 1000);
+      }
+    }
+
     // Load simulation user from localStorage
     const savedUser = localStorage.getItem("sim_user");
     if (savedUser) {
@@ -137,7 +154,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="mt-auto border-t border-border pt-4 px-2">
+        <div className="mt-auto border-t border-border pt-4 px-2 flex flex-col gap-1">
+          <button 
+            onClick={() => setShowAnnouncement(true)}
+            className="w-full flex items-center gap-3 text-muted-foreground hover:text-accent cursor-pointer transition-colors p-2 rounded-lg hover:bg-accent/5 group text-left"
+          >
+            <Sparkles size={18} className="group-hover:animate-pulse" />
+            <span className="font-medium text-sm">What's New v1.0.0</span>
+          </button>
+          
           <button 
             onClick={() => setShowSwitchModal(true)}
             className="w-full flex items-center gap-3 text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-2 rounded-lg hover:bg-muted"
@@ -147,6 +172,92 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </aside>
+
+      {/* Announcement Modal Overlay */}
+      {showAnnouncement && mounted && (
+        <div className="bg-overlay flex items-center justify-center p-4 z-[9999]">
+          <div className="glass-card w-full max-w-xl p-8 flex flex-col gap-8 shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-4">
+                <div className="bg-accent/20 text-accent p-3 rounded-2xl animate-bounce">
+                  <Sparkles size={32} />
+                </div>
+                <div className="flex flex-col">
+                  <h2 className="text-2xl font-bold text-white tracking-tight uppercase">Release v1.0.0 Stable</h2>
+                  <span className="text-accent text-xs font-bold tracking-widest uppercase">PANRB Internal System</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowAnnouncement(false);
+                  localStorage.setItem("bupot_announcement_seen", MODAL_VERSION);
+                }}
+                className="text-white/40 hover:text-white hover:bg-white/10 p-2 rounded-xl transition-all"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
+                <div className="flex items-center gap-3 mb-2 text-accent">
+                  <FileSpreadsheet size={18} />
+                  <span className="text-sm font-bold">Integrated Excel Hub</span>
+                </div>
+                <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
+                  Otomatis gabung data "Monitoring Potongan SPM" & "SPP" dalam satu upload cerdas.
+                </p>
+              </div>
+              
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
+                <div className="flex items-center gap-3 mb-2 text-emerald-400">
+                  <Calendar size={18} />
+                  <span className="text-sm font-bold">Hybrid Date Engine</span>
+                </div>
+                <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
+                  Baca otomatis format D/M/YYYY (indo) & YYYY-MM-DD secara bersamaan tanpa error.
+                </p>
+              </div>
+
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
+                <div className="flex items-center gap-3 mb-2 text-amber-400">
+                  <Search size={18} />
+                  <span className="text-sm font-bold">Pro Worksheet View</span>
+                </div>
+                <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
+                  Filter by Akun, Multi-sort, dan Search by All Amounts (Deduction & Total SPM).
+                </p>
+              </div>
+
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
+                <div className="flex items-center gap-3 mb-2 text-purple-400">
+                  <CircleCheck size={18} />
+                  <span className="text-sm font-bold">Task Attachment</span>
+                </div>
+                <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
+                  Lampirkan Link Dokumen & Catatan khusus saat "Mark as Done" untuk audit tim.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3 px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent text-xs">
+                <Info size={16} />
+                <span>Tips: Gunakan menu 'What's New' di sidebar untuk baca rilis ini nanti.</span>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowAnnouncement(false);
+                  localStorage.setItem("bupot_announcement_seen", MODAL_VERSION);
+                }}
+                className="premium-button py-4 font-bold flex items-center justify-center gap-3 group"
+              >
+                SIAP, GAS PAKE! <Check size={20} className="group-hover:scale-125 transition-transform" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Switch User Modal */}
       {showSwitchModal && (
