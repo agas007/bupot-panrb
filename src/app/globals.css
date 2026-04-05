@@ -100,8 +100,16 @@
     @apply px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center;
   }
 
-  .badge-pending { @apply bg-amber-100 text-amber-800; }
-  .badge-completed { @apply bg-emerald-100 text-emerald-800; }
+  .badge-pending { 
+    background-color: hsla(38, 92%, 50%, 0.1); 
+    color: hsl(38, 92%, 50%);
+    border: 1px solid hsla(38, 92%, 50%, 0.2);
+  }
+  .badge-completed { 
+    background-color: hsla(160, 84%, 39%, 0.1); 
+    color: hsl(160, 84%, 39%);
+    border: 1px solid hsla(160, 84%, 39%, 0.2);
+  }
 
   .dashboard-grid {
     @apply grid gap-6 mb-8;
