@@ -123,7 +123,7 @@ export default function ColleaguesPage() {
                     {col.role === "ADMIN" ? <Shield size={24} /> : <User size={24} />}
                   </div>
                   <div className="flex flex-col flex-1 min-w-0">
-                    <span className="font-bold tracking-tight truncate" title={col.name}>{col.name}</span>
+                    <span className="font-bold tracking-tight leading-tight line-clamp-2" title={col.name}>{col.name}</span>
                     <span className="text-xs text-muted-foreground truncate">
                       {col.role} • {col._count.records} tasks assigned
                     </span>
