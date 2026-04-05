@@ -6,9 +6,11 @@ import {
   Clock, AlertCircle, ArrowUpDown, Check, 
   ExternalLink, X, ClipboardCheck,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  User, CheckCircle2, FileText
+  User, CheckCircle2, FileText, Info, Hash,
+  Wallet, Landmark, ReceiptText, Tag
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { getTaxAccountLabel } from "@/lib/tax-codes";
 
 type SortConfig = {
   key: string;
@@ -34,6 +36,7 @@ export default function RecordsPage() {
 
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [updateForm, setUpdateForm] = useState({ docLink: "", notes: "" });
 
   const fetchData = useCallback(async () => {
@@ -69,6 +72,11 @@ export default function RecordsPage() {
     setSelectedRecord(record);
     setUpdateForm({ docLink: record.docLink || "", notes: record.notes || "" });
     setIsUpdateModalOpen(true);
+  };
+
+  const openDetailModal = (record: any) => {
+    setSelectedRecord(record);
+    setIsDetailModalOpen(true);
   };
 
   const submitUpdate = async () => {
@@ -132,13 +140,13 @@ export default function RecordsPage() {
   const filteredAndSortedRecords = useMemo(() => {
     let result = [...records];
 
-    // Search Filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(record => {
         const deductionStr = record.deductionAmount.toString();
         const totalValueStr = record.totalValue?.toString() || "";
         const descriptionStr = record.description?.toLowerCase() || "";
+        const kapDescription = getTaxAccountLabel(record.accountCode).toLowerCase();
         
         return (
           record.spmNumber?.toLowerCase().includes(query) ||
@@ -146,17 +154,17 @@ export default function RecordsPage() {
           record.recipient?.toLowerCase().includes(query) ||
           descriptionStr.includes(query) ||
           deductionStr.includes(query) ||
-          totalValueStr.includes(query)
+          totalValueStr.includes(query) ||
+          record.accountCode?.includes(query) ||
+          kapDescription.includes(query)
         );
       });
     }
 
-    // Account Filter
     if (accountFilter !== "all") {
       result = result.filter(r => r.accountCode === accountFilter);
     }
 
-    // Assignee Filter
     if (assigneeFilter !== "all") {
       if (assigneeFilter === "unassigned") {
         result = result.filter(r => !r.assigneeId);
@@ -165,12 +173,10 @@ export default function RecordsPage() {
       }
     }
 
-    // Status Filter
     if (statusFilter !== "all") {
       result = result.filter(r => r.status === statusFilter);
     }
 
-    // Sorting
     if (sortConfig) {
       result.sort((a, b) => {
         let aVal, bVal;
@@ -201,7 +207,6 @@ export default function RecordsPage() {
     return result;
   }, [records, searchQuery, accountFilter, assigneeFilter, statusFilter, sortConfig, colleagues]);
 
-  // Reset page when filtering or sorting changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, accountFilter, assigneeFilter, statusFilter, sortConfig]);
@@ -232,6 +237,7 @@ export default function RecordsPage() {
 
   return (
     <div className="flex flex-col gap-8 pb-10">
+      {/* Update/Completion Modal */}
       {isUpdateModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000]">
           <div className="glass-card p-8 rounded-3xl w-full max-w-md flex flex-col gap-6 shadow-2xl animate-in fade-in zoom-in duration-300">
@@ -239,46 +245,122 @@ export default function RecordsPage() {
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <ClipboardCheck className="text-accent" /> {t.worksheet.modal_title}
               </h2>
-              <button 
-                onClick={() => setIsUpdateModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground p-1 transition-colors"
-              >
-                <X size={24}/>
-              </button>
+              <button onClick={() => setIsUpdateModalOpen(false)} className="text-muted-foreground hover:text-foreground p-1 transition-colors"><X size={24}/></button>
             </div>
             
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 text-left">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
-                  {t.worksheet.doc_link}
-                </label>
-                <input 
-                  className="w-full bg-muted border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-accent/20 outline-none transition-all" 
-                  placeholder="https://..." 
-                  value={updateForm.docLink} 
-                  onChange={e => setUpdateForm({...updateForm, docLink: e.target.value})} 
-                />
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">{t.worksheet.doc_link}</label>
+                <input className="w-full bg-muted border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-accent/20 outline-none transition-all" value={updateForm.docLink} onChange={e => setUpdateForm({...updateForm, docLink: e.target.value})} />
               </div>
-
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
-                  {t.worksheet.notes}
-                </label>
-                <textarea 
-                  className="w-full bg-muted border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-accent/20 outline-none transition-all min-h-[100px]" 
-                  placeholder={language === "ID" ? "Tulis keterangan tambahan..." : "Add additional notes..."} 
-                  value={updateForm.notes} 
-                  onChange={e => setUpdateForm({...updateForm, notes: e.target.value})} 
-                />
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">{t.worksheet.notes}</label>
+                <textarea className="w-full bg-muted border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-accent/20 outline-none transition-all min-h-[100px]" value={updateForm.notes} onChange={e => setUpdateForm({...updateForm, notes: e.target.value})} />
               </div>
             </div>
 
-            <button 
-              onClick={submitUpdate} 
-              className="premium-button font-bold text-sm py-4 flex items-center justify-center gap-2"
-            >
-              <Check size={18} /> {t.worksheet.save}
-            </button>
+            <button onClick={submitUpdate} className="premium-button font-bold text-sm py-4 flex items-center justify-center gap-2"><Check size={18} /> {t.worksheet.save}</button>
+          </div>
+        </div>
+      )}
+
+      {/* Full Transaction Details Modal */}
+      {isDetailModalOpen && selectedRecord && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000]">
+          <div className="glass-card p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-8 shadow-2xl animate-in fade-in zoom-in duration-300 scale-100 max-h-[90vh] overflow-y-auto">
+             <div className="flex justify-between items-center bg-muted/-5 p-2 rounded-2xl">
+               <div className="flex items-center gap-4">
+                 <div className="p-3 bg-accent/10 rounded-2xl text-accent"><Hash size={24} /></div>
+                 <div className="text-left">
+                   <h2 className="text-2xl font-bold tracking-tight">{selectedRecord.spmNumber}</h2>
+                   <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">{t.worksheet.spm_detail}</p>
+                 </div>
+               </div>
+               <button onClick={() => setIsDetailModalOpen(false)} className="p-2 hover:bg-muted rounded-xl transition-all"><X size={24} /></button>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+               {/* Left Column: Core Data */}
+               <div className="flex flex-col gap-6">
+                 <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-2">{t.worksheet.account_code}</label>
+                    <div className="flex items-center gap-3">
+                       <span className="badge bg-accent/10 text-accent border border-accent/20 text-sm py-1.5 px-4">{selectedRecord.accountCode}</span>
+                       <span className="text-xs font-bold opacity-70">{getTaxAccountLabel(selectedRecord.accountCode)}</span>
+                    </div>
+                 </div>
+
+                 <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-2">{t.worksheet.recipient_amount}</label>
+                    <div className="p-4 bg-muted/30 rounded-2xl border border-border/50">
+                       <p className="font-bold text-lg mb-1">{selectedRecord.recipient}</p>
+                       <div className="flex flex-col gap-1">
+                          <div className="flex justify-between items-center text-sm">
+                             <span className="text-muted-foreground">{language === "ID" ? "Nilai SPM" : "SPM Amount"}</span>
+                             <span className="font-mono font-bold text-slate-500">IDR {selectedRecord.totalValue?.toLocaleString("id-ID") || "0"}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-base">
+                             <span className="font-medium">{language === "ID" ? "Potongan Pajak" : "Tax Deduction"}</span>
+                             <span className="font-mono font-bold text-accent">IDR {selectedRecord.deductionAmount.toLocaleString("id-ID")}</span>
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+
+                 <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-2">{t.worksheet.spm_description}</label>
+                    <p className="text-sm leading-relaxed italic text-muted-foreground bg-accent/5 p-4 rounded-2xl border border-accent/10">"{selectedRecord.description || "-"}"</p>
+                 </div>
+               </div>
+
+               {/* Right Column: Status & Processing */}
+               <div className="flex flex-col gap-6">
+                 <div className="flex flex-col gap-4">
+                    <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-xl">
+                       <Landmark className="text-muted-foreground" size={20} />
+                       <div className="flex flex-col">
+                          <span className="text-[10px] uppercase font-bold text-muted-foreground">SP2D REF</span>
+                          <span className="text-sm font-bold">{selectedRecord.sp2dNumber || "-"}</span>
+                       </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-xl">
+                       <Calendar className="text-muted-foreground" size={20} />
+                       <div className="flex flex-col">
+                          <span className="text-[10px] uppercase font-bold text-muted-foreground">{t.worksheet.deadline}</span>
+                          <span className="text-sm font-bold text-rose-500">{getDeadlineStatus(selectedRecord.sp2dDate).label}</span>
+                       </div>
+                    </div>
+                 </div>
+
+                 <div className="flex flex-col gap-4 border-t border-border pt-6">
+                    <div className="flex items-center justify-between">
+                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.worksheet.status}</span>
+                       <div className={`badge ${selectedRecord.status === "COMPLETED" ? "badge-completed" : "badge-pending"}`}>
+                         {selectedRecord.status === "COMPLETED" ? t.worksheet.completed : t.worksheet.pending}
+                       </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.worksheet.assignee}</span>
+                       <span className="text-sm font-medium">{colleagues.find(c => c.id === selectedRecord.assigneeId)?.name || t.worksheet.unassigned}</span>
+                    </div>
+                 </div>
+
+                 {selectedRecord.notes && (
+                   <div className="bg-amber-500/5 p-4 rounded-2xl border border-amber-500/10">
+                      <label className="flex items-center gap-2 text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-2">
+                        <FileText size={14} /> {t.worksheet.notes}
+                      </label>
+                      <p className="text-xs italic text-muted-foreground leading-relaxed">{selectedRecord.notes}</p>
+                   </div>
+                 )}
+
+                 {selectedRecord.docLink && (
+                   <a href={selectedRecord.docLink} target="_blank" rel="noopener noreferrer" className="premium-button text-xs py-3 flex items-center justify-center gap-2 bg-emerald-600">
+                     <ExternalLink size={14} /> {language === "ID" ? "Buka Link Bukti Potong" : "Open Tax Receipt Link"}
+                   </a>
+                 )}
+               </div>
+             </div>
           </div>
         </div>
       )}
@@ -302,48 +384,29 @@ export default function RecordsPage() {
             />
           </div>
 
-          {/* Account Filter */}
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
-            <select 
-              className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]"
-              value={accountFilter}
-              onChange={(e) => setAccountFilter(e.target.value)}
-            >
+            <select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}>
               <option value="all">{t.worksheet.all_accounts}</option>
-              {uniqueAccounts.map(acc => (
-                <option key={acc} value={acc}>{acc}</option>
-              ))}
+              {uniqueAccounts.map(acc => (<option key={acc} value={acc}>{acc} ({getTaxAccountLabel(acc)})</option>))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
           </div>
 
-          {/* Assignee Filter */}
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
-            <select 
-              className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]"
-              value={assigneeFilter}
-              onChange={(e) => setAssigneeFilter(e.target.value)}
-            >
-              <option value="all">{t.worksheet.all_assignees}</option>
+            <select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]" value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}>
+              <option value="all">{t.nav.daftar_rekan} ({t.worksheet.show_all})</option>
               <option value="unassigned">{t.worksheet.unassigned}</option>
-              {colleagues.map((col: any) => (
-                <option key={col.id} value={col.id}>{col.name}</option>
-              ))}
+              {colleagues.map((col: any) => (<option key={col.id} value={col.id}>{col.name}</option>))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
           </div>
 
-          {/* Status Filter */}
           <div className="relative">
             <CheckCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
-            <select 
-              className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">{t.worksheet.all_status}</option>
+            <select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="all">{t.worksheet.status} ({t.worksheet.show_all})</option>
               <option value="PENDING">{t.worksheet.pending}</option>
               <option value="COMPLETED">{t.worksheet.completed}</option>
             </select>
@@ -376,11 +439,17 @@ export default function RecordsPage() {
               ) : (
                 paginatedRecords.map((record) => {
                   const deadline = getDeadlineStatus(record.sp2dDate);
+                  const accountLabel = getTaxAccountLabel(record.accountCode);
                   return (
                     <tr key={record.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
                       <td>
                         <div className="flex flex-col gap-1">
-                          <span className="font-bold">{record.spmNumber}</span>
+                          <button 
+                            onClick={() => openDetailModal(record)}
+                            className="font-bold text-accent hover:underline text-left transition-all hover:scale-[1.02] active:scale-95"
+                          >
+                            {record.spmNumber}
+                          </button>
                           <span className="text-xs text-muted-foreground flex items-center gap-2">
                             <Calendar size={12} /> {new Date(record.spmDate).toLocaleDateString(language === "ID" ? "id-ID" : "en-US", { day: 'numeric', month: 'short', year: 'numeric' })}
                           </span>
@@ -401,9 +470,14 @@ export default function RecordsPage() {
                         </div>
                       </td>
                       <td className="text-center">
-                         <span className="badge bg-primary/5 text-primary border border-primary/10 font-mono text-xs">
-                           {record.accountCode}
-                         </span>
+                         <div className="flex flex-col items-center gap-1.5 group cursor-help">
+                           <span className="badge bg-accent/5 text-accent border border-accent/10 font-mono text-xs shadow-sm">
+                             {record.accountCode}
+                           </span>
+                           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight text-center max-w-[80px] leading-tight opacity-70 group-hover:opacity-100 transition-opacity">
+                             {accountLabel}
+                           </span>
+                         </div>
                       </td>
                       <td>
                         <div className="flex flex-col gap-1">
@@ -433,15 +507,9 @@ export default function RecordsPage() {
                         </div>
                       </td>
                       <td className="text-center">
-                        <select 
-                          className="bg-muted border-none rounded-lg p-2 text-xs outline-none focus:ring-2 focus:ring-accent cursor-pointer w-full max-w-[140px] transition-all text-center"
-                          value={record.assigneeId || ""}
-                          onChange={(e) => assignColleague(record.id, e.target.value ? Number(e.target.value) : null)}
-                        >
+                        <select className="bg-muted border-none rounded-lg p-2 text-xs outline-none focus:ring-2 focus:ring-accent cursor-pointer w-full max-w-[140px] transition-all text-center" value={record.assigneeId || ""} onChange={(e) => assignColleague(record.id, e.target.value ? Number(e.target.value) : null)}>
                           <option value="">{t.worksheet.unassigned}</option>
-                          {colleagues.map((col: any) => (
-                            <option key={col.id} value={col.id}>{col.name}</option>
-                          ))}
+                          {colleagues.map((col: any) => (<option key={col.id} value={col.id}>{col.name}</option>))}
                         </select>
                       </td>
                       <td className="text-center">
@@ -452,31 +520,12 @@ export default function RecordsPage() {
                       <td className="text-center">
                         <div className="flex items-center justify-center gap-1">
                           {record.status === "PENDING" ? (
-                            <button 
-                              onClick={() => openUpdateModal(record)}
-                              className="p-2 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-500 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium"
-                              title={t.worksheet.mark_done}
-                            >
-                              <Check size={16} /> {t.worksheet.mark_done}
-                            </button>
+                            <button onClick={() => openUpdateModal(record)} className="p-2 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-500 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium" title={t.worksheet.mark_done}><Check size={16} /> {t.worksheet.mark_done}</button>
                           ) : (
                             <div className="flex flex-col items-center gap-1 p-2">
-                              {record.docLink && (
-                                <a href={record.docLink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-accent hover:underline flex items-center gap-1 font-bold">
-                                  <ExternalLink size={10} /> {language === "ID" ? "Lihat Dokumen" : "View Document"}
-                                </a>
-                              )}
-                              {record.notes && (
-                                <span className="text-[10px] text-muted-foreground italic max-w-[120px] truncate" title={record.notes}>
-                                  "{record.notes}"
-                                </span>
-                              )}
-                              <button 
-                                onClick={() => updateStatus(record.id, "PENDING")}
-                                className="text-[10px] text-rose-500 hover:underline mt-1 font-medium"
-                              >
-                                {t.worksheet.revert}
-                              </button>
+                              {record.docLink && (<a href={record.docLink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-accent hover:underline flex items-center gap-1 font-bold"><ExternalLink size={10} /> {language === "ID" ? "Lihat Dokumen" : "View Document"}</a>)}
+                              {record.notes && (<span className="text-[10px] text-muted-foreground italic max-w-[120px] truncate" title={record.notes}>"{record.notes}"</span>)}
+                              <button onClick={() => updateStatus(record.id, "PENDING")} className="text-[10px] text-rose-500 hover:underline mt-1 font-medium">{t.worksheet.revert}</button>
                             </div>
                           )}
                         </div>
@@ -495,15 +544,7 @@ export default function RecordsPage() {
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <span>{t.worksheet.rows_per_page}:</span>
-                <select 
-                  className="bg-muted border-none rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-accent cursor-pointer"
-                  value={rowsPerPage}
-                  onChange={(e) => {
-                    const val = e.target.value === "max" ? "max" : Number(e.target.value);
-                    setRowsPerPage(val);
-                    setCurrentPage(1);
-                  }}
-                >
+                <select className="bg-muted border-none rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-accent cursor-pointer" value={rowsPerPage} onChange={(e) => { const val = e.target.value === "max" ? "max" : Number(e.target.value); setRowsPerPage(val); setCurrentPage(1); }}>
                   <option value={5}>5</option>
                   <option value={10}>10</option>
                   <option value={25}>25</option>
@@ -513,59 +554,23 @@ export default function RecordsPage() {
                 </select>
               </div>
               <div className="font-medium whitespace-nowrap">
-                {rowsPerPage === "max" ? (
-                  <span>{filteredAndSortedRecords.length} {t.worksheet.of} {filteredAndSortedRecords.length}</span>
-                ) : (
-                  <span>
-                    {(currentPage - 1) * (rowsPerPage as number) + 1} - {Math.min(currentPage * (rowsPerPage as number), filteredAndSortedRecords.length)} {t.worksheet.of} {filteredAndSortedRecords.length}
-                  </span>
-                )}
+                {rowsPerPage === "max" ? (<span>{filteredAndSortedRecords.length} {t.worksheet.of} {filteredAndSortedRecords.length}</span>) : (<span>{(currentPage - 1) * (rowsPerPage as number) + 1} - {Math.min(currentPage * (rowsPerPage as number), filteredAndSortedRecords.length)} {t.worksheet.of} {filteredAndSortedRecords.length}</span>)}
               </div>
             </div>
 
             {rowsPerPage !== "max" && (
               <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  className="p-2 rounded-lg hover:bg-accent/10 disabled:opacity-20 transition-colors"
-                >
-                  <ChevronsLeft size={16} />
-                </button>
-                
+                <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="p-2 rounded-lg hover:bg-accent/10 disabled:opacity-20 transition-colors"><ChevronsLeft size={16} /></button>
                 <div className="flex items-center gap-1">
-                  {/* Page Numbers */}
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(p => {
-                      if (totalPages <= 7) return true;
-                      if (p === 1 || p === totalPages) return true;
-                      return Math.abs(p - currentPage) <= 1;
-                    })
-                    .map((p, i, arr) => (
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => { if (totalPages <= 7) return true; if (p === 1 || p === totalPages) return true; return Math.abs(p - currentPage) <= 1; }).map((p, i, arr) => (
                       <div key={p} className="flex items-center">
                         {i > 0 && p - arr[i-1] > 1 && <span className="px-2 text-muted-foreground opacity-50">...</span>}
-                        <button
-                          onClick={() => setCurrentPage(p)}
-                          className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
-                            currentPage === p 
-                            ? "bg-accent text-white shadow-lg shadow-accent/20" 
-                            : "hover:bg-accent/10 text-muted-foreground"
-                          }`}
-                        >
-                          {p}
-                        </button>
+                        <button onClick={() => setCurrentPage(p)} className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${currentPage === p ? "bg-accent text-white shadow-lg shadow-accent/20" : "hover:bg-accent/10 text-muted-foreground"}`}>{p}</button>
                       </div>
                     ))
                   }
                 </div>
-
-                <button 
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg hover:bg-accent/10 disabled:opacity-20 transition-colors"
-                >
-                  <ChevronsRight size={16} />
-                </button>
+                <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="p-2 rounded-lg hover:bg-accent/10 disabled:opacity-20 transition-colors"><ChevronsRight size={16} /></button>
               </div>
             )}
           </div>
