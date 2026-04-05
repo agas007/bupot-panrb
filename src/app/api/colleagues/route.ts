@@ -3,6 +3,34 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = 'nodejs';
 
+/**
+ * @swagger
+ * /api/colleagues:
+ *   get:
+ *     summary: Get all team members
+ *     tags: [Colleagues]
+ *     responses:
+ *       200:
+ *         description: List of colleagues with task counts.
+ *   post:
+ *     summary: Add new member
+ *     tags: [Colleagues]
+ *     security:
+ *       - SimulatorUser: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name: { type: string }
+ *               role: { type: string, enum: [ADMIN, USER] }
+ *     responses:
+ *       200:
+ *         description: Member added successfully.
+ */
 export async function GET() {
   try {
     const colleagues = await prisma.colleague.findMany({
@@ -45,6 +73,27 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/**
+ * @swagger
+ * /api/colleagues:
+ *   delete:
+ *     summary: Delete a member
+ *     tags: [Colleagues]
+ *     security:
+ *       - SimulatorUser: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [id]
+ *             properties:
+ *               id: { type: number }
+ *     responses:
+ *       200:
+ *         description: Member deleted successfully.
+ */
 export async function DELETE(req: NextRequest) {
   try {
     const { id } = await req.json();

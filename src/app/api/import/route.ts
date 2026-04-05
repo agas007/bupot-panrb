@@ -2,6 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseExcel, mergeExcelData } from "@/lib/excel";
 import { prisma } from "@/lib/prisma";
 
+/**
+ * @swagger
+ * /api/import:
+ *   post:
+ *     summary: Bulk import records from Excel
+ *     description: Upload Potongan and SPP files to merge and import records into the system.
+ *     tags: [Management]
+ *     security:
+ *       - SimulatorUser: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               potongan: { type: string, format: binary }
+ *               spp: { type: string, format: binary }
+ *     responses:
+ *       200:
+ *         description: Data imported successfully.
+ */
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();

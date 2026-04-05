@@ -3,6 +3,46 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = 'nodejs';
 
+/**
+ * @swagger
+ * /api/records:
+ *   get:
+ *     summary: Get worksheet records
+ *     description: Retrieve records with optional filtering by assignee and status.
+ *     tags: [Management]
+ *     parameters:
+ *       - in: query
+ *         name: assigneeId
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: status
+ *         schema: { type: string, enum: [PENDING, COMPLETED] }
+ *     responses:
+ *       200:
+ *         description: List of records.
+ *   patch:
+ *     summary: Update records
+ *     description: Update single or bulk records for assignment or completion.
+ *     tags: [Management]
+ *     security:
+ *       - SimulatorUser: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id: { type: number }
+ *               ids: { type: array, items: { type: number } }
+ *               status: { type: string, enum: [PENDING, COMPLETED] }
+ *               assigneeId: { type: number, nullable: true }
+ *               docLink: { type: string }
+ *               notes: { type: string }
+ *     responses:
+ *       200:
+ *         description: Record updated successfully.
+ */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const assigneeId = searchParams.get("assigneeId");

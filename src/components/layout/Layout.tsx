@@ -23,6 +23,11 @@ import {
   History,
   ChevronLeft,
   ChevronRight,
+  Menu,
+  Globe,
+  LogOut,
+  Code,
+  FileText,
   PanelLeftClose,
   PanelLeftOpen,
   Search
@@ -139,10 +144,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/", label: t.nav.beranda, icon: LayoutDashboard, minRole: "USER" },
     { href: "/records", label: t.nav.lembar_kerja, icon: FileSpreadsheet, minRole: "USER" },
     { href: "/colleagues", label: t.nav.daftar_rekan, icon: Users, minRole: "ADMIN" },
-    {href: "/logs", label: t.nav.log_aktivitas || "Log Aktivitas", icon: History, minRole: "ADMIN" },
+    { href: "/logs", label: t.nav.log_aktivitas || "Log Aktivitas", icon: History, minRole: "ADMIN" },
+    { href: "/api-docs", label: t.nav.dokumentasi_api || "API Docs", icon: FileText }, // Accessible to all
     { href: "/admin", label: t.nav.panel_admin, icon: Settings, minRole: "ADMIN" },
   ].filter(item => {
     if (item.minRole === "ADMIN") return currentUser?.role === "ADMIN";
+    if (item.minRole === "USER") return currentUser !== null;
     return true;
   });
 
