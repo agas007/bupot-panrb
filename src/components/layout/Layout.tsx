@@ -27,10 +27,10 @@ interface Colleague {
 }
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, minRole: "USER" },
-  { href: "/records", label: "Worksheet", icon: FileSpreadsheet, minRole: "USER" },
-  { href: "/colleagues", label: "Colleagues", icon: Users, minRole: "ADMIN" },
-  { href: "/admin", label: "Admin Panel", icon: Settings, minRole: "ADMIN" },
+  { href: "/", label: "Beranda", icon: LayoutDashboard, minRole: "USER" },
+  { href: "/records", label: "Lembar Kerja", icon: FileSpreadsheet, minRole: "USER" },
+  { href: "/colleagues", label: "Daftar Rekan", icon: Users, minRole: "ADMIN" },
+  { href: "/admin", label: "Panel Admin", icon: Settings, minRole: "ADMIN" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -160,7 +160,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             className="w-full flex items-center gap-3 text-muted-foreground hover:text-accent cursor-pointer transition-colors p-2 rounded-lg hover:bg-accent/5 group text-left"
           >
             <Sparkles size={18} className="group-hover:animate-pulse" />
-            <span className="font-medium text-sm">What's New v1.0.0</span>
+            <span className="font-medium text-sm">Fitur Baru v1.0.0</span>
           </button>
           
           <button 
@@ -168,7 +168,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             className="w-full flex items-center gap-3 text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-2 rounded-lg hover:bg-muted"
           >
             <LogIn size={20} />
-            <span className="font-medium text-sm">Switch User</span>
+            <span className="font-medium text-sm">Ganti Pengguna</span>
           </button>
         </div>
       </aside>
@@ -183,8 +183,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <Sparkles size={32} />
                 </div>
                 <div className="flex flex-col">
-                  <h2 className="text-2xl font-bold text-white tracking-tight uppercase">Release v1.0.0 Stable</h2>
-                  <span className="text-accent text-xs font-bold tracking-widest uppercase">PANRB Internal System</span>
+                  <h2 className="text-2xl font-bold text-white tracking-tight uppercase">Rilis v1.0.0 Stabil</h2>
+                  <span className="text-accent text-xs font-bold tracking-widest uppercase">Sistem Internal PANRB</span>
                 </div>
               </div>
               <button 
@@ -202,7 +202,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
                 <div className="flex items-center gap-3 mb-2 text-accent">
                   <FileSpreadsheet size={18} />
-                  <span className="text-sm font-bold">Integrated Excel Hub</span>
+                  <span className="text-sm font-bold">Integrasi Excel Cerdas</span>
                 </div>
                 <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
                   Otomatis gabung data "Monitoring Potongan SPM" & "SPP" dalam satu upload cerdas.
@@ -212,30 +212,30 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
                 <div className="flex items-center gap-3 mb-2 text-emerald-400">
                   <Calendar size={18} />
-                  <span className="text-sm font-bold">Hybrid Date Engine</span>
+                  <span className="text-sm font-bold">Sistem Tanggal Hybrid</span>
                 </div>
                 <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
-                  Baca otomatis format D/M/YYYY (indo) & YYYY-MM-DD secara bersamaan tanpa error.
+                  Baca otomatis format D/M/YYYY (identitas Indo) & YYYY-MM-DD secara bersamaan.
                 </p>
               </div>
 
               <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
                 <div className="flex items-center gap-3 mb-2 text-amber-400">
                   <Search size={18} />
-                  <span className="text-sm font-bold">Pro Worksheet View</span>
+                  <span className="text-sm font-bold">Lembar Kerja Pro</span>
                 </div>
                 <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
-                  Filter by Akun, Multi-sort, dan Search by All Amounts (Deduction & Total SPM).
+                  Filter per Akun, Multi-sort, dan Pencarian Nominal (Potongan & Total SPM).
                 </p>
               </div>
 
               <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
                 <div className="flex items-center gap-3 mb-2 text-purple-400">
                   <CircleCheck size={18} />
-                  <span className="text-sm font-bold">Task Attachment</span>
+                  <span className="text-sm font-bold">Lampiran Tugas</span>
                 </div>
                 <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
-                  Lampirkan Link Dokumen & Catatan khusus saat "Mark as Done" untuk audit tim.
+                  Lampirkan Link Dokumen & Catatan khusus saat klik "Selesaikan" untuk audit tim.
                 </p>
               </div>
             </div>
@@ -243,7 +243,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3 px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent text-xs">
                 <Info size={16} />
-                <span>Tips: Gunakan menu 'What's New' di sidebar untuk baca rilis ini nanti.</span>
+                <span>Tips: Klik menu 'Fitur Baru' di sidebar untuk baca rilis ini kapan saja.</span>
               </div>
               <button 
                 onClick={() => {
@@ -252,7 +252,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 }}
                 className="premium-button py-4 font-bold flex items-center justify-center gap-3 group"
               >
-                SIAP, GAS PAKE! <Check size={20} className="group-hover:scale-125 transition-transform" />
+                SIAP, GUNAKAN SEKARANG! <Check size={20} className="group-hover:scale-125 transition-transform" />
               </button>
             </div>
           </div>
@@ -265,7 +265,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="glass-card w-full max-w-md p-6 flex flex-col gap-6 shadow-2xl animate-in">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold flex items-center gap-2 text-white">
-                <LogIn className="text-accent" /> Simulation Login
+                <LogIn className="text-accent" /> Simulasi Login
               </h2>
               <button 
                 onClick={() => setShowSwitchModal(false)}
@@ -276,7 +276,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
             
             <p className="text-sm text-muted-foreground">
-              Select a colleague to simulate their perspective in the system.
+              Pilih rekan kerja untuk simulasikan akun mereka di sistem.
             </p>
 
             <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto px-1">
@@ -314,7 +314,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               onClick={() => handleSwitchUser(null)}
               className="premium-button text-sm w-full py-2.5 flex items-center justify-center gap-2"
             >
-              Reset to Guest / Visitor Mode
+              Reset ke Mode Tamu / Visitor
             </button>
           </div>
         </div>

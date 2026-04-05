@@ -49,7 +49,7 @@ export default function ColleaguesPage() {
   };
 
   const deleteColleague = async (id: number) => {
-    if (!confirm("Are you sure? This will unassign all records for this user.")) return;
+    if (!confirm("Apakah Anda yakin? Semua data yang ditugaskan ke pengguna ini akan dikembalikan ke status 'Belum Terbagi'.")) return;
     try {
       const res = await fetch("/api/colleagues", {
         method: "DELETE",
@@ -64,19 +64,19 @@ export default function ColleaguesPage() {
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Team Management</h1>
-        <p className="text-muted-foreground">Add colleagues and manage their access roles.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Manajemen Tim</h1>
+        <p className="text-muted-foreground">Tambah rekan kerja dan kelola hak akses mereka.</p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Add Colleague Form */}
         <section className="glass-card p-6 flex flex-col gap-4 h-fit">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <UserPlus size={20} className="text-accent" /> Add New Member
+            <UserPlus size={20} className="text-accent" /> Tambah Anggota Baru
           </h2>
           <form onSubmit={addColleague} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Full Name</label>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nama Lengkap</label>
               <input
                 type="text"
                 value={name}
@@ -86,14 +86,14 @@ export default function ColleaguesPage() {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">App Role</label>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Peran Aplikasi</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
                 className="bg-muted border-none p-3 rounded-xl outline-none focus:ring-1 focus:ring-accent appearance-none cursor-pointer"
               >
-                <option value="USER">User (Worksheet only)</option>
-                <option value="ADMIN">Admin (Upload & Management)</option>
+                <option value="USER">Pengguna (Hanya Lembar Kerja)</option>
+                <option value="ADMIN">Admin (Upload & Manajemen)</option>
               </select>
             </div>
             <button
@@ -101,20 +101,20 @@ export default function ColleaguesPage() {
               className="premium-button flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isSubmitting ? <Loader2 className="animate-spin" /> : <UserPlus size={18} />}
-              Invite Member
+              Undang Anggota
             </button>
           </form>
         </section>
 
         {/* Colleagues List */}
         <section className="lg:col-span-2 flex flex-col gap-4">
-          <h2 className="text-lg font-semibold">Active Members</h2>
+          <h2 className="text-lg font-semibold">Anggota Aktif</h2>
           <div className="grid-auto-fill gap-4">
             {isLoading ? (
-              <div className="col-span-full text-center p-8 opacity-50">Loading team...</div>
+              <div className="col-span-full text-center p-8 opacity-50">Memuat tim...</div>
             ) : colleagues.length === 0 ? (
               <div className="col-span-full text-center p-8 border-2 border-dashed border-border rounded-xl opacity-50">
-                No members added yet.
+                Belum ada anggota yang ditambahkan.
               </div>
             ) : (
               colleagues.map((col: any) => (
@@ -125,7 +125,7 @@ export default function ColleaguesPage() {
                   <div className="flex flex-col flex-1 min-w-0">
                     <span className="font-bold tracking-tight leading-tight line-clamp-2" title={col.name}>{col.name}</span>
                     <span className="text-xs text-muted-foreground truncate">
-                      {col.role} • {col._count.records} tasks assigned
+                      {col.role} • {col._count.records} tugas ditugaskan
                     </span>
                   </div>
                   <button 

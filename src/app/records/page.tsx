@@ -111,9 +111,9 @@ export default function RecordsPage() {
     const diff = targetDate.getTime() - today.getTime();
     const daysLeft = Math.ceil(diff / (1000 * 3600 * 24));
 
-    if (daysLeft < 0) return { label: `Overdue (${Math.abs(daysLeft)}d)`, type: "overdue", date: targetDate };
-    if (daysLeft < 5) return { label: `Due soon (${daysLeft}d)`, type: "soon", date: targetDate };
-    return { label: `Target: ${targetDate.toLocaleDateString("id-ID")}`, type: "ok", date: targetDate };
+    if (daysLeft < 0) return { label: `Terlewat (${Math.abs(daysLeft)} hari)`, type: "overdue", date: targetDate };
+    if (daysLeft < 5) return { label: `Segera (${daysLeft} hari lagi)`, type: "soon", date: targetDate };
+    return { label: `Target: ${targetDate.toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' })}`, type: "ok", date: targetDate };
   };
 
   const uniqueAccounts = useMemo(() => {
@@ -203,8 +203,8 @@ export default function RecordsPage() {
 
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight">Manajemen Data Worksheet</h1>
-          <p className="text-muted-foreground">Monitor and update the status of Bukti Potong generation.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Manajemen Lembar Kerja</h1>
+          <p className="text-muted-foreground">Monitor dan kelola status penyelesaian Bukti Potong tim.</p>
         </div>
         
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -212,7 +212,7 @@ export default function RecordsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
             <input 
               type="text" 
-              placeholder="Search data..." 
+              placeholder="Cari data (SPM, SP2D, Penerima)..." 
               className="w-full bg-muted border-none rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/20"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -241,21 +241,21 @@ export default function RecordsPage() {
           <table className="premium-table">
             <thead>
               <tr>
-                <SortHeader label="SPM Details" sortKey="spm" />
-                <SortHeader label="SP2D Details" sortKey="sp2d" />
-                <SortHeader label="Akun" sortKey="akun" />
-                <SortHeader label="Recipient & Amount" sortKey="recipient" />
-                <SortHeader label="Deadline" sortKey="deadline" />
-                <SortHeader label="Assignee" sortKey="assignee" />
+                <SortHeader label="Detail SPM" sortKey="spm" />
+                <SortHeader label="Detail SP2D" sortKey="sp2d" />
+                <SortHeader label="Kode Akun" sortKey="akun" />
+                <SortHeader label="Penerima & Nominal" sortKey="recipient" />
+                <SortHeader label="Tenggat (Deadline)" sortKey="deadline" />
+                <SortHeader label="Petugas" sortKey="assignee" />
                 <th>Status</th>
-                <th>Actions</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={8} className="text-center p-8">Loading data...</td></tr>
+                <tr><td colSpan={8} className="text-center p-8">Memuat data...</td></tr>
               ) : processedRecords.length === 0 ? (
-                <tr><td colSpan={8} className="text-center p-8">Belum ada data yang cocok.</td></tr>
+                <tr><td colSpan={8} className="text-center p-8">Data tidak ditemukan.</td></tr>
               ) : (
                 processedRecords.map((record) => {
                   const deadline = getDeadlineStatus(record.sp2dDate);
@@ -302,7 +302,7 @@ export default function RecordsPage() {
                         }`}>
                           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider">
                             {deadline.type === "overdue" ? <AlertCircle size={12} /> : <Clock size={12} />}
-                            {deadline.type}
+                            {deadline.type === "overdue" ? "TERLEWAT" : deadline.type === "soon" ? "SEGERA" : "AMAN"}
                           </div>
                           <span className="text-xs font-medium">
                             {deadline.label}
@@ -315,7 +315,7 @@ export default function RecordsPage() {
                           value={record.assigneeId || ""}
                           onChange={(e) => assignColleague(record.id, Number(e.target.value))}
                         >
-                          <option value="">Unassigned</option>
+                          <option value="">Belum Terbagi</option>
                           {colleagues.map((col: any) => (
                             <option key={col.id} value={col.id}>{col.name}</option>
                           ))}
@@ -323,7 +323,7 @@ export default function RecordsPage() {
                       </td>
                       <td>
                         <div className={`badge ${record.status === "COMPLETED" ? "badge-completed" : "badge-pending"}`}>
-                          {record.status}
+                          {record.status === "COMPLETED" ? "SELESAI" : "MENUNGGU"}
                         </div>
                       </td>
                       <td>
@@ -332,9 +332,9 @@ export default function RecordsPage() {
                             <button 
                               onClick={() => openUpdateModal(record)}
                               className="p-2 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-500 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium"
-                              title="Mark as Done"
+                              title="Tandai Selesai"
                             >
-                              <Check size={16} /> Mark as Done
+                              <Check size={16} /> Selesaikan
                             </button>
                           ) : (
                             <div className="flex flex-col gap-1 p-2">
@@ -352,7 +352,7 @@ export default function RecordsPage() {
                                 onClick={() => updateStatus(record.id, "PENDING")}
                                 className="text-[10px] text-rose-500 hover:underline mt-1"
                               >
-                                Revert
+                                Batalkan (Revert)
                               </button>
                             </div>
                           )}

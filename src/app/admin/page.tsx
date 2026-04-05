@@ -30,7 +30,7 @@ export default function AdminPage() {
       if (res.ok) {
         setStatus({
           type: "success",
-          message: `Successfully imported ${data.count} records.`,
+          message: `Berhasil mengimpor ${data.count} data.`,
         });
         setPotonganFile(null);
         setSppFile(null);
@@ -50,12 +50,12 @@ export default function AdminPage() {
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Admin Control Panel</h1>
-        <p className="text-muted-foreground">Manage data imports and user assignments.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Panel Kontrol Admin</h1>
+        <p className="text-muted-foreground">Kelola impor data dan penugasan pengguna.</p>
       </header>
 
       <section className="glass-card p-8 flex flex-col gap-6">
-        <h2 className="text-xl font-semibold">Data Import Center</h2>
+        <h2 className="text-xl font-semibold">Pusat Impor Data</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-3">
@@ -76,7 +76,7 @@ export default function AdminPage() {
               />
               <label htmlFor="potongan-upload" className="cursor-pointer text-center">
                 <span className="font-medium text-sm">
-                  {potonganFile ? potonganFile.name : "Choose File or Drag here"}
+                  {potonganFile ? potonganFile.name : "Pilih File atau Seret ke Sini"}
                 </span>
               </label>
             </div>
@@ -100,7 +100,7 @@ export default function AdminPage() {
               />
               <label htmlFor="spp-upload" className="cursor-pointer text-center">
                 <span className="font-medium text-sm">
-                  {sppFile ? sppFile.name : "Choose File or Drag here"}
+                  {sppFile ? sppFile.name : "Pilih File atau Seret ke Sini"}
                 </span>
               </label>
             </div>
@@ -113,7 +113,7 @@ export default function AdminPage() {
           className="premium-button flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
         >
           {isUploading ? <Loader2 className="animate-spin" /> : <CheckCircle size={20} />}
-          {isUploading ? "Processing..." : "Merge & Import Data"}
+          {isUploading ? "Memproses..." : "Gabungkan & Impor Data"}
         </button>
 
         {status && (

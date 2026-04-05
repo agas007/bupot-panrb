@@ -58,8 +58,8 @@ export default function Dashboard() {
     <div className="flex flex-col gap-8">
       <header className="flex justify-between items-end">
         <div className="flex flex-col gap-2">
-          <h1 className="text-4xl font-extrabold tracking-tight">Bupot PANRB Dashboard</h1>
-          <p className="text-muted-foreground font-medium">Real-time monitoring of tax slip generation and compliance.</p>
+          <h1 className="text-4xl font-extrabold tracking-tight">Beranda Bupot PANRB</h1>
+          <p className="text-muted-foreground font-medium">Monitoring real-time pembuatan bukti potong dan kepatuhan tim.</p>
         </div>
         <div className="relative">
           <button 
@@ -109,7 +109,7 @@ export default function Dashboard() {
       <div className="dashboard-grid">
         <div className="glass-card metric-card group hover:border-accent transition-all duration-300">
           <div className="flex justify-between items-start">
-            <span className="metric-label">Total Records</span>
+            <span className="metric-label">Total Data</span>
             <Layers className="text-muted-foreground group-hover:text-accent transition-colors" size={20} />
           </div>
           <span className="metric-value">{stats.total}</span>
@@ -120,7 +120,7 @@ export default function Dashboard() {
 
         <div className="glass-card metric-card group hover:border-emerald-500 transition-all duration-300">
           <div className="flex justify-between items-start">
-            <span className="metric-label">Overall Completion</span>
+            <span className="metric-label">Progress Penyelesaian</span>
             <ClipboardCheck className="text-muted-foreground group-hover:text-emerald-500 transition-colors" size={20} />
           </div>
           <span className="metric-value text-emerald-500">
@@ -136,20 +136,20 @@ export default function Dashboard() {
 
         <div className="glass-card metric-card group hover:border-amber-500 transition-all duration-300">
           <div className="flex justify-between items-start">
-            <span className="metric-label">Unassigned Tasks</span>
+            <span className="metric-label">Tugas Belum Terbagi</span>
             <AlertCircle className="text-muted-foreground group-hover:text-amber-500 transition-colors" size={20} />
           </div>
           <span className="metric-value text-amber-500">{stats.unassigned}</span>
-          <span className="text-xs text-muted-foreground mt-2 font-medium">Needs allocation in Admin panel</span>
+          <span className="text-xs text-muted-foreground mt-2 font-medium">Perlu alokasi di Panel Admin</span>
         </div>
 
         <div className="glass-card metric-card group hover:border-accent transition-all duration-300">
           <div className="flex justify-between items-start">
-            <span className="metric-label">Active Team members</span>
+            <span className="metric-label">Anggota Tim Aktif</span>
             <Users className="text-muted-foreground group-hover:text-accent transition-colors" size={20} />
           </div>
           <span className="metric-value">{stats.colleagueStats.length}</span>
-          <span className="text-xs text-muted-foreground mt-2 font-medium">Collaborating on tax records</span>
+          <span className="text-xs text-muted-foreground mt-2 font-medium">Berkolaborasi mengolah data</span>
         </div>
       </div>
 
@@ -157,7 +157,7 @@ export default function Dashboard() {
         {/* Team Performance Chart */}
         <section className="glass-card p-6 flex flex-col gap-6">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <TrendingUp size={20} className="text-accent" /> Team Efficiency
+            <TrendingUp size={20} className="text-accent" /> Efisiensi Tim
           </h2>
           <div className="chart-container">
             {isMounted && (
@@ -217,14 +217,14 @@ export default function Dashboard() {
       {/* Top Performers Table Snippet */}
       <section className="glass-card overflow-hidden">
         <div className="p-6 border-bottom border-border">
-          <h2 className="text-xl font-bold">Individual Task Load</h2>
+          <h2 className="text-xl font-bold">Beban Tugas Individu</h2>
         </div>
         <table className="premium-table">
           <thead>
             <tr>
-              <th>Colleague</th>
-              <th>Task Progress</th>
-              <th>Status</th>
+              <th>Rekan Kerja</th>
+              <th>Progres Tugas</th>
+              <th>Status Penyelesaian</th>
             </tr>
           </thead>
           <tbody>
@@ -241,7 +241,7 @@ export default function Dashboard() {
                 </td>
                 <td>
                   <span className="text-xs text-muted-foreground font-medium">
-                    {col.completed} of {col.total} completed
+                    {col.completed} dari {col.total} selesai
                   </span>
                 </td>
               </tr>
