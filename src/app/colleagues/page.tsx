@@ -35,8 +35,12 @@ export default function ColleaguesPage() {
 
     setIsSubmitting(true);
     try {
+      const simulatedUser = localStorage.getItem("sim_user");
+      const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+
       const res = await fetch("/api/colleagues", {
         method: "POST",
+        headers: { "x-simulated-user": userName },
         body: JSON.stringify({ name, role }),
       });
       if (res.ok) {
@@ -56,8 +60,12 @@ export default function ColleaguesPage() {
       : "Are you sure? All tasks assigned to this user will be reset to 'Unassigned' status.";
     if (!confirm(msg)) return;
     try {
+      const simulatedUser = localStorage.getItem("sim_user");
+      const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+
       const res = await fetch("/api/colleagues", {
         method: "DELETE",
+        headers: { "x-simulated-user": userName },
         body: JSON.stringify({ id }),
       });
       if (res.ok) fetchColleagues();

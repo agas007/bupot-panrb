@@ -47,6 +47,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [colleagues, setColleagues] = useState<Colleague[]>([]);
   const [currentUser, setCurrentUser] = useState<Colleague | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const MODAL_VERSION = "1.1.0";
 
@@ -91,9 +92,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const toggleSidebar = () => {
-    const newState = !isSidebarCollapsed;
-    setIsSidebarCollapsed(newState);
-    localStorage.setItem("bupot_sidebar_collapsed", String(newState));
+    if (window.innerWidth < 1024) {
+      setIsMobileMenuOpen(!isMobileMenuOpen);
+    } else {
+      const newState = !isSidebarCollapsed;
+      setIsSidebarCollapsed(newState);
+      localStorage.setItem("bupot_sidebar_collapsed", String(newState));
+    }
   };
 
   const handleSwitchUser = (user: Colleague | null) => {
@@ -105,6 +110,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       setCurrentUser(null);
     }
     setShowSwitchModal(false);
+    setIsMobileMenuOpen(false);
     
     if (user?.role === "USER" && (pathname === "/colleagues" || pathname === "/admin")) {
       router.push("/");
@@ -123,7 +129,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }, [showSwitchModal]);
 
   useEffect(() => {
-    if (mounted && currentUser?.role === "USER" && (pathname === "/colleagues" || pathname === "/admin")) {
+    const protectedRoutes = ["/colleagues", "/admin", "/logs"];
+    if (mounted && currentUser?.role === "USER" && protectedRoutes.includes(pathname)) {
       router.push("/");
     }
   }, [pathname, currentUser, mounted, router]);
@@ -132,6 +139,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/", label: t.nav.beranda, icon: LayoutDashboard, minRole: "USER" },
     { href: "/records", label: t.nav.lembar_kerja, icon: FileSpreadsheet, minRole: "USER" },
     { href: "/colleagues", label: t.nav.daftar_rekan, icon: Users, minRole: "ADMIN" },
+    {href: "/logs", label: t.nav.log_aktivitas || "Log Aktivitas", icon: History, minRole: "ADMIN" },
     { href: "/admin", label: t.nav.panel_admin, icon: Settings, minRole: "ADMIN" },
   ].filter(item => {
     if (item.minRole === "ADMIN") return currentUser?.role === "ADMIN";
@@ -139,12 +147,40 @@ export function Layout({ children }: { children: React.ReactNode }) {
   });
 
   return (
-    <div className="flex min-h-screen">
-      <aside className={`${isSidebarCollapsed ? "w-20" : "w-64"} glass-card !overflow-visible fixed h-[calc(100vh-2rem)] m-4 flex flex-col p-4 gap-6 z-50 transition-all duration-300 ease-in-out`}>
-        {/* Toggle Button */}
+    <div className="flex min-h-screen bg-background text-foreground">
+      {/* Mobile Top Bar (Right-aligned toggle) */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 glass-card !rounded-none z-[100] flex items-center justify-between px-6 border-b border-white/5">
+        <div className="flex items-center gap-3">
+          <div className="bg-accent text-accent-foreground p-2 rounded-xl">
+            <FileSpreadsheet size={20} />
+          </div>
+          <span className="font-bold text-sm tracking-tight">Bupot PANRB</span>
+        </div>
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-3 bg-accent text-accent-foreground rounded-2xl shadow-lg active:scale-95 transition-all"
+        >
+          {isMobileMenuOpen ? <X size={20} /> : <PanelLeftOpen size={20} />}
+        </button>
+      </div>
+
+      {/* Sidebar Overlay (Mobile only) */}
+      {isMobileMenuOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[110]"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      <aside className={`
+        fixed left-0 top-0 h-full z-[120] lg:z-50 transition-all duration-500 ease-in-out flex flex-col p-4 gap-6
+        ${typeof window !== 'undefined' && window.innerWidth < 1024 ? (isMobileMenuOpen ? "translate-x-0 w-[280px]" : "-translate-x-full w-[280px]") : (isSidebarCollapsed ? "w-22" : "w-60")}
+        glass-card !overflow-visible lg:h-[calc(100vh-2rem)] lg:m-4
+      `}>
+        {/* Toggle Button (Desktop only) */}
         <button 
           onClick={toggleSidebar}
-          className="absolute -right-4 top-1/2 -translate-y-1/2 bg-accent text-accent-foreground p-2 rounded-full shadow-xl hover:scale-110 transition-all z-[60] border-2 border-background"
+          className="hidden lg:flex absolute -right-4 top-1/2 -translate-y-1/2 bg-accent text-accent-foreground p-2 rounded-full shadow-xl hover:scale-110 transition-all z-[60] border-2 border-background"
         >
           {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
         </button>
@@ -442,7 +478,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 p-8 pt-12 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? "ml-24" : "ml-72"}`}>
+      <main className={`flex-1 p-4 md:p-4 pt-24 lg:pt-12 transition-all duration-500 ease-in-out ${isSidebarCollapsed ? "lg:ml-20" : "lg:ml-64"}`}>
         <div className="container max-w-full">
           {children}
         </div>

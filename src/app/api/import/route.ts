@@ -58,6 +58,18 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Import Log] Import complete! Total: ${resultsCount} records.`);
 
+    // Add Audit Log
+    const userName = req.headers.get("x-simulated-user") || "Admin (Simulated)";
+    // @ts-ignore - Prisma types might be lagging after schema update
+    await prisma.auditLog.create({
+      data: {
+        userName,
+        action: "Bulk Imported Data",
+        target: `${resultsCount} Records from Excel`,
+        type: "system",
+      },
+    });
+
     return NextResponse.json({
       success: true,
       count: resultsCount,

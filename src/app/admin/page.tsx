@@ -22,8 +22,14 @@ export default function AdminPage() {
     formData.append("spp", sppFile);
 
     try {
+      const simulatedUser = localStorage.getItem("sim_user");
+      const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+
       const res = await fetch("/api/import", {
         method: "POST",
+        headers: {
+          "x-simulated-user": userName
+        },
         body: formData,
       });
 

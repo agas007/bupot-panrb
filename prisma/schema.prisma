@@ -46,3 +46,12 @@ model SPMRecord {
   importDate      DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userName  String
+  action    String
+  target    String
+  type      String   // system, user, admin, danger
+  createdAt DateTime @default(now())
+}

@@ -26,6 +26,19 @@ export async function POST(req: NextRequest) {
     const colleague = await prisma.colleague.create({
       data: { name, role: role || "USER" }
     });
+
+    // Audit Log
+    const userName = req.headers.get("x-simulated-user") || "Admin (Simulated)";
+    // @ts-ignore
+    await prisma.auditLog.create({
+      data: {
+        userName,
+        action: "Added New Member",
+        target: `${name} (${role || "USER"})`,
+        type: "admin",
+      }
+    });
+
     return NextResponse.json(colleague);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -35,7 +48,22 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const { id } = await req.json();
+    const colleague = await prisma.colleague.findUnique({ where: { id: Number(id) } });
+
     await prisma.colleague.delete({ where: { id: Number(id) } });
+
+    // Audit Log
+    const userName = req.headers.get("x-simulated-user") || "Admin (Simulated)";
+    // @ts-ignore
+    await prisma.auditLog.create({
+      data: {
+        userName,
+        action: "Deleted Member",
+        target: colleague?.name || `ID: ${id}`,
+        type: "danger",
+      }
+    });
+
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

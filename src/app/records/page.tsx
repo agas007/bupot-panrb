@@ -157,8 +157,12 @@ export default function RecordsPage() {
 
   const submitUpdate = async () => {
     try {
+      const simulatedUser = localStorage.getItem("sim_user");
+      const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+
       const res = await fetch("/api/records", {
         method: "PATCH",
+        headers: { "x-simulated-user": userName },
         body: JSON.stringify({ id: selectedRecord.id, status: "COMPLETED", ...updateForm }),
       });
       if (res.ok) {
@@ -172,8 +176,12 @@ export default function RecordsPage() {
 
   const updateStatus = async (id: number, status: string) => {
     try {
+      const simulatedUser = localStorage.getItem("sim_user");
+      const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+
       const res = await fetch("/api/records", {
         method: "PATCH",
+        headers: { "x-simulated-user": userName },
         body: JSON.stringify({ id, status }),
       });
       if (res.ok) fetchData();
@@ -184,8 +192,12 @@ export default function RecordsPage() {
 
   const assignColleague = async (id: number, assigneeId: number | null) => {
     try {
+      const simulatedUser = localStorage.getItem("sim_user");
+      const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+
       const res = await fetch("/api/records", {
         method: "PATCH",
+        headers: { "x-simulated-user": userName },
         body: JSON.stringify({ id, assigneeId: assigneeId === 0 ? null : assigneeId }),
       });
       if (res.ok) fetchData();
@@ -197,8 +209,12 @@ export default function RecordsPage() {
   const handleBulkAssign = async (assigneeId: number | null) => {
     if (selectedIds.size === 0) return;
     try {
+      const simulatedUser = localStorage.getItem("sim_user");
+      const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+
       const res = await fetch("/api/records", {
         method: "PATCH",
+        headers: { "x-simulated-user": userName },
         body: JSON.stringify({ 
           ids: Array.from(selectedIds), 
           assigneeId: assigneeId === 0 ? null : assigneeId 
@@ -317,42 +333,37 @@ export default function RecordsPage() {
 
       {/* Floating Bulk Action Bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-8 duration-300">
-           <div className="bg-slate-900/90 text-white backdrop-blur-xl px-12 py-4 rounded-full shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] border border-white/20 flex items-center gap-8 ring-8 ring-slate-900/10">
-              <div className="flex items-center gap-10">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-8 duration-300 w-[92%] md:w-auto">
+           <div className="bg-slate-900 shadow-2xl px-6 md:px-12 py-3 md:py-4 rounded-3xl md:rounded-full border border-white/10 flex flex-col md:flex-row items-center gap-4 md:gap-8 min-w-[280px]">
+              <div className="flex items-center gap-4 md:gap-10">
                 <div className="flex flex-col items-center">
-                  <span className="text-[20px] font-black tabular-nums leading-none mb-1">{selectedIds.size}</span>
-                  <span className="text-[10px] uppercase font-bold tracking-widest opacity-60">{language === "ID" ? "TERPILIH" : "SELECTED"}</span>
+                  <span className="text-lg md:text-[20px] font-black text-white tabular-nums leading-none mb-1">{selectedIds.size}</span>
+                  <span className="text-[8px] md:text-[10px] uppercase font-bold tracking-widest text-white/50">{language === "ID" ? "TERPILIH" : "SELECTED"}</span>
                 </div>
-                <div className="h-8 w-px bg-white/10" />
-                <div className="flex items-center gap-4">
-                   <div className="flex items-center gap-3">
-                      <span className="text-xs font-bold text-white/60 uppercase tracking-widest">{language === "ID" ? "Tugaskan ke" : "Assign to"}</span>
-                      <ArrowRight size={14} className="text-accent animate-pulse" />
-                      <div className="relative group">
-                         <select 
-                           className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2.5 px-6 rounded-full border-none outline-none cursor-pointer pr-10 appearance-none focus:ring-2 focus:ring-accent transition-all pl-10"
-                           value=""
-                           onChange={(e) => handleBulkAssign(e.target.value ? Number(e.target.value) : 0)}
-                         >
-                           <option value="" disabled className="text-slate-900">{language === "ID" ? "--- Pilih Rekan ---" : "--- Select Colleague ---"}</option>
-                           <option value="0" className="text-slate-900">{t.worksheet.unassigned}</option>
-                           {colleagues.map((col: any) => (<option key={col.id} value={col.id} className="text-slate-900">{col.name}</option>))}
-                         </select>
-                         <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" size={14} />
-                         <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" size={14} />
-                      </div>
+                <div className="h-6 md:h-8 w-px bg-white/10" />
+                <div className="flex items-center gap-3">
+                   <span className="text-[10px] md:text-xs font-bold text-white/40 uppercase tracking-widest hidden sm:inline">{language === "ID" ? "Tugaskan ke" : "Assign to"}</span>
+                   <div className="relative">
+                      <select 
+                        className="bg-white/5 hover:bg-white/10 text-white text-[11px] md:text-xs font-bold py-2 md:py-2.5 px-8 md:px-10 rounded-full border border-white/10 outline-none cursor-pointer appearance-none transition-all"
+                        value=""
+                        onChange={(e) => handleBulkAssign(e.target.value ? Number(e.target.value) : 0)}
+                      >
+                        <option value="" disabled className="text-slate-900">{language === "ID" ? "--- Pilih Rekan ---" : "--- Select Colleague ---"}</option>
+                        <option value="0" className="text-slate-900">{t.worksheet.unassigned}</option>
+                        {colleagues.map((col: any) => (<option key={col.id} value={col.id} className="text-slate-900">{col.name}</option>))}
+                      </select>
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={14} />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40" size={14} />
                    </div>
                 </div>
               </div>
-              <div className="h-8 w-px bg-white/10" />
               <button 
                 onClick={() => setSelectedIds(new Set())}
-                className="group flex flex-col items-center justify-center p-1 rounded-lg hover:bg-white/10 transition-colors"
+                className="text-white/40 hover:text-rose-400 p-2 transition-colors"
                 title={language === "ID" ? "Batal pilih" : "Clear selection"}
               >
-                <MinusCircle size={20} className="text-slate-400 group-hover:text-rose-400 transition-colors" />
-                <span className="text-[8px] mt-1 font-bold uppercase tracking-tight opacity-40">CLEAR</span>
+                <X size={20} />
               </button>
            </div>
         </div>
