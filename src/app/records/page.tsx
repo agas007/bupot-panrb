@@ -1,17 +1,10 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { 
-  FileCheck, 
-  Clock, 
-  ExternalLink, 
-  CheckCircle2, 
-  Calendar,
-  AlertCircle,
-  ArrowUpDown,
-  Filter,
-  Search,
-  ChevronDown
+  Search, Filter, ChevronDown, Calendar, 
+  Clock, AlertCircle, ArrowUpDown, Check, 
+  RotateCcw, ExternalLink, X 
 } from "lucide-react";
 
 type SortConfig = {
@@ -31,11 +24,11 @@ export default function RecordsPage() {
   // Sorting state
   const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [updateForm, setUpdateForm] = useState({ docLink: "", notes: "" });
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const [recRes, colRes] = await Promise.all([
@@ -50,7 +43,11 @@ export default function RecordsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -58,6 +55,27 @@ export default function RecordsPage() {
       direction = 'desc';
     }
     setSortConfig({ key, direction });
+  };
+
+  const openUpdateModal = (record: any) => {
+    setSelectedRecord(record);
+    setUpdateForm({ docLink: record.docLink || "", notes: record.notes || "" });
+    setIsUpdateModalOpen(true);
+  };
+
+  const submitUpdate = async () => {
+    try {
+      const res = await fetch("/api/records", {
+        method: "PATCH",
+        body: JSON.stringify({ id: selectedRecord.id, status: "COMPLETED", ...updateForm }),
+      });
+      if (res.ok) {
+        fetchData();
+        setIsUpdateModalOpen(false);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const updateStatus = async (id: number, status: string) => {
@@ -98,32 +116,34 @@ export default function RecordsPage() {
     return { label: `Target: ${targetDate.toLocaleDateString("id-ID")}`, type: "ok", date: targetDate };
   };
 
-  // Get unique account codes for filter dropdown
   const uniqueAccounts = useMemo(() => {
     const accounts = new Set(records.map(r => r.accountCode).filter(Boolean));
     return Array.from(accounts).sort();
   }, [records]);
 
-  // Derived data with filtering and sorting
   const processedRecords = useMemo(() => {
     let result = [...records];
 
-    // Filter by search (SPM, SP2D, Recipient)
     if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(r => 
-        r.spmNumber?.toLowerCase().includes(q) ||
-        r.sp2dNumber?.toLowerCase().includes(q) ||
-        r.recipient?.toLowerCase().includes(q)
-      );
+      const query = searchQuery.toLowerCase();
+      result = result.filter(record => {
+        const deductionStr = record.deductionAmount.toString();
+        const totalValueStr = record.totalValue?.toString() || "";
+        
+        return (
+          record.spmNumber?.toLowerCase().includes(query) ||
+          (record.sp2dNumber || "").toLowerCase().includes(query) ||
+          record.recipient?.toLowerCase().includes(query) ||
+          deductionStr.includes(query) ||
+          totalValueStr.includes(query)
+        );
+      });
     }
 
-    // Filter by Account Code
     if (accountFilter !== "all") {
       result = result.filter(r => r.accountCode === accountFilter);
     }
 
-    // Sorting logic
     if (sortConfig) {
       result.sort((a, b) => {
         let aVal, bVal;
@@ -167,6 +187,20 @@ export default function RecordsPage() {
 
   return (
     <div className="flex flex-col gap-8">
+      {isUpdateModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl w-full max-w-md flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold">Selesaikan Data</h2>
+              <button onClick={() => setIsUpdateModalOpen(false)}><X size={20}/></button>
+            </div>
+            <input className="w-full bg-muted p-3 rounded-lg" placeholder="Link Dokumen" value={updateForm.docLink} onChange={e => setUpdateForm({...updateForm, docLink: e.target.value})} />
+            <textarea className="w-full bg-muted p-3 rounded-lg" placeholder="Catatan" value={updateForm.notes} onChange={e => setUpdateForm({...updateForm, notes: e.target.value})} />
+            <button onClick={submitUpdate} className="bg-accent text-white py-2 rounded-lg font-medium">Simpan</button>
+          </div>
+        </div>
+      )}
+
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold tracking-tight">Manajemen Data Worksheet</h1>
@@ -174,7 +208,6 @@ export default function RecordsPage() {
         </div>
         
         <div className="flex items-center gap-3 w-full md:w-auto">
-          {/* Search Bar */}
           <div className="relative flex-1 md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
             <input 
@@ -186,7 +219,6 @@ export default function RecordsPage() {
             />
           </div>
 
-          {/* Account Filter */}
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
             <select 
@@ -235,9 +267,6 @@ export default function RecordsPage() {
                           <span className="text-xs text-muted-foreground flex items-center gap-2">
                             <Calendar size={12} /> {new Date(record.spmDate).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}
                           </span>
-                          <span className="text-xs italic truncate max-w-[150px] opacity-60" title={record.description}>
-                            {record.description}
-                          </span>
                         </div>
                       </td>
                       <td>
@@ -256,9 +285,14 @@ export default function RecordsPage() {
                       <td>
                         <div className="flex flex-col gap-1">
                           <span className="font-medium text-sm line-clamp-1 max-w-[200px]">{record.recipient}</span>
-                          <span className="text-xs font-bold text-accent">
-                            IDR {record.deductionAmount.toLocaleString("id-ID")}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-accent">
+                              Potongan: IDR {record.deductionAmount.toLocaleString("id-ID")}
+                            </span>
+                            <span className="text-[10px] opacity-70">
+                              Total: IDR {record.totalValue?.toLocaleString("id-ID") || "0"}
+                            </span>
+                          </div>
                         </div>
                       </td>
                       <td>
@@ -296,24 +330,32 @@ export default function RecordsPage() {
                         <div className="flex items-center gap-1">
                           {record.status === "PENDING" ? (
                             <button 
-                              onClick={() => updateStatus(record.id, "COMPLETED")}
-                              className="p-2 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-500 rounded-lg transition-colors"
-                              title="Mark as Selesai"
+                              onClick={() => openUpdateModal(record)}
+                              className="p-2 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-500 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium"
+                              title="Mark as Done"
                             >
-                              <CheckCircle2 size={18} />
+                              <Check size={16} /> Mark as Done
                             </button>
                           ) : (
-                            <button 
-                              onClick={() => updateStatus(record.id, "PENDING")}
-                              className="p-2 hover:bg-amber-500/10 text-emerald-500 hover:text-amber-500 rounded-lg transition-colors"
-                              title="Revert to Pending"
-                            >
-                              <FileCheck size={18} />
-                            </button>
+                            <div className="flex flex-col gap-1 p-2">
+                              {record.docLink && (
+                                <a href={record.docLink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-accent hover:underline flex items-center gap-1">
+                                  <ExternalLink size={10} /> Lihat Dokumen
+                                </a>
+                              )}
+                              {record.notes && (
+                                <span className="text-[10px] text-muted-foreground italic max-w-[120px] truncate" title={record.notes}>
+                                  "{record.notes}"
+                                </span>
+                              )}
+                              <button 
+                                onClick={() => updateStatus(record.id, "PENDING")}
+                                className="text-[10px] text-rose-500 hover:underline mt-1"
+                              >
+                                Revert
+                              </button>
+                            </div>
                           )}
-                          <button className="p-2 hover:bg-accent/10 text-muted-foreground hover:text-accent rounded-lg transition-colors">
-                            <ExternalLink size={18} />
-                          </button>
                         </div>
                       </td>
                     </tr>
