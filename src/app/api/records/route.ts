@@ -42,7 +42,9 @@ export async function PATCH(req: NextRequest) {
     }
     if (docLink !== undefined) updateData.docLink = docLink;
     if (notes !== undefined) updateData.notes = notes;
-    if (assigneeId !== undefined) updateData.assigneeId = assigneeId;
+    if (assigneeId !== undefined) {
+      updateData.assigneeId = assigneeId === 0 ? null : assigneeId;
+    }
 
     const record = await prisma.sPMRecord.update({
       where: { id: Number(id) },
