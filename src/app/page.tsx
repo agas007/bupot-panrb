@@ -8,9 +8,7 @@ import {
   YAxis, 
   Tooltip, 
   ResponsiveContainer, 
-  Cell,
-  PieChart,
-  Pie
+  Cell
 } from "recharts";
 import { 
   Users, 
@@ -22,8 +20,10 @@ import {
   ChevronDown,
   X
 } from "lucide-react";
+import { useLanguage } from "@/components/LanguageProvider";
 
 export default function Dashboard() {
+  const { language, t } = useLanguage();
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
@@ -49,17 +49,19 @@ export default function Dashboard() {
     }
   };
 
-  if (isLoading) return <div className="p-8 opacity-50">Initializing dashboard...</div>;
+  if (isLoading) return <div className="p-8 opacity-50">{language === "ID" ? "Memuat beranda..." : "Initializing dashboard..."}</div>;
 
   const COLORS = ["#00BFA5", "#FFAB00", "#FF5252", "#7C4DFF"];
-  const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+  const monthNamesID = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+  const monthNamesEN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const monthNames = language === "ID" ? monthNamesID : monthNamesEN;
 
   return (
     <div className="flex flex-col gap-8">
       <header className="flex justify-between items-end">
         <div className="flex flex-col gap-2">
-          <h1 className="text-4xl font-extrabold tracking-tight">Beranda Bupot PANRB</h1>
-          <p className="text-muted-foreground font-medium">Monitoring real-time pembuatan bukti potong dan kepatuhan tim.</p>
+          <h1 className="text-4xl font-extrabold tracking-tight">{t.dashboard.title}</h1>
+          <p className="text-muted-foreground font-medium">{t.dashboard.subtitle}</p>
         </div>
         <div className="relative">
           <button 
@@ -79,7 +81,7 @@ export default function Dashboard() {
               </div>
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Tahun</label>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">{language === "ID" ? "Tahun" : "Year"}</label>
                   <select 
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(Number(e.target.value))}
@@ -89,13 +91,13 @@ export default function Dashboard() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Bulan</label>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">{language === "ID" ? "Bulan" : "Month"}</label>
                   <select 
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
                     className="bg-muted p-2 rounded-lg text-sm outline-none w-full"
                   >
-                    <option value="all">Setahun Penuh</option>
+                    <option value="all">{language === "ID" ? "Setahun Penuh" : "Full Year"}</option>
                     {monthNames.map((m, i) => <option key={m} value={(i + 1).toString()}>{m}</option>)}
                   </select>
                 </div>
@@ -105,11 +107,10 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Metric Cards */}
       <div className="dashboard-grid">
         <div className="glass-card metric-card group hover:border-accent transition-all duration-300">
           <div className="flex justify-between items-start">
-            <span className="metric-label">Total Data</span>
+            <span className="metric-label">{t.dashboard.total_data}</span>
             <Layers className="text-muted-foreground group-hover:text-accent transition-colors" size={20} />
           </div>
           <span className="metric-value">{stats.total}</span>
@@ -120,7 +121,7 @@ export default function Dashboard() {
 
         <div className="glass-card metric-card group hover:border-emerald-500 transition-all duration-300">
           <div className="flex justify-between items-start">
-            <span className="metric-label">Progress Penyelesaian</span>
+            <span className="metric-label">{t.dashboard.progress}</span>
             <ClipboardCheck className="text-muted-foreground group-hover:text-emerald-500 transition-colors" size={20} />
           </div>
           <span className="metric-value text-emerald-500">
@@ -136,28 +137,27 @@ export default function Dashboard() {
 
         <div className="glass-card metric-card group hover:border-amber-500 transition-all duration-300">
           <div className="flex justify-between items-start">
-            <span className="metric-label">Tugas Belum Terbagi</span>
+            <span className="metric-label">{t.dashboard.unassigned}</span>
             <AlertCircle className="text-muted-foreground group-hover:text-amber-500 transition-colors" size={20} />
           </div>
           <span className="metric-value text-amber-500">{stats.unassigned}</span>
-          <span className="text-xs text-muted-foreground mt-2 font-medium">Perlu alokasi di Panel Admin</span>
+          <span className="text-xs text-muted-foreground mt-2 font-medium">{t.dashboard.unassigned_hint}</span>
         </div>
 
         <div className="glass-card metric-card group hover:border-accent transition-all duration-300">
           <div className="flex justify-between items-start">
-            <span className="metric-label">Anggota Tim Aktif</span>
+            <span className="metric-label">{t.dashboard.active_members}</span>
             <Users className="text-muted-foreground group-hover:text-accent transition-colors" size={20} />
           </div>
           <span className="metric-value">{stats.colleagueStats.length}</span>
-          <span className="text-xs text-muted-foreground mt-2 font-medium">Berkolaborasi mengolah data</span>
+          <span className="text-xs text-muted-foreground mt-2 font-medium">{t.dashboard.members_hint}</span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Team Performance Chart */}
         <section className="glass-card p-6 flex flex-col gap-6">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <TrendingUp size={20} className="text-accent" /> Efisiensi Tim
+            <TrendingUp size={20} className="text-accent" /> {t.dashboard.efficiency}
           </h2>
           <div className="chart-container">
             {isMounted && (
@@ -187,17 +187,16 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Monthly Compliance */}
         <section className="glass-card p-6 flex flex-col gap-6">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <Calendar size={20} className="text-accent" /> Compliance by Month / Masa Pajak
+            <Calendar size={20} className="text-accent" /> {t.dashboard.compliance_title}
           </h2>
           <div className="flex flex-col gap-4">
             {stats.monthlyStats.map((month: any) => (
               <div key={month.key} className="flex flex-col gap-2">
                 <div className="flex justify-between items-center text-sm">
                   <span className="font-semibold">{month.label}</span>
-                  <span className="text-muted-foreground">{month.completed} / {month.total} Selesai</span>
+                  <span className="text-muted-foreground">{month.completed} / {month.total} {language === "ID" ? "Selesai" : "Completed"}</span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div 
@@ -208,23 +207,24 @@ export default function Dashboard() {
               </div>
             ))}
             {stats.monthlyStats.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-12">No monthly data available yet.</p>
+              <p className="text-sm text-muted-foreground text-center py-12">
+                {language === "ID" ? "Belum ada data bulanan tersedia." : "No monthly data available yet."}
+              </p>
             )}
           </div>
         </section>
       </div>
 
-      {/* Top Performers Table Snippet */}
       <section className="glass-card overflow-hidden">
         <div className="p-6 border-bottom border-border">
-          <h2 className="text-xl font-bold">Beban Tugas Individu</h2>
+          <h2 className="text-xl font-bold">{t.dashboard.task_load}</h2>
         </div>
         <table className="premium-table">
           <thead>
             <tr>
-              <th>Rekan Kerja</th>
-              <th>Progres Tugas</th>
-              <th>Status Penyelesaian</th>
+              <th>{t.dashboard.colleague}</th>
+              <th>{t.dashboard.task_progress}</th>
+              <th>{t.dashboard.status}</th>
             </tr>
           </thead>
           <tbody>
@@ -241,7 +241,7 @@ export default function Dashboard() {
                 </td>
                 <td>
                   <span className="text-xs text-muted-foreground font-medium">
-                    {col.completed} dari {col.total} selesai
+                    {col.completed} {t.dashboard.completed_of} {col.total} {language === "ID" ? "selesai" : "completed"}
                   </span>
                 </td>
               </tr>

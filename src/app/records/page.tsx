@@ -4,8 +4,9 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { 
   Search, Filter, ChevronDown, Calendar, 
   Clock, AlertCircle, ArrowUpDown, Check, 
-  RotateCcw, ExternalLink, X 
+  RotateCcw, ExternalLink, X, ClipboardCheck
 } from "lucide-react";
+import { useLanguage } from "@/components/LanguageProvider";
 
 type SortConfig = {
   key: string;
@@ -13,15 +14,13 @@ type SortConfig = {
 } | null;
 
 export default function RecordsPage() {
+  const { language, t } = useLanguage();
   const [records, setRecords] = useState<any[]>([]);
   const [colleagues, setColleagues] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Filtering states
   const [searchQuery, setSearchQuery] = useState("");
   const [accountFilter, setAccountFilter] = useState("all");
-  
-  // Sorting state
   const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
@@ -90,7 +89,7 @@ export default function RecordsPage() {
     }
   };
 
-  const assignColleague = async (id: number, assigneeId: number) => {
+  const assignColleague = async (id: number, assigneeId: number | null) => {
     try {
       const res = await fetch("/api/records", {
         method: "PATCH",
@@ -111,9 +110,9 @@ export default function RecordsPage() {
     const diff = targetDate.getTime() - today.getTime();
     const daysLeft = Math.ceil(diff / (1000 * 3600 * 24));
 
-    if (daysLeft < 0) return { label: `Terlewat (${Math.abs(daysLeft)} hari)`, type: "overdue", date: targetDate };
-    if (daysLeft < 5) return { label: `Segera (${daysLeft} hari lagi)`, type: "soon", date: targetDate };
-    return { label: `Target: ${targetDate.toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' })}`, type: "ok", date: targetDate };
+    if (daysLeft < 0) return { label: `${t.worksheet.terlewat} (${Math.abs(daysLeft)} ${t.worksheet.days_overdue})`, type: "overdue", date: targetDate };
+    if (daysLeft < 5) return { label: `${t.worksheet.segera} (${daysLeft} ${t.worksheet.days_left})`, type: "soon", date: targetDate };
+    return { label: `Target: ${targetDate.toLocaleDateString(language === "ID" ? "id-ID" : "en-US", { day: 'numeric', month: 'long', year: 'numeric' })}`, type: "ok", date: targetDate };
   };
 
   const uniqueAccounts = useMemo(() => {
@@ -175,10 +174,10 @@ export default function RecordsPage() {
 
   const SortHeader = ({ label, sortKey }: { label: string, sortKey: string }) => (
     <th 
-      className="cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group"
+      className="cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group p-4"
       onClick={() => handleSort(sortKey)}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-widest font-semibold">
         {label}
         <ArrowUpDown size={14} className={`transition-opacity ${sortConfig?.key === sortKey ? "opacity-100 text-accent" : "opacity-0 group-hover:opacity-40"}`} />
       </div>
@@ -188,23 +187,60 @@ export default function RecordsPage() {
   return (
     <div className="flex flex-col gap-8">
       {isUpdateModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl w-full max-w-md flex flex-col gap-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000]">
+          <div className="glass-card p-8 rounded-3xl w-full max-w-md flex flex-col gap-6 shadow-2xl animate-in fade-in zoom-in duration-300">
             <div className="flex justify-between items-center">
-              <h2 className="text-lg font-bold">Selesaikan Data</h2>
-              <button onClick={() => setIsUpdateModalOpen(false)}><X size={20}/></button>
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <ClipboardCheck className="text-accent" /> {t.worksheet.modal_title}
+              </h2>
+              <button 
+                onClick={() => setIsUpdateModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground p-1 transition-colors"
+              >
+                <X size={24}/>
+              </button>
             </div>
-            <input className="w-full bg-muted p-3 rounded-lg" placeholder="Link Dokumen" value={updateForm.docLink} onChange={e => setUpdateForm({...updateForm, docLink: e.target.value})} />
-            <textarea className="w-full bg-muted p-3 rounded-lg" placeholder="Catatan" value={updateForm.notes} onChange={e => setUpdateForm({...updateForm, notes: e.target.value})} />
-            <button onClick={submitUpdate} className="bg-accent text-white py-2 rounded-lg font-medium">Simpan</button>
+            
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                  {t.worksheet.doc_link}
+                </label>
+                <input 
+                  className="w-full bg-muted border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-accent/20 outline-none transition-all" 
+                  placeholder="https://..." 
+                  value={updateForm.docLink} 
+                  onChange={e => setUpdateForm({...updateForm, docLink: e.target.value})} 
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                  {t.worksheet.notes}
+                </label>
+                <textarea 
+                  className="w-full bg-muted border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-accent/20 outline-none transition-all min-h-[100px]" 
+                  placeholder={language === "ID" ? "Tulis keterangan tambahan..." : "Add additional notes..."} 
+                  value={updateForm.notes} 
+                  onChange={e => setUpdateForm({...updateForm, notes: e.target.value})} 
+                />
+              </div>
+            </div>
+
+            <button 
+              onClick={submitUpdate} 
+              className="premium-button font-bold text-sm py-4 flex items-center justify-center gap-2"
+            >
+              <Check size={18} /> {t.worksheet.save}
+            </button>
           </div>
         </div>
       )}
 
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight">Manajemen Lembar Kerja</h1>
-          <p className="text-muted-foreground">Monitor dan kelola status penyelesaian Bukti Potong tim.</p>
+        <div className="flex flex-col gap-2 text-left">
+          <h1 className="text-3xl font-bold tracking-tight">{t.worksheet.title}</h1>
+          <p className="text-muted-foreground">{t.worksheet.subtitle}</p>
         </div>
         
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -212,8 +248,8 @@ export default function RecordsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
             <input 
               type="text" 
-              placeholder="Cari data (SPM, SP2D, Penerima)..." 
-              className="w-full bg-muted border-none rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/20"
+              placeholder={t.worksheet.search_placeholder} 
+              className="w-full bg-muted border-none rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/20 transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -222,11 +258,11 @@ export default function RecordsPage() {
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
             <select 
-              className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer"
+              className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]"
               value={accountFilter}
               onChange={(e) => setAccountFilter(e.target.value)}
             >
-              <option value="all">Semua Akun</option>
+              <option value="all">{t.worksheet.all_accounts}</option>
               {uniqueAccounts.map(acc => (
                 <option key={acc} value={acc}>{acc}</option>
               ))}
@@ -241,21 +277,21 @@ export default function RecordsPage() {
           <table className="premium-table">
             <thead>
               <tr>
-                <SortHeader label="Detail SPM" sortKey="spm" />
-                <SortHeader label="Detail SP2D" sortKey="sp2d" />
-                <SortHeader label="Kode Akun" sortKey="akun" />
-                <SortHeader label="Penerima & Nominal" sortKey="recipient" />
-                <SortHeader label="Tenggat (Deadline)" sortKey="deadline" />
-                <SortHeader label="Petugas" sortKey="assignee" />
-                <th>Status</th>
-                <th>Aksi</th>
+                <SortHeader label={t.worksheet.spm_detail} sortKey="spm" />
+                <SortHeader label={t.worksheet.sp2d_detail} sortKey="sp2d" />
+                <SortHeader label={t.worksheet.account_code} sortKey="akun" />
+                <SortHeader label={t.worksheet.recipient_amount} sortKey="recipient" />
+                <SortHeader label={t.worksheet.deadline} sortKey="deadline" />
+                <SortHeader label={t.worksheet.assignee} sortKey="assignee" />
+                <th className="text-left font-semibold text-xs uppercase tracking-widest p-4">{t.worksheet.status}</th>
+                <th className="text-left font-semibold text-xs uppercase tracking-widest p-4">{t.worksheet.action}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={8} className="text-center p-8">Memuat data...</td></tr>
+                <tr><td colSpan={8} className="text-center p-12 text-muted-foreground italic">{t.worksheet.loading}</td></tr>
               ) : processedRecords.length === 0 ? (
-                <tr><td colSpan={8} className="text-center p-8">Data tidak ditemukan.</td></tr>
+                <tr><td colSpan={8} className="text-center p-12 text-muted-foreground italic">{t.worksheet.not_found}</td></tr>
               ) : (
                 processedRecords.map((record) => {
                   const deadline = getDeadlineStatus(record.sp2dDate);
@@ -265,7 +301,7 @@ export default function RecordsPage() {
                         <div className="flex flex-col gap-1">
                           <span className="font-bold">{record.spmNumber}</span>
                           <span className="text-xs text-muted-foreground flex items-center gap-2">
-                            <Calendar size={12} /> {new Date(record.spmDate).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}
+                            <Calendar size={12} /> {new Date(record.spmDate).toLocaleDateString(language === "ID" ? "id-ID" : "en-US", { day: 'numeric', month: 'short', year: 'numeric' })}
                           </span>
                         </div>
                       </td>
@@ -273,7 +309,7 @@ export default function RecordsPage() {
                         <div className="flex flex-col gap-1">
                           <span className="font-medium text-sm">{record.sp2dNumber || "-"}</span>
                           <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <Calendar size={10} /> {record.sp2dDate ? new Date(record.sp2dDate).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' }) : "Belum terbit"}
+                            <Calendar size={10} /> {record.sp2dDate ? new Date(record.sp2dDate).toLocaleDateString(language === "ID" ? "id-ID" : "en-US", { day: 'numeric', month: 'short', year: 'numeric' }) : (language === "ID" ? "Belum terbit" : "Not issued")}
                           </span>
                         </div>
                       </td>
@@ -287,7 +323,7 @@ export default function RecordsPage() {
                           <span className="font-medium text-sm line-clamp-1 max-w-[200px]">{record.recipient}</span>
                           <div className="flex flex-col">
                             <span className="text-xs font-bold text-accent">
-                              Potongan: IDR {record.deductionAmount.toLocaleString("id-ID")}
+                              {language === "ID" ? "Potongan" : "Tax"}: IDR {record.deductionAmount.toLocaleString("id-ID")}
                             </span>
                             <span className="text-[10px] opacity-70">
                               Total: IDR {record.totalValue?.toLocaleString("id-ID") || "0"}
@@ -302,7 +338,7 @@ export default function RecordsPage() {
                         }`}>
                           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider">
                             {deadline.type === "overdue" ? <AlertCircle size={12} /> : <Clock size={12} />}
-                            {deadline.type === "overdue" ? "TERLEWAT" : deadline.type === "soon" ? "SEGERA" : "AMAN"}
+                            {deadline.type === "overdue" ? t.worksheet.terlewat : deadline.type === "soon" ? t.worksheet.segera : t.worksheet.aman}
                           </div>
                           <span className="text-xs font-medium">
                             {deadline.label}
@@ -311,11 +347,11 @@ export default function RecordsPage() {
                       </td>
                       <td>
                         <select 
-                          className="bg-muted border-none rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-accent cursor-pointer w-full max-w-[120px]"
+                          className="bg-muted border-none rounded-lg p-2 text-xs outline-none focus:ring-2 focus:ring-accent cursor-pointer w-full max-w-[140px] transition-all"
                           value={record.assigneeId || ""}
-                          onChange={(e) => assignColleague(record.id, Number(e.target.value))}
+                          onChange={(e) => assignColleague(record.id, e.target.value ? Number(e.target.value) : null)}
                         >
-                          <option value="">Belum Terbagi</option>
+                          <option value="">{t.worksheet.unassigned}</option>
                           {colleagues.map((col: any) => (
                             <option key={col.id} value={col.id}>{col.name}</option>
                           ))}
@@ -323,7 +359,7 @@ export default function RecordsPage() {
                       </td>
                       <td>
                         <div className={`badge ${record.status === "COMPLETED" ? "badge-completed" : "badge-pending"}`}>
-                          {record.status === "COMPLETED" ? "SELESAI" : "MENUNGGU"}
+                          {record.status === "COMPLETED" ? t.worksheet.completed : t.worksheet.pending}
                         </div>
                       </td>
                       <td>
@@ -332,15 +368,15 @@ export default function RecordsPage() {
                             <button 
                               onClick={() => openUpdateModal(record)}
                               className="p-2 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-500 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium"
-                              title="Tandai Selesai"
+                              title={t.worksheet.mark_done}
                             >
-                              <Check size={16} /> Selesaikan
+                              <Check size={16} /> {t.worksheet.mark_done}
                             </button>
                           ) : (
                             <div className="flex flex-col gap-1 p-2">
                               {record.docLink && (
-                                <a href={record.docLink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-accent hover:underline flex items-center gap-1">
-                                  <ExternalLink size={10} /> Lihat Dokumen
+                                <a href={record.docLink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-accent hover:underline flex items-center gap-1 font-bold">
+                                  <ExternalLink size={10} /> {language === "ID" ? "Lihat Dokumen" : "View Document"}
                                 </a>
                               )}
                               {record.notes && (
@@ -350,9 +386,9 @@ export default function RecordsPage() {
                               )}
                               <button 
                                 onClick={() => updateStatus(record.id, "PENDING")}
-                                className="text-[10px] text-rose-500 hover:underline mt-1"
+                                className="text-[10px] text-rose-500 hover:underline mt-1 self-start font-medium"
                               >
-                                Batalkan (Revert)
+                                {t.worksheet.revert}
                               </button>
                             </div>
                           )}

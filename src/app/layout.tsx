@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Layout } from "@/components/layout/Layout";
+import { LanguageProvider } from "@/components/LanguageProvider";
 
 export const metadata: Metadata = {
   title: "e-Bupot PANRB",
@@ -15,7 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Layout>{children}</Layout>
+        <LanguageProvider>
+          <Layout>{children}</Layout>
+        </LanguageProvider>
       </body>
     </html>
   );

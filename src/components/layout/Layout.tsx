@@ -19,8 +19,12 @@ import {
   Calendar,
   Search,
   Sun,
-  Moon
+  Moon,
+  Languages,
+  Clock,
+  History
 } from "lucide-react";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface Colleague {
   id: number;
@@ -28,19 +32,14 @@ interface Colleague {
   role: string;
 }
 
-const navItems = [
-  { href: "/", label: "Beranda", icon: LayoutDashboard, minRole: "USER" },
-  { href: "/records", label: "Lembar Kerja", icon: FileSpreadsheet, minRole: "USER" },
-  { href: "/colleagues", label: "Daftar Rekan", icon: Users, minRole: "ADMIN" },
-  { href: "/admin", label: "Panel Admin", icon: Settings, minRole: "ADMIN" },
-];
-
 export function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { language, setLanguage, t } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [showSwitchModal, setShowSwitchModal] = useState(false);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
+  const [announcementTab, setAnnouncementTab] = useState<"v1.1.0" | "v1.0.0">("v1.1.0");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [colleagues, setColleagues] = useState<Colleague[]>([]);
   const [currentUser, setCurrentUser] = useState<Colleague | null>(null);
@@ -50,14 +49,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMounted(true);
     
-    // Announcement check
     if (typeof window !== "undefined") {
       const lastSeen = localStorage.getItem("bupot_announcement_seen");
       if (lastSeen !== MODAL_VERSION) {
         setTimeout(() => setShowAnnouncement(true), 1000);
       }
 
-      // Theme logic
       const savedTheme = localStorage.getItem("bupot_theme") as "light" | "dark" | null;
       if (savedTheme) {
         setTheme(savedTheme);
@@ -68,7 +65,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Load simulation user from localStorage
     const savedUser = localStorage.getItem("sim_user");
     if (savedUser) {
       setCurrentUser(JSON.parse(savedUser));
@@ -95,7 +91,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
     setShowSwitchModal(false);
     
-    // Redirect if on restricted page
     if (user?.role === "USER" && (pathname === "/colleagues" || pathname === "/admin")) {
       router.push("/");
     }
@@ -112,21 +107,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
     if (showSwitchModal) fetchColleagues();
   }, [showSwitchModal]);
 
-  // Block access if restricted
   useEffect(() => {
     if (mounted && currentUser?.role === "USER" && (pathname === "/colleagues" || pathname === "/admin")) {
       router.push("/");
     }
   }, [pathname, currentUser, mounted, router]);
 
-  const filteredNavItems = navItems.filter(item => {
+  const filteredNavItems = [
+    { href: "/", label: t.nav.beranda, icon: LayoutDashboard, minRole: "USER" },
+    { href: "/records", label: t.nav.lembar_kerja, icon: FileSpreadsheet, minRole: "USER" },
+    { href: "/colleagues", label: t.nav.daftar_rekan, icon: Users, minRole: "ADMIN" },
+    { href: "/admin", label: t.nav.panel_admin, icon: Settings, minRole: "ADMIN" },
+  ].filter(item => {
     if (item.minRole === "ADMIN") return currentUser?.role === "ADMIN";
     return true;
   });
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
       <aside className="w-64 glass-card fixed h-[calc(100vh-2rem)] m-4 flex flex-col p-4 gap-6 z-50">
         <div className="flex items-center gap-3 px-2 py-2">
           <div className="bg-accent text-accent-foreground p-2 rounded-xl">
@@ -142,7 +140,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        {/* Current User Info */}
         <div className="bg-muted/50 p-3 rounded-xl flex items-center gap-3">
           <div className={`p-2 rounded-lg ${currentUser?.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
             {currentUser?.role === "ADMIN" ? <Shield size={18} /> : <UserIcon size={18} />}
@@ -175,20 +172,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="mt-auto border-t border-border pt-4 px-2 flex flex-col gap-1 text-left">
-          <button 
-            onClick={toggleTheme}
-            className="w-full flex items-center gap-3 text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-2 rounded-lg hover:bg-muted"
-          >
-            {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
-            <span className="font-medium text-sm">{theme === "light" ? "Mode Gelap" : "Mode Terang"}</span>
-          </button>
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={toggleTheme}
+              className="flex-1 flex items-center gap-2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-2 rounded-lg hover:bg-muted"
+            >
+              {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+              <span className="font-medium text-[11px] uppercase tracking-wider">{theme === "light" ? t.nav.mode_gelap : t.nav.mode_terang}</span>
+            </button>
+            <button 
+              onClick={() => setLanguage(language === "ID" ? "EN" : "ID")}
+              className="flex-1 flex items-center gap-2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-2 rounded-lg hover:bg-muted"
+            >
+              <Languages size={16} />
+              <span className="font-medium text-[11px] uppercase tracking-wider text-center flex-1">{language}</span>
+            </button>
+          </div>
 
           <button 
             onClick={() => setShowAnnouncement(true)}
             className="w-full flex items-center gap-3 text-muted-foreground hover:text-accent cursor-pointer transition-colors p-2 rounded-lg hover:bg-accent/5 group"
           >
             <Sparkles size={18} className="group-hover:animate-pulse" />
-            <span className="font-medium text-sm">Fitur Baru v1.1.0</span>
+            <span className="font-medium text-sm">{t.nav.fitur_baru} v1.1.0</span>
           </button>
           
           <button 
@@ -196,12 +202,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
             className="w-full flex items-center gap-3 text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-2 rounded-lg hover:bg-muted"
           >
             <LogIn size={20} />
-            <span className="font-medium text-sm">Ganti Pengguna</span>
+            <span className="font-medium text-sm">{t.nav.ganti_pengguna}</span>
           </button>
         </div>
       </aside>
 
-      {/* Announcement Modal Overlay */}
       {showAnnouncement && mounted && (
         <div className="bg-overlay flex items-center justify-center p-4 z-[9999]">
           <div className="glass-card w-full max-w-xl p-8 flex flex-col gap-8 shadow-2xl animate-in fade-in zoom-in duration-300">
@@ -211,8 +216,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <Sparkles size={32} />
                 </div>
                 <div className="flex flex-col text-left">
-                  <h2 className="text-2xl font-bold text-white tracking-tight uppercase">Rilis v1.1.0 Stabil</h2>
-                  <span className="text-accent text-xs font-bold tracking-widest uppercase">Sistem Internal PANRB</span>
+                  <h2 className="text-2xl font-bold text-white tracking-tight uppercase">
+                    {announcementTab === "v1.1.0" ? "Rilis v1.1.0 Stabil" : "Rilis v1.0.0 Stabil"}
+                  </h2>
+                  <span className="text-accent text-xs font-bold tracking-widest uppercase">
+                    {announcementTab === "v1.1.0" ? "New Features & Localization" : "Initial Stable Launch"}
+                  </span>
                 </div>
               </div>
               <button 
@@ -226,52 +235,105 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
-                <div className="flex items-center gap-3 mb-2 text-indigo-400">
-                  <Moon size={18} />
-                  <span className="text-sm font-bold">Dark Mode Premium</span>
-                </div>
-                <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
-                  Bekerja lembur jadi lebih nyaman dengan tampilan mode gelap yang elegan.
-                </p>
-              </div>
-
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
-                <div className="flex items-center gap-3 mb-2 text-emerald-400">
-                  <Check size={18} />
-                  <span className="text-sm font-bold">Lokalisasi Penuh (ID)</span>
-                </div>
-                <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
-                  Seluruh sistem kini menggunakan Bahasa Indonesia untuk kemudahan operasional.
-                </p>
-              </div>
-
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
-                <div className="flex items-center gap-3 mb-2 text-amber-400">
-                  <Search size={18} />
-                  <span className="text-sm font-bold">Smart Filters v1.1</span>
-                </div>
-                <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
-                  Dashboard kini mendukung filter per bulan/tahun dan urutan masa pajak SP2D.
-                </p>
-              </div>
-
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
-                <div className="flex items-center gap-3 mb-2 text-purple-400">
-                  <CircleCheck size={18} />
-                  <span className="text-sm font-bold">Task Management Pro</span>
-                </div>
-                <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
-                  Log penyelesaian tugas lengkap dengan lampiran link dokumen dan catatan.
-                </p>
-              </div>
+            <div className="flex gap-2 bg-white/5 p-1 rounded-xl">
+              <button 
+                onClick={() => setAnnouncementTab("v1.1.0")}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.1.0" ? "bg-accent text-accent-foreground shadow-lg" : "text-white/40 hover:text-white hover:bg-white/5"}`}
+              >
+                LATEST v1.1.0
+              </button>
+              <button 
+                onClick={() => setAnnouncementTab("v1.0.0")}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.0.0" ? "bg-white/20 text-white" : "text-white/40 hover:text-white hover:bg-white/5"}`}
+              >
+                PREVIOUS v1.0.0
+              </button>
             </div>
+
+            {announcementTab === "v1.1.0" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
+                  <div className="flex items-center gap-3 mb-2 text-indigo-400">
+                    <Moon size={18} />
+                    <span className="text-sm font-bold">{language === "ID" ? "Mode Gelap Premium" : "Premium Dark Mode"}</span>
+                  </div>
+                  <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
+                    {language === "ID" ? "Bekerja lembur jadi lebih nyaman dengan tampilan mode gelap yang elegan." : "Work late comfortably with our elegant and eye-pleasing dark theme."}
+                  </p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
+                  <div className="flex items-center gap-3 mb-2 text-emerald-400">
+                    <Languages size={18} />
+                    <span className="text-sm font-bold">{language === "ID" ? "Dukungan Dua Bahasa" : "Bilingual Support"}</span>
+                  </div>
+                  <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
+                    {language === "ID" ? "Bisa ganti antara Bahasa Indonesia & English langsung dari sidebar." : "Switch seamlessly between Indonesian and English directly from the sidebar."}
+                  </p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
+                  <div className="flex items-center gap-3 mb-2 text-amber-400">
+                    <History size={18} />
+                    <span className="text-sm font-bold">{language === "ID" ? "Urutan Masa Pajak" : "Chronological Period"}</span>
+                  </div>
+                  <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
+                    {language === "ID" ? "Dashboard kini otomatis mengurutkan data berdasarkan Masa Pajak SP2D." : "Dashboard now automatically sorts data based on SP2D Tax Period."}
+                  </p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
+                  <div className="flex items-center gap-3 mb-2 text-purple-400">
+                    <Clock size={18} />
+                    <span className="text-sm font-bold">{language === "ID" ? "Log Catatan Audit" : "Audit Note Logging"}</span>
+                  </div>
+                  <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
+                    {language === "ID" ? "Sertakan catatan tambahan dan link bukti pendukung untuk audit tim." : "Keep track of task completion with supporting documents and custom notes."}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
+                  <div className="flex items-center gap-3 mb-2 text-accent">
+                    <FileSpreadsheet size={18} />
+                    <span className="text-sm font-bold">Integrated Excel Hub</span>
+                  </div>
+                  <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
+                    Automatic merge of "Monitoring Potongan SPM" & "SPP" in one smart upload.
+                  </p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
+                  <div className="flex items-center gap-3 mb-2 text-blue-400">
+                    <LayoutDashboard size={18} />
+                    <span className="text-sm font-bold">Pro Dashboard</span>
+                  </div>
+                  <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
+                    Real-time monitoring of team compliance and individual task load.
+                  </p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
+                  <div className="flex items-center gap-3 mb-2 text-amber-400">
+                    <Search size={18} />
+                    <span className="text-sm font-bold">Smart Filters v1.0</span>
+                  </div>
+                  <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
+                    Filter by Accounts, Multi-sort, and Search by All Amounts.
+                  </p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
+                  <div className="flex items-center gap-3 mb-2 text-zinc-400">
+                    <Users size={18} />
+                    <span className="text-sm font-bold">Simulation Mode</span>
+                  </div>
+                  <p className="text-xs text-white/60 leading-relaxed group-hover:text-white/90 transition-colors">
+                    Switch between colleague perspectives to verify workflow integrity.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col gap-4 text-left">
               <div className="flex items-center gap-3 px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent text-xs">
                 <Info size={16} />
-                <span>Tips: Cek tombol 'Mode Gelap' di sidebar kiri bawah ya!</span>
+                <span>Tips: {language === "ID" ? "Klik tab di atas buat liat sejarah rilis fitur." : "Click the tabs above to view feature release history."}</span>
               </div>
               <button 
                 onClick={() => {
@@ -280,20 +342,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 }}
                 className="premium-button py-4 font-bold flex items-center justify-center gap-3 group"
               >
-                SIAP, GUNAKAN SEKARANG! <Check size={20} className="group-hover:scale-125 transition-transform" />
+                {language === "ID" ? "SIAP, GUNAKAN SEKARANG!" : "READY TO USE!"} <Check size={20} className="group-hover:scale-125 transition-transform" />
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Switch User Modal */}
       {showSwitchModal && (
         <div className="bg-overlay flex items-center justify-center p-4">
           <div className="glass-card w-full max-w-md p-6 flex flex-col gap-6 shadow-2xl animate-in">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold flex items-center gap-2 text-white">
-                <LogIn className="text-accent" /> Simulasi Login
+                <LogIn className="text-accent" /> {t.nav.ganti_pengguna}
               </h2>
               <button 
                 onClick={() => setShowSwitchModal(false)}
@@ -304,7 +365,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
             
             <p className="text-sm text-muted-foreground">
-              Pilih rekan kerja untuk simulasikan akun mereka di sistem.
+              {language === "ID" ? "Pilih rekan kerja untuk simulasikan akun mereka di sistem." : "Select a colleague to simulate their perspective in the system."}
             </p>
 
             <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto px-1">
@@ -320,7 +381,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 >
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${col.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
-                      {col.role === "ADMIN" ? <Shield size={18} /> : <UserIcon size={18} />}
+                       {col.role === "ADMIN" ? <Shield size={18} /> : <UserIcon size={18} />}
                     </div>
                     <div className="flex flex-col items-start">
                       <span className={`font-bold text-sm ${currentUser?.id === col.id ? "text-slate-900" : ""}`}>{col.name}</span>
@@ -342,13 +403,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
               onClick={() => handleSwitchUser(null)}
               className="premium-button text-sm w-full py-2.5 flex items-center justify-center gap-2"
             >
-              Reset ke Mode Tamu / Visitor
+              {language === "ID" ? "Reset ke Mode Tamu / Visitor" : "Reset to Guest / Visitor Mode"}
             </button>
           </div>
         </div>
       )}
 
-      {/* Main Content */}
       <main className="flex-1 ml-72 p-8 pt-12">
         <div className="container">
           {children}
