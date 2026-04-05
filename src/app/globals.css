@@ -2,19 +2,19 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: hsl(222 47% 11%);
-  --color-primary-foreground: hsl(210 40% 98%);
-  --color-accent: hsl(174 100% 33%);
-  --color-accent-foreground: hsl(174 100% 95%);
-  --color-secondary: hsl(210 40% 96%);
-  --color-secondary-foreground: hsl(222 47% 11%);
-  --color-muted: hsl(210 40% 96%);
-  --color-muted-foreground: hsl(215 16% 47%);
-  --color-background: hsl(0 0% 100%);
-  --color-foreground: hsl(222 47% 11%);
-  --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(222 47% 11%);
-  --color-border: hsl(214 32% 91%);
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-border: hsl(var(--border));
   
   --font-outfit: "Outfit", sans-serif;
   
