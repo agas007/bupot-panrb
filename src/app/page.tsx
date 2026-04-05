@@ -18,28 +18,41 @@ import {
   AlertCircle, 
   TrendingUp, 
   Calendar,
-  Layers
+  Layers,
+  ChevronDown,
+  X
 } from "lucide-react";
 
 export default function Dashboard() {
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [showFilter, setShowFilter] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-    fetch("/api/dashboard")
-      .then(res => res.json())
-      .then(data => {
-        setStats(data);
-        setIsLoading(false);
-      })
-      .catch(err => console.error(err));
-  }, []);
+    fetchData();
+  }, [selectedYear, selectedMonth]);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/dashboard?year=${selectedYear}&month=${selectedMonth}`);
+      const data = await res.json();
+      setStats(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (isLoading) return <div className="p-8 opacity-50">Initializing dashboard...</div>;
 
   const COLORS = ["#00BFA5", "#FFAB00", "#FF5252", "#7C4DFF"];
+  const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
   return (
     <div className="flex flex-col gap-8">
@@ -48,9 +61,47 @@ export default function Dashboard() {
           <h1 className="text-4xl font-extrabold tracking-tight">Bupot PANRB Dashboard</h1>
           <p className="text-muted-foreground font-medium">Real-time monitoring of tax slip generation and compliance.</p>
         </div>
-        <div className="glass-card px-4 py-2 flex items-center gap-2 text-sm font-semibold">
-          <Calendar size={16} className="text-accent" />
-          {new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+        <div className="relative">
+          <button 
+            onClick={() => setShowFilter(!showFilter)}
+            className="glass-card px-4 py-2 flex items-center gap-3 text-sm font-semibold hover:bg-white/10 transition-colors"
+          >
+            <Calendar size={16} className="text-accent" />
+            {selectedMonth === "all" ? selectedYear : `${monthNames[Number(selectedMonth)-1]} ${selectedYear}`}
+            <ChevronDown size={14} className={`transition-transform duration-300 ${showFilter ? "rotate-180" : ""}`} />
+          </button>
+
+          {showFilter && (
+            <div className="absolute right-0 mt-2 w-64 glass-card p-4 z-[100] shadow-2xl animate-in fade-in slide-in-from-top-2 border-accent/20">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-xs font-bold uppercase tracking-widest opacity-50">Filter Data</span>
+                <button onClick={() => setShowFilter(false)} className="p-1 hover:bg-white/10 rounded-lg"><X size={14}/></button>
+              </div>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Tahun</label>
+                  <select 
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(Number(e.target.value))}
+                    className="bg-muted p-2 rounded-lg text-sm outline-none w-full"
+                  >
+                    {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Bulan</label>
+                  <select 
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="bg-muted p-2 rounded-lg text-sm outline-none w-full"
+                  >
+                    <option value="all">Setahun Penuh</option>
+                    {monthNames.map((m, i) => <option key={m} value={(i + 1).toString()}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -111,8 +162,15 @@ export default function Dashboard() {
           <div className="chart-container">
             {isMounted && (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={stats.colleagueStats}>
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                <BarChart data={stats.colleagueStats} margin={{ bottom: 40 }}>
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10 }}
+                    angle={-15}
+                    textAnchor="end"
+                  />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} unit="%" domain={[0, 100]} />
                   <Tooltip 
                     cursor={{ fill: "hsl(var(--muted))", opacity: 0.2 }}
@@ -136,9 +194,9 @@ export default function Dashboard() {
           </h2>
           <div className="flex flex-col gap-4">
             {stats.monthlyStats.map((month: any) => (
-              <div key={month.month} className="flex flex-col gap-2">
+              <div key={month.key} className="flex flex-col gap-2">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="font-semibold">{month.month} (SP2D)</span>
+                  <span className="font-semibold">{month.label}</span>
                   <span className="text-muted-foreground">{month.completed} / {month.total} Selesai</span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
