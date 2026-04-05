@@ -6,7 +6,7 @@ import {
   Clock, AlertCircle, ArrowUpDown, Check, 
   ExternalLink, X, ClipboardCheck,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  User, CheckCircle2
+  User, CheckCircle2, FileText
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -138,11 +138,13 @@ export default function RecordsPage() {
       result = result.filter(record => {
         const deductionStr = record.deductionAmount.toString();
         const totalValueStr = record.totalValue?.toString() || "";
+        const descriptionStr = record.description?.toLowerCase() || "";
         
         return (
           record.spmNumber?.toLowerCase().includes(query) ||
           (record.sp2dNumber || "").toLowerCase().includes(query) ||
           record.recipient?.toLowerCase().includes(query) ||
+          descriptionStr.includes(query) ||
           deductionStr.includes(query) ||
           totalValueStr.includes(query)
         );
@@ -175,7 +177,8 @@ export default function RecordsPage() {
         
         switch (sortConfig.key) {
           case 'spm': aVal = a.spmNumber; bVal = b.spmNumber; break;
-          case 'sp2d': aVal = a.sp2dNumber; bVal = b.sp2dNumber; break;
+          case 'description': aVal = a.description || ""; bVal = b.description || ""; break;
+          case 'sp2d': aVal = a.sp2dNumber || ""; bVal = b.sp2dNumber || ""; break;
           case 'akun': aVal = a.accountCode; bVal = b.accountCode; break;
           case 'recipient': aVal = a.recipient; bVal = b.recipient; break;
           case 'assignee': 
@@ -215,9 +218,9 @@ export default function RecordsPage() {
     return filteredAndSortedRecords.slice(start, end);
   }, [filteredAndSortedRecords, currentPage, rowsPerPage]);
 
-  const SortHeader = ({ label, sortKey }: { label: string, sortKey: string }) => (
+  const SortHeader = ({ label, sortKey, className = "" }: { label: string, sortKey: string, className?: string }) => (
     <th 
-      className="cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group p-4"
+      className={`cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group p-4 ${className}`}
       onClick={() => handleSort(sortKey)}
     >
       <div className="flex items-center justify-center gap-2 text-xs uppercase tracking-widest font-semibold">
@@ -355,6 +358,7 @@ export default function RecordsPage() {
             <thead>
               <tr>
                 <SortHeader label={t.worksheet.spm_detail} sortKey="spm" />
+                <SortHeader label={t.worksheet.spm_description} sortKey="description" />
                 <SortHeader label={t.worksheet.sp2d_detail} sortKey="sp2d" />
                 <SortHeader label={t.worksheet.account_code} sortKey="akun" />
                 <SortHeader label={t.worksheet.recipient_amount} sortKey="recipient" />
@@ -366,9 +370,9 @@ export default function RecordsPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={8} className="text-center p-12 text-muted-foreground italic">{t.worksheet.loading}</td></tr>
+                <tr><td colSpan={9} className="text-center p-12 text-muted-foreground italic">{t.worksheet.loading}</td></tr>
               ) : filteredAndSortedRecords.length === 0 ? (
-                <tr><td colSpan={8} className="text-center p-12 text-muted-foreground italic">{t.worksheet.not_found}</td></tr>
+                <tr><td colSpan={9} className="text-center p-12 text-muted-foreground italic">{t.worksheet.not_found}</td></tr>
               ) : (
                 paginatedRecords.map((record) => {
                   const deadline = getDeadlineStatus(record.sp2dDate);
@@ -380,6 +384,12 @@ export default function RecordsPage() {
                           <span className="text-xs text-muted-foreground flex items-center gap-2">
                             <Calendar size={12} /> {new Date(record.spmDate).toLocaleDateString(language === "ID" ? "id-ID" : "en-US", { day: 'numeric', month: 'short', year: 'numeric' })}
                           </span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex items-start gap-2 max-w-[250px]">
+                           <FileText size={14} className="text-muted-foreground shrink-0 mt-1" />
+                           <span className="text-xs leading-relaxed line-clamp-3">{record.description || "-"}</span>
                         </div>
                       </td>
                       <td>
