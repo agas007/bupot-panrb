@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UserPlus, Trash2, Shield, User, Loader2 } from "lucide-react";
+import { UserPlus, Trash2, Shield, User, Loader2, KeyRound, AtSign, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 
 export default function ColleaguesPage() {
   const { language, t } = useLanguage();
   const [colleagues, setColleagues] = useState<any[]>([]);
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState("USER");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,15 +38,22 @@ export default function ColleaguesPage() {
     setIsSubmitting(true);
     try {
       const simulatedUser = localStorage.getItem("sim_user");
-      const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+      const currentUserName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
 
       const res = await fetch("/api/colleagues", {
         method: "POST",
-        headers: { "x-simulated-user": userName },
-        body: JSON.stringify({ name, role }),
+        headers: { "x-simulated-user": currentUserName },
+        body: JSON.stringify({ 
+          name, 
+          username: username.toLowerCase() || undefined, 
+          password: password || undefined, 
+          role 
+        }),
       });
       if (res.ok) {
         setName("");
+        setUsername("");
+        setPassword("");
         fetchColleagues();
       }
     } catch (err) {
@@ -55,17 +64,15 @@ export default function ColleaguesPage() {
   };
 
   const deleteColleague = async (id: number) => {
-    const msg = language === "ID" 
-      ? "Apakah Anda yakin? Semua data yang ditugaskan ke pengguna ini akan dikembalikan ke status 'Belum Terbagi'."
-      : "Are you sure? All tasks assigned to this user will be reset to 'Unassigned' status.";
+    const msg = t.team.confirm_delete;
     if (!confirm(msg)) return;
     try {
       const simulatedUser = localStorage.getItem("sim_user");
-      const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+      const currentUserName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
 
       const res = await fetch("/api/colleagues", {
         method: "DELETE",
-        headers: { "x-simulated-user": userName },
+        headers: { "x-simulated-user": currentUserName },
         body: JSON.stringify({ id }),
       });
       if (res.ok) fetchColleagues();
@@ -82,32 +89,68 @@ export default function ColleaguesPage() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <section className="glass-card p-6 flex flex-col gap-4 h-fit">
+        <section className="glass-card p-6 flex flex-col gap-4 h-fit sticky top-6">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <UserPlus size={20} className="text-accent" /> {t.team.add_member}
           </h2>
           <form onSubmit={addColleague} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">
+            <div className="flex flex-col gap-2 text-left">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
                 {t.team.full_name}
               </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Ahmad Suhendar"
-                className="bg-muted border-none p-4 rounded-2xl outline-none focus:ring-2 focus:ring-accent/20 transition-all text-sm"
-              />
+              <div className="relative group">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent transition-colors" size={16} />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ahmad Suhendar"
+                  className="w-full bg-muted/50 border-none py-4 pl-12 pr-4 rounded-2xl outline-none focus:ring-2 focus:ring-accent/20 transition-all text-sm font-medium"
+                />
+              </div>
             </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">
+
+            <div className="flex flex-col gap-2 text-left">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                {t.team.username}
+              </label>
+              <div className="relative group">
+                <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent transition-colors" size={16} />
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="ahmad.s (auto-generated if empty)"
+                  className="w-full bg-muted/50 border-none py-4 pl-12 pr-4 rounded-2xl outline-none focus:ring-2 focus:ring-accent/20 transition-all text-sm font-medium"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 text-left">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                {t.team.password}
+              </label>
+              <div className="relative group">
+                <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent transition-colors" size={16} />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Leave empty for default"
+                  className="w-full bg-muted/50 border-none py-4 pl-12 pr-4 rounded-2xl outline-none focus:ring-2 focus:ring-accent/20 transition-all text-sm font-medium"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 text-left">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
                 {t.team.role}
               </label>
               <div className="relative">
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="w-full bg-muted border-none p-4 rounded-2xl outline-none focus:ring-2 focus:ring-accent/20 transition-all text-sm appearance-none cursor-pointer"
+                  className="w-full bg-muted/50 border-none p-4 rounded-2xl outline-none focus:ring-2 focus:ring-accent/20 transition-all text-sm appearance-none cursor-pointer font-bold"
                 >
                   <option value="USER">{t.team.role_user}</option>
                   <option value="ADMIN">{t.team.role_admin}</option>
@@ -115,9 +158,10 @@ export default function ColleaguesPage() {
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
               </div>
             </div>
+
             <button
               disabled={isSubmitting || !name}
-              className="premium-button flex items-center justify-center gap-2 disabled:opacity-50 py-4 font-bold"
+              className="premium-button flex items-center justify-center gap-2 disabled:opacity-50 py-4 font-bold mt-2"
             >
               {isSubmitting ? <Loader2 className="animate-spin" /> : <UserPlus size={18} />}
               {t.team.invite}
@@ -126,7 +170,9 @@ export default function ColleaguesPage() {
         </section>
 
         <section className="lg:col-span-2 flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-left">{t.team.active_members}</h2>
+          <h2 className="text-lg font-semibold text-left flex items-center gap-2">
+            {t.team.active_members} <span className="bg-accent/10 text-accent text-xs px-2 py-0.5 rounded-full">{colleagues.length}</span>
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {isLoading ? (
               <div className="col-span-full text-center p-12 text-muted-foreground italic">{t.team.loading}</div>
@@ -137,17 +183,22 @@ export default function ColleaguesPage() {
             ) : (
               colleagues.map((col: any) => (
                 <div key={col.id} className="glass-card p-5 flex items-center gap-4 group transition-all hover:scale-[1.02] hover:-translate-y-1 shadow-lg hover:shadow-accent/5">
-                  <div className={`p-3 rounded-2xl shrink-0 ${col.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
-                    {col.role === "ADMIN" ? <Shield size={28} /> : <User size={28} />}
+                  <div className={`p-4 rounded-2xl shrink-0 ${col.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
+                    {col.role === "ADMIN" ? <Shield size={32} /> : <User size={32} />}
                   </div>
                   <div className="flex flex-col flex-1 min-w-0 text-left">
-                    <span className="font-bold tracking-tight text-lg line-clamp-1" title={col.name}>{col.name}</span>
-                    <span className="text-xs text-muted-foreground font-semibold flex items-center gap-2">
-                      <span className={`px-1.5 py-0.5 rounded-md ${col.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
-                        {col.role}
+                    <span className="font-bold tracking-tight text-lg line-clamp-1 decoration-accent/50 hover:underline cursor-default" title={col.name}>{col.name}</span>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-1.5 italic">
+                        <AtSign size={10} className="text-accent"/> {col.username || "unset"} 
                       </span>
-                      • {col._count.records} {t.team.tasks}
-                    </span>
+                      <span className="text-[9px] text-muted-foreground font-bold flex items-center gap-2">
+                        <span className={`px-1.5 py-0.5 rounded-md ${col.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
+                          {col.role}
+                        </span>
+                        • {col._count.records} {t.team.tasks}
+                      </span>
+                    </div>
                   </div>
                   <button 
                     onClick={() => deleteColleague(col.id)}
@@ -165,5 +216,3 @@ export default function ColleaguesPage() {
     </div>
   );
 }
-
-import { ChevronDown } from "lucide-react";

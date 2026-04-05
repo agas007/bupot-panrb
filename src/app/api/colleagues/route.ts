@@ -23,9 +23,11 @@ export const runtime = 'nodejs';
  *         application/json:
  *           schema:
  *             type: object
- *             required: [name]
+ *             required: [name, username]
  *             properties:
  *               name: { type: string }
+ *               username: { type: string }
+ *               password: { type: string }
  *               role: { type: string, enum: [ADMIN, USER] }
  *     responses:
  *       200:
@@ -48,19 +50,28 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, role } = await req.json();
+    const { name, username, password, role } = await req.json();
     if (!name) throw new Error("Name is required");
 
-    const colleague = await prisma.colleague.create({
-      data: { name, role: role || "USER" }
+    // Auto-generate username and password if not provided
+    const finalUsername = username || name.toLowerCase().replace(/\s+/g, '.');
+    const finalPassword = password || process.env.DEFAULT_USER_PASSWORD || "Placeholder123!";
+
+    const colleague = await (prisma.colleague as any).create({
+      data: { 
+        name, 
+        username: finalUsername,
+        password: finalPassword,
+        role: role || "USER" 
+      }
     });
 
     // Audit Log
-    const userName = req.headers.get("x-simulated-user") || "Admin (Simulated)";
+    const reqUser = req.headers.get("x-simulated-user") || "Admin (Simulated)";
     // @ts-ignore
     await prisma.auditLog.create({
       data: {
-        userName,
+        userName: reqUser,
         action: "Added New Member",
         target: `${name} (${role || "USER"})`,
         type: "admin",
@@ -102,11 +113,11 @@ export async function DELETE(req: NextRequest) {
     await prisma.colleague.delete({ where: { id: Number(id) } });
 
     // Audit Log
-    const userName = req.headers.get("x-simulated-user") || "Admin (Simulated)";
+    const reqUser = req.headers.get("x-simulated-user") || "Admin (Simulated)";
     // @ts-ignore
     await prisma.auditLog.create({
       data: {
-        userName,
+        userName: reqUser,
         action: "Deleted Member",
         target: colleague?.name || `ID: ${id}`,
         type: "danger",
