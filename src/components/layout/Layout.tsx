@@ -256,12 +256,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="mt-auto border-t border-border pt-4 px-2 flex flex-col gap-1 overflow-hidden">
-          <div className={`flex items-center gap-1 ${isSidebarCollapsed ? "flex-col" : "flex-row"}`}>
+          <div className={`flex flex-wrap items-center gap-1 ${isSidebarCollapsed ? "flex-col" : "flex-row"}`}>
+            <button onClick={() => setShowAnnouncement(true)} className="flex-1 flex items-center gap-2 text-muted-foreground hover:text-accent p-2 rounded-lg hover:bg-accent/5 justify-center transition-colors" title={t.nav.fitur_baru}>
+              <Sparkles size={16} />
+              {!isSidebarCollapsed && <span className="font-medium text-[11px] uppercase tracking-wider">{t.nav.fitur_baru}</span>}
+            </button>
             <button onClick={toggleTheme} className="flex-1 flex items-center gap-2 text-muted-foreground hover:text-foreground p-2 rounded-lg hover:bg-muted justify-center transition-colors">
               {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
               {!isSidebarCollapsed && <span className="font-medium text-[11px] uppercase tracking-wider">{theme === "light" ? t.nav.mode_gelap : t.nav.mode_terang}</span>}
             </button>
-            <button onClick={() => setLanguage(language === "ID" ? "EN" : "ID")} className="flex-1 flex items-center gap-2 text-muted-foreground hover:text-foreground p-2 rounded-lg hover:bg-muted justify-center transition-colors">
+            <button onClick={() => setLanguage(language === "ID" ? "EN" : "ID")} className="flex-1 flex items-center gap-2 text-muted-foreground hover:text-foreground p-2 rounded-lg hover:bg-muted justify-center transition-colors" title={t.nav.ganti_bahasa}>
               <Languages size={16} />
               {!isSidebarCollapsed && <span className="font-medium text-[11px] uppercase tracking-wider">{language}</span>}
             </button>
