@@ -62,6 +62,18 @@ const safeDateID = (val: any) => {
   return isNaN(d.getTime()) ? null : d;
 };
 
+const safeIndoNum = (val: any) => {
+  if (typeof val === "number") return val;
+  if (!val) return 0;
+  
+  // Indonesian style: 1.000,50 
+  // Step 1: Remove all dots (thousands separator)
+  // Step 2: Replace comma with dot (decimal separator)
+  const clean = val.toString().replace(/\./g, "").replace(/,/g, ".");
+  const num = parseFloat(clean);
+  return isNaN(num) ? 0 : num;
+};
+
 export const mergeExcelData = (
   potonganData: PotonganRow[],
   sppData: SPP_SPM_SP2D_Row[]
@@ -71,7 +83,7 @@ export const mergeExcelData = (
   sppData.forEach((row) => {
     const spmKey = row["No. SPP/SPM"]?.toString().trim();
     if (spmKey) {
-      sppMap.set(spmKey, Number(row["Jumlah Pengeluaran"]) || 0);
+      sppMap.set(spmKey, safeIndoNum(row["Jumlah Pengeluaran"]));
     }
   });
 
@@ -87,7 +99,7 @@ export const mergeExcelData = (
       uniqueKey: `${spmFull}-${potongan["Akun"]}-${potongan["Jumlah"]}`,
       spmNumber: spmFull,
       accountCode: potongan["Akun"]?.toString() || "",
-      deductionAmount: Number(potongan["Jumlah"]) || 0,
+      deductionAmount: safeIndoNum(potongan["Jumlah"]),
       
       // Use Potongan file as primary source for dates and numbers
       spmDate: safeDateID(potongan["TGL.SPM"]) || new Date(),
