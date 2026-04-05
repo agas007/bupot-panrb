@@ -5,7 +5,8 @@ import {
   Search, Filter, ChevronDown, Calendar, 
   Clock, AlertCircle, ArrowUpDown, Check, 
   ExternalLink, X, ClipboardCheck,
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
+  User, CheckCircle2
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -23,6 +24,8 @@ export default function RecordsPage() {
   // Filtering & Sorting states
   const [searchQuery, setSearchQuery] = useState("");
   const [accountFilter, setAccountFilter] = useState("all");
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
   // Pagination states
@@ -129,6 +132,7 @@ export default function RecordsPage() {
   const filteredAndSortedRecords = useMemo(() => {
     let result = [...records];
 
+    // Search Filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(record => {
@@ -145,10 +149,26 @@ export default function RecordsPage() {
       });
     }
 
+    // Account Filter
     if (accountFilter !== "all") {
       result = result.filter(r => r.accountCode === accountFilter);
     }
 
+    // Assignee Filter
+    if (assigneeFilter !== "all") {
+      if (assigneeFilter === "unassigned") {
+        result = result.filter(r => !r.assigneeId);
+      } else {
+        result = result.filter(r => r.assigneeId === Number(assigneeFilter));
+      }
+    }
+
+    // Status Filter
+    if (statusFilter !== "all") {
+      result = result.filter(r => r.status === statusFilter);
+    }
+
+    // Sorting
     if (sortConfig) {
       result.sort((a, b) => {
         let aVal, bVal;
@@ -175,14 +195,13 @@ export default function RecordsPage() {
       });
     }
 
-    // Reset to page 1 if criteria changes
     return result;
-  }, [records, searchQuery, accountFilter, sortConfig, colleagues]);
+  }, [records, searchQuery, accountFilter, assigneeFilter, statusFilter, sortConfig, colleagues]);
 
   // Reset page when filtering or sorting changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, accountFilter, sortConfig]);
+  }, [searchQuery, accountFilter, assigneeFilter, statusFilter, sortConfig]);
 
   const totalPages = useMemo(() => {
     if (rowsPerPage === "max") return 1;
@@ -209,7 +228,7 @@ export default function RecordsPage() {
   );
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 pb-10">
       {isUpdateModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000]">
           <div className="glass-card p-8 rounded-3xl w-full max-w-md flex flex-col gap-6 shadow-2xl animate-in fade-in zoom-in duration-300">
@@ -261,14 +280,15 @@ export default function RecordsPage() {
         </div>
       )}
 
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* Header with Multi-Filters */}
+      <header className="flex flex-col gap-6">
         <div className="flex flex-col gap-2 text-left">
           <h1 className="text-3xl font-bold tracking-tight">{t.worksheet.title}</h1>
           <p className="text-muted-foreground">{t.worksheet.subtitle}</p>
         </div>
         
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
             <input 
               type="text" 
@@ -279,8 +299,9 @@ export default function RecordsPage() {
             />
           </div>
 
+          {/* Account Filter */}
           <div className="relative">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
             <select 
               className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]"
               value={accountFilter}
@@ -293,10 +314,42 @@ export default function RecordsPage() {
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
           </div>
+
+          {/* Assignee Filter */}
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
+            <select 
+              className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]"
+              value={assigneeFilter}
+              onChange={(e) => setAssigneeFilter(e.target.value)}
+            >
+              <option value="all">{t.worksheet.all_assignees}</option>
+              <option value="unassigned">{t.worksheet.unassigned}</option>
+              {colleagues.map((col: any) => (
+                <option key={col.id} value={col.id}>{col.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
+          </div>
+
+          {/* Status Filter */}
+          <div className="relative">
+            <CheckCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
+            <select 
+              className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">{t.worksheet.all_status}</option>
+              <option value="PENDING">{t.worksheet.pending}</option>
+              <option value="COMPLETED">{t.worksheet.completed}</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
+          </div>
         </div>
       </header>
 
-      <div className="glass-card overflow-hidden">
+      <div className="glass-card overflow-hidden transition-all duration-500">
         <div className="overflow-x-auto">
           <table className="premium-table">
             <thead>
@@ -320,7 +373,7 @@ export default function RecordsPage() {
                 paginatedRecords.map((record) => {
                   const deadline = getDeadlineStatus(record.sp2dDate);
                   return (
-                    <tr key={record.id}>
+                    <tr key={record.id} className="animate-in fade-in slide-in-from-left-2 duration-300">
                       <td>
                         <div className="flex flex-col gap-1">
                           <span className="font-bold">{record.spmNumber}</span>
@@ -345,7 +398,7 @@ export default function RecordsPage() {
                       <td>
                         <div className="flex flex-col gap-1">
                           <span className="font-medium text-sm line-clamp-1 max-w-[200px]">{record.recipient}</span>
-                          <div className="flex flex-col">
+                          <div className="flex flex-col text-left">
                             <span className="text-xs font-bold text-accent">
                               {language === "ID" ? "Potongan" : "Tax"}: IDR {record.deductionAmount.toLocaleString("id-ID")}
                             </span>
