@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, status, docLink, notes, assigneeId } = body;
+    const { id, ids, status, docLink, notes, assigneeId } = body;
 
     const updateData: any = {};
     if (status) {
@@ -44,6 +44,14 @@ export async function PATCH(req: NextRequest) {
     if (notes !== undefined) updateData.notes = notes;
     if (assigneeId !== undefined) {
       updateData.assigneeId = assigneeId === 0 ? null : assigneeId;
+    }
+
+    if (ids && Array.isArray(ids)) {
+      const result = await prisma.sPMRecord.updateMany({
+        where: { id: { in: ids.map(Number) } },
+        data: updateData,
+      });
+      return NextResponse.json({ count: result.count });
     }
 
     const record = await prisma.sPMRecord.update({
