@@ -4,35 +4,18 @@ import { prisma } from "@/lib/prisma";
 export const runtime = 'nodejs';
 
 /**
- * @swagger
- * /api/colleagues:
- *   get:
- *     summary: Get all team members
- *     tags: [Colleagues]
- *     responses:
- *       200:
- *         description: List of colleagues with task counts.
- *   post:
- *     summary: Add new member
- *     tags: [Colleagues]
- *     security:
- *       - SimulatorUser: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [name, username]
- *             properties:
- *               name: { type: string }
- *               username: { type: string }
- *               password: { type: string }
- *               role: { type: string, enum: [ADMIN, USER] }
- *     responses:
- *       200:
- *         description: Member added successfully.
+ * Administrative permission check
  */
+async function isAdmin(req: NextRequest) {
+  const username = req.headers.get("x-simulated-username");
+  if (!username) return false;
+  // Use findFirst with cast to bypass Prisma's lagging types
+  const user = await (prisma.colleague as any).findFirst({
+    where: { username }
+  });
+  return user && user.role === "ADMIN";
+}
+
 export async function GET() {
   try {
     const colleagues = await prisma.colleague.findMany({
@@ -50,6 +33,11 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    // 1. Security Check
+    if (!await isAdmin(req)) {
+      return NextResponse.json({ error: "Access Denied: Administratve role required" }, { status: 403 });
+    }
+
     const { name, username, password, role } = await req.json();
     if (!name) throw new Error("Name is required");
 
@@ -84,42 +72,38 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/**
- * @swagger
- * /api/colleagues:
- *   delete:
- *     summary: Delete a member
- *     tags: [Colleagues]
- *     security:
- *       - SimulatorUser: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [id]
- *             properties:
- *               id: { type: number }
- *     responses:
- *       200:
- *         description: Member deleted successfully.
- */
 export async function DELETE(req: NextRequest) {
   try {
-    const { id } = await req.json();
-    const colleague = await prisma.colleague.findUnique({ where: { id: Number(id) } });
+    // 1. Security Check
+    if (!await isAdmin(req)) {
+      return NextResponse.json({ error: "Access Denied: Administratve role required" }, { status: 403 });
+    }
 
-    await prisma.colleague.delete({ where: { id: Number(id) } });
+    const { id } = await req.json();
+    const targetId = Number(id);
+
+    // 2. Prevent Self-Deletion
+    const reqUsername = req.headers.get("x-simulated-username");
+    // @ts-ignore
+    const reqUser = await prisma.colleague.findFirst({ where: { username: reqUsername } });
+    
+    if (reqUser && reqUser.id === targetId) {
+      return NextResponse.json({ error: "Operation Denied: You cannot delete your own account." }, { status: 400 });
+    }
+
+    const colleague = await prisma.colleague.findUnique({ where: { id: targetId } });
+    if (!colleague) throw new Error("Member not found");
+
+    await prisma.colleague.delete({ where: { id: targetId } });
 
     // Audit Log
-    const reqUser = req.headers.get("x-simulated-user") || "Admin (Simulated)";
+    const reqUserName = req.headers.get("x-simulated-user") || "Admin (Simulated)";
     // @ts-ignore
     await prisma.auditLog.create({
       data: {
-        userName: reqUser,
+        userName: reqUserName,
         action: "Deleted Member",
-        target: colleague?.name || `ID: ${id}`,
+        target: colleague.name,
         type: "danger",
       }
     });

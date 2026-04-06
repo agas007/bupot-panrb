@@ -28,7 +28,8 @@ export default function AdminPage() {
       const res = await fetch("/api/import", {
         method: "POST",
         headers: {
-          "x-simulated-user": userName
+          "x-simulated-user": userName,
+          "x-simulated-username": simulatedUser ? JSON.parse(simulatedUser).username : "admin"
         },
         body: formData,
       });

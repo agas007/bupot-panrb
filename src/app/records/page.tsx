@@ -159,10 +159,14 @@ export default function RecordsPage() {
     try {
       const simulatedUser = localStorage.getItem("sim_user");
       const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+      const currentUserUsername = simulatedUser ? JSON.parse(simulatedUser).username : "admin";
 
       const res = await fetch("/api/records", {
         method: "PATCH",
-        headers: { "x-simulated-user": userName },
+        headers: { 
+          "x-simulated-user": userName,
+          "x-simulated-username": currentUserUsername
+        },
         body: JSON.stringify({ id: selectedRecord.id, status: "COMPLETED", ...updateForm }),
       });
       if (res.ok) {
@@ -178,10 +182,14 @@ export default function RecordsPage() {
     try {
       const simulatedUser = localStorage.getItem("sim_user");
       const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+      const currentUserUsername = simulatedUser ? JSON.parse(simulatedUser).username : "admin";
 
       const res = await fetch("/api/records", {
         method: "PATCH",
-        headers: { "x-simulated-user": userName },
+        headers: { 
+          "x-simulated-user": userName, 
+          "x-simulated-username": currentUserUsername
+        },
         body: JSON.stringify({ id, status }),
       });
       if (res.ok) fetchData();
@@ -194,10 +202,14 @@ export default function RecordsPage() {
     try {
       const simulatedUser = localStorage.getItem("sim_user");
       const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+      const currentUserUsername = simulatedUser ? JSON.parse(simulatedUser).username : "admin";
 
       const res = await fetch("/api/records", {
         method: "PATCH",
-        headers: { "x-simulated-user": userName },
+        headers: { 
+          "x-simulated-user": userName,
+          "x-simulated-username": currentUserUsername
+        },
         body: JSON.stringify({ id, assigneeId: assigneeId === 0 ? null : assigneeId }),
       });
       if (res.ok) fetchData();
@@ -211,10 +223,14 @@ export default function RecordsPage() {
     try {
       const simulatedUser = localStorage.getItem("sim_user");
       const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+      const currentUserUsername = simulatedUser ? JSON.parse(simulatedUser).username : "admin";
 
       const res = await fetch("/api/records", {
         method: "PATCH",
-        headers: { "x-simulated-user": userName },
+        headers: { 
+          "x-simulated-user": userName,
+          "x-simulated-username": currentUserUsername
+        },
         body: JSON.stringify({ 
           ids: Array.from(selectedIds), 
           assigneeId: assigneeId === 0 ? null : assigneeId 

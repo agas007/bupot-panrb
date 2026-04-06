@@ -39,10 +39,14 @@ export default function ColleaguesPage() {
     try {
       const simulatedUser = localStorage.getItem("sim_user");
       const currentUserName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+      const currentUserUsername = simulatedUser ? JSON.parse(simulatedUser).username : "admin";
 
       const res = await fetch("/api/colleagues", {
         method: "POST",
-        headers: { "x-simulated-user": currentUserName },
+        headers: { 
+          "x-simulated-user": currentUserName,
+          "x-simulated-username": currentUserUsername
+        },
         body: JSON.stringify({ 
           name, 
           username: username.toLowerCase() || undefined, 
@@ -69,10 +73,14 @@ export default function ColleaguesPage() {
     try {
       const simulatedUser = localStorage.getItem("sim_user");
       const currentUserName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
+      const currentUserUsername = simulatedUser ? JSON.parse(simulatedUser).username : "admin";
 
       const res = await fetch("/api/colleagues", {
         method: "DELETE",
-        headers: { "x-simulated-user": currentUserName },
+        headers: { 
+          "x-simulated-user": currentUserName,
+          "x-simulated-username": currentUserUsername
+        },
         body: JSON.stringify({ id }),
       });
       if (res.ok) fetchColleagues();
@@ -191,6 +199,9 @@ export default function ColleaguesPage() {
                     <div className="flex flex-col gap-1">
                       <span className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-1.5 italic">
                         <AtSign size={10} className="text-accent"/> {col.username || "unset"} 
+                        {JSON.parse(localStorage.getItem("sim_user") || "{}").id === col.id && (
+                          <span className="bg-emerald-500/10 text-emerald-500 rounded lowercase text-[8px] border border-emerald-500/20 px-1 ml-1 font-black">You</span>
+                        )}
                       </span>
                       <span className="text-[9px] text-muted-foreground font-bold flex items-center gap-2">
                         <span className={`px-1.5 py-0.5 rounded-md ${col.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
@@ -200,13 +211,15 @@ export default function ColleaguesPage() {
                       </span>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => deleteColleague(col.id)}
-                    className="p-3 shrink-0 transition-all hover:bg-rose-500/10 text-rose-500/40 hover:text-rose-500 rounded-xl"
-                    title={language === "ID" ? "Hapus anggota" : "Remove member"}
-                  >
-                    <Trash2 size={20} />
-                  </button>
+                  {JSON.parse(localStorage.getItem("sim_user") || "{}").id !== col.id && (
+                    <button 
+                      onClick={() => deleteColleague(col.id)}
+                      className="p-3 shrink-0 transition-all hover:bg-rose-500/10 text-rose-500/40 hover:text-rose-500 rounded-xl"
+                      title={language === "ID" ? "Hapus anggota" : "Remove member"}
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  )}
                 </div>
               ))
             )}

@@ -26,6 +26,14 @@ import { prisma } from "@/lib/prisma";
  */
 export async function POST(req: NextRequest) {
   try {
+    // 1. Administrative Security Check
+    const reqUsername = req.headers.get("x-simulated-username");
+    const adminUser = reqUsername ? await (prisma.colleague as any).findFirst({ where: { username: reqUsername } }) : null;
+    
+    if (!adminUser || adminUser.role !== "ADMIN") {
+      return NextResponse.json({ error: "Access Denied: Administrative role required" }, { status: 403 });
+    }
+
     const formData = await req.formData();
     const potonganFile = formData.get("potongan") as File;
     const sppFile = formData.get("spp") as File;

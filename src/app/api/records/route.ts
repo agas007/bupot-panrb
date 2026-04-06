@@ -74,29 +74,32 @@ export async function PATCH(req: NextRequest) {
     const { id, ids, status, docLink, notes, assigneeId } = body;
 
     const updateData: any = {};
+    let action = "Updated Record";
+    let type = "user";
+    
     if (status) {
       updateData.status = status;
       if (status === "COMPLETED") {
         updateData.completionDate = new Date();
       }
+      action = status === "COMPLETED" ? "Marked as Done" : "Reverted to Pending";
     }
     if (docLink !== undefined) updateData.docLink = docLink;
     if (notes !== undefined) updateData.notes = notes;
     if (assigneeId !== undefined) {
+      // Security Check for assignment
+      const reqUsername = req.headers.get("x-simulated-username");
+      const adminUser = reqUsername ? await (prisma.colleague as any).findFirst({ where: { username: reqUsername } }) : null;
+      if (!adminUser || adminUser.role !== "ADMIN") {
+        return NextResponse.json({ error: "Access Denied: Administrative role required for assignment" }, { status: 403 });
+      }
       updateData.assigneeId = assigneeId === 0 ? null : assigneeId;
-    }
-
-    const userName = req.headers.get("x-simulated-user") || "Admin (Simulated)";
-    let action = "Updated Record";
-    let type = "user";
-    let target = id ? `Record ID: ${id}` : `${ids?.length} Records`;
-
-    if (status) {
-      action = status === "COMPLETED" ? "Marked as Done" : "Reverted to Pending";
-    } else if (assigneeId !== undefined) {
       action = assigneeId === 0 ? "Unassigned Task" : "Assigned Task";
       type = "admin";
     }
+
+    const userName = req.headers.get("x-simulated-user") || "Admin (Simulated)";
+    let target = id ? `Record ID: ${id}` : `${ids?.length} Records`;
 
     if (ids && Array.isArray(ids)) {
       const result = await prisma.sPMRecord.updateMany({
