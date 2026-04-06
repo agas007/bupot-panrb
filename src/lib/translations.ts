@@ -10,7 +10,8 @@ export const translations = {
       mode_gelap: "Mode Gelap",
       mode_terang: "Mode Terang",
       ganti_bahasa: "Ganti Bahasa",
-      log_aktivitas: "Log Aktivitas"
+      log_aktivitas: "Log Aktivitas",
+      pengaturan: "Pengaturan"
     },
     dashboard: {
       title: "Beranda Bupot PANRB",
@@ -106,7 +107,8 @@ export const translations = {
       mode_gelap: "Dark Mode",
       mode_terang: "Light Mode",
       ganti_bahasa: "Change Language",
-      log_aktivitas: "Activity Logs"
+      log_aktivitas: "Activity Logs",
+      pengaturan: "Settings"
     },
     dashboard: {
       title: "Bupot PANRB Dashboard",

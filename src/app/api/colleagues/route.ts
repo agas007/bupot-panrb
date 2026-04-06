@@ -23,7 +23,8 @@ export async function GET() {
         _count: {
           select: { records: true }
         }
-      }
+      },
+      orderBy: { name: 'asc' }
     });
     return NextResponse.json(colleagues);
   } catch (error: any) {
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
   try {
     // 1. Security Check
     if (!await isAdmin(req)) {
-      return NextResponse.json({ error: "Access Denied: Administratve role required" }, { status: 403 });
+      return NextResponse.json({ error: "Access Denied: Administrative role required" }, { status: 403 });
     }
 
     const { name, username, password, role } = await req.json();
@@ -72,11 +73,64 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function PATCH(req: NextRequest) {
+  try {
+    const { id, name, username, password, role } = await req.json();
+    const targetId = Number(id);
+    const reqUsername = req.headers.get("x-simulated-username");
+
+    // 1. Get Requester Info
+    const requester = await (prisma.colleague as any).findFirst({
+      where: { username: reqUsername }
+    });
+
+    if (!requester) {
+      return NextResponse.json({ error: "Invalid Session" }, { status: 401 });
+    }
+
+    const isTargetAdmin = requester.role === "ADMIN";
+    const isSelf = requester.id === targetId;
+
+    // 2. Authorization
+    if (!isTargetAdmin && !isSelf) {
+      return NextResponse.json({ error: "Access Denied" }, { status: 403 });
+    }
+
+    // 3. Prepare Update Data
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (username && isTargetAdmin) updateData.username = username; // Only admin can change username
+    if (password) updateData.password = password;
+    if (role && isTargetAdmin) updateData.role = role; // Only admin can change role
+
+    const colleague = await prisma.colleague.update({
+      where: { id: targetId },
+      data: updateData,
+    });
+
+    // Audit Log
+    const reqUserName = req.headers.get("x-simulated-user") || requester.name;
+    // @ts-ignore
+    await prisma.auditLog.create({
+      data: {
+        userName: reqUserName,
+        action: isSelf ? "Updated Own Profile" : "Updated Member Info",
+        target: isSelf ? "Self" : colleague.name,
+        type: isTargetAdmin ? "admin" : "user",
+      }
+    });
+
+    return NextResponse.json(colleague);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 export async function DELETE(req: NextRequest) {
   try {
     // 1. Security Check
     if (!await isAdmin(req)) {
-      return NextResponse.json({ error: "Access Denied: Administratve role required" }, { status: 403 });
+      return NextResponse.json({ error: "Access Denied: Administrative role required" }, { status: 403 });
     }
 
     const { id } = await req.json();
