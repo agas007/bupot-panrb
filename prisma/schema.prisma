@@ -39,7 +39,7 @@ model SPMRecord {
   // Tracking
   status          String    @default("PENDING") // PENDING, COMPLETED
   assigneeId      Int?
-  assignee        Colleague? @relation(fields: [assigneeId], references: [id])
+  assignee        Colleague? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
   completionDate  DateTime?
   docLink         String?
   notes           String?
