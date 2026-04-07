@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UserPlus, Trash2, Shield, User, Loader2, KeyRound, AtSign, ChevronDown, X, Check, Save, UserPen } from "lucide-react";
+import { UserPlus, Trash2, Shield, User, Loader2, KeyRound, AtSign, ChevronDown, X, Save, UserPen } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useAuth } from "@/hooks/useAuth";
+import { Colleague } from "@/types";
 
 export default function ColleaguesPage() {
   const { language, t } = useLanguage();
-  const [colleagues, setColleagues] = useState<any[]>([]);
+  const { getAuthHeaders, user: currentUser } = useAuth();
+  
+  const [colleagues, setColleagues] = useState<Colleague[]>([]);
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -15,7 +19,7 @@ export default function ColleaguesPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Edit Modal States
-  const [selectedColleague, setSelectedColleague] = useState<any>(null);
+  const [selectedColleague, setSelectedColleague] = useState<Colleague | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [editUsername, setEditUsername] = useState("");
@@ -30,7 +34,7 @@ export default function ColleaguesPage() {
     setIsLoading(true);
     try {
       const res = await fetch("/api/colleagues");
-      const data = await res.json();
+      const data: Colleague[] = await res.json();
       setColleagues(data);
     } catch (err) {
       console.error(err);
@@ -45,15 +49,11 @@ export default function ColleaguesPage() {
 
     setIsSubmitting(true);
     try {
-      const simulatedUser = localStorage.getItem("sim_user");
-      const currentUserName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
-      const currentUserUsername = simulatedUser ? JSON.parse(simulatedUser).username : "admin";
-
       const res = await fetch("/api/colleagues", {
         method: "POST",
         headers: { 
-          "x-simulated-user": currentUserName,
-          "x-simulated-username": currentUserUsername
+          ...getAuthHeaders(),
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ 
           name, 
@@ -79,15 +79,11 @@ export default function ColleaguesPage() {
     const msg = t.team.confirm_delete;
     if (!confirm(msg)) return;
     try {
-      const simulatedUser = localStorage.getItem("sim_user");
-      const currentUserName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
-      const currentUserUsername = simulatedUser ? JSON.parse(simulatedUser).username : "admin";
-
       const res = await fetch("/api/colleagues", {
         method: "DELETE",
         headers: { 
-          "x-simulated-user": currentUserName,
-          "x-simulated-username": currentUserUsername
+          ...getAuthHeaders(),
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ id }),
       });
@@ -97,12 +93,12 @@ export default function ColleaguesPage() {
     }
   };
 
-  const openEditModal = (col: any) => {
+  const openEditModal = (col: Colleague) => {
     setSelectedColleague(col);
     setEditName(col.name);
     setEditUsername(col.username);
     setEditRole(col.role);
-    setEditPassword(""); // Reset password field
+    setEditPassword(""); 
     setIsEditModalOpen(true);
   };
 
@@ -110,15 +106,11 @@ export default function ColleaguesPage() {
     if (!selectedColleague) return;
     setIsSubmitting(true);
     try {
-      const simulatedUser = localStorage.getItem("sim_user");
-      const currentUserName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
-      const currentUserUsername = simulatedUser ? JSON.parse(simulatedUser).username : "admin";
-
       const res = await fetch("/api/colleagues", {
         method: "PATCH",
         headers: { 
-          "x-simulated-user": currentUserName,
-          "x-simulated-username": currentUserUsername
+          ...getAuthHeaders(),
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ 
           id: selectedColleague.id,
@@ -240,7 +232,7 @@ export default function ColleaguesPage() {
                 {t.team.not_found}
               </div>
             ) : (
-              colleagues.map((col: any) => (
+              colleagues.map((col: Colleague) => (
                 <div 
                   key={col.id} 
                   className="glass-card p-5 flex items-center gap-4 group transition-all hover:scale-[1.02] hover:-translate-y-1 shadow-lg hover:shadow-accent/5 cursor-pointer"
@@ -254,7 +246,7 @@ export default function ColleaguesPage() {
                     <div className="flex flex-col gap-1">
                       <span className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-1.5 italic">
                         <AtSign size={10} className="text-accent"/> {col.username || "unset"} 
-                        {JSON.parse(localStorage.getItem("sim_user") || "{}").id === col.id && (
+                        {currentUser?.id === col.id && (
                           <span className="bg-emerald-500/10 text-emerald-500 rounded lowercase text-[8px] border border-emerald-500/20 px-1 ml-1 font-black">You</span>
                         )}
                       </span>
@@ -262,11 +254,11 @@ export default function ColleaguesPage() {
                         <span className={`px-1.5 py-0.5 rounded-md ${col.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
                           {col.role}
                         </span>
-                        • {col._count.records} {t.team.tasks}
+                        • {col._count?.records || 0} {t.team.tasks}
                       </span>
                     </div>
                   </div>
-                  {JSON.parse(localStorage.getItem("sim_user") || "{}").id !== col.id ? (
+                  {currentUser?.id !== col.id ? (
                     <button 
                       onClick={(e) => { e.stopPropagation(); deleteColleague(col.id); }}
                       className="p-3 shrink-0 transition-all hover:bg-rose-500/10 text-rose-500/40 hover:text-rose-500 rounded-xl"

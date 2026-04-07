@@ -3,23 +3,22 @@
 import { useState, useEffect } from "react";
 import { User, KeyRound, Save, Loader2, ShieldCheck, CheckCircle2, UserPen, AtSign } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function SettingsPage() {
   const { language, t } = useLanguage();
-  const [user, setUser] = useState<any>(null);
+  const { user, getAuthHeaders, syncUser } = useAuth();
+  
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("sim_user");
-    if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      setUser(parsed);
-      setName(parsed.name);
+    if (user) {
+      setName(user.name);
     }
-  }, []);
+  }, [user]);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,8 +30,8 @@ export default function SettingsPage() {
       const res = await fetch("/api/colleagues", {
         method: "PATCH",
         headers: { 
-          "x-simulated-user": user.name,
-          "x-simulated-username": user.username
+          ...getAuthHeaders(),
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ 
           id: user.id,
@@ -43,14 +42,11 @@ export default function SettingsPage() {
 
       if (res.ok) {
         const updatedUser = await res.json();
-        // Update local storage to keep session in sync
         const newSession = { ...user, name: updatedUser.name };
         localStorage.setItem("sim_user", JSON.stringify(newSession));
-        setUser(newSession);
+        syncUser();
         setSuccess(true);
         setPassword("");
-        
-        // Refresh page after a delay to update all UI references
         setTimeout(() => setSuccess(false), 3000);
       }
     } catch (err) {

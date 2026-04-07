@@ -3,15 +3,16 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { 
   Search, Filter, ChevronDown, Calendar, 
-  Clock, AlertCircle, ArrowUpDown, Check, 
+  Clock, ArrowUpDown, Check, 
   ExternalLink, X, ClipboardCheck,
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  User, CheckCircle2, FileText, Info, Hash,
-  Wallet, Landmark, ReceiptText, Tag,
-  MinusCircle, Trash2, ArrowRight
+  ChevronsLeft, ChevronsRight,
+  User, CheckCircle2, FileText, Hash,
+  Landmark
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useAuth } from "@/hooks/useAuth";
 import { getTaxAccountLabel } from "@/lib/tax-codes";
+import { SPMRecord, Colleague } from "@/types";
 
 type SortConfig = {
   key: string;
@@ -20,8 +21,10 @@ type SortConfig = {
 
 export default function RecordsPage() {
   const { language, t } = useLanguage();
-  const [records, setRecords] = useState<any[]>([]);
-  const [colleagues, setColleagues] = useState<any[]>([]);
+  const { getAuthHeaders } = useAuth();
+  
+  const [records, setRecords] = useState<SPMRecord[]>([]);
+  const [colleagues, setColleagues] = useState<Colleague[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Filtering & Sorting states
@@ -38,12 +41,11 @@ export default function RecordsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState<number | "max">(25);
 
-  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [selectedRecord, setSelectedRecord] = useState<SPMRecord | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [updateForm, setUpdateForm] = useState({ docLink: "", notes: "" });
 
-  // 1. Data Processing Logic (Must be before functions that use them)
   const filteredAndSortedRecords = useMemo(() => {
     let result = [...records];
     if (searchQuery) {
@@ -73,7 +75,7 @@ export default function RecordsPage() {
     if (statusFilter !== "all") result = result.filter(r => r.status === statusFilter);
     if (sortConfig) {
       result.sort((a, b) => {
-        let aVal, bVal;
+        let aVal: any, bVal: any;
         switch (sortConfig.key) {
           case 'spm': aVal = a.spmNumber; bVal = b.spmNumber; break;
           case 'description': aVal = a.description || ""; bVal = b.description || ""; break;
@@ -144,28 +146,25 @@ export default function RecordsPage() {
     setSortConfig({ key, direction });
   };
 
-  const openUpdateModal = (record: any) => {
+  const openUpdateModal = (record: SPMRecord) => {
     setSelectedRecord(record);
     setUpdateForm({ docLink: record.docLink || "", notes: record.notes || "" });
     setIsUpdateModalOpen(true);
   };
 
-  const openDetailModal = (record: any) => {
+  const openDetailModal = (record: SPMRecord) => {
     setSelectedRecord(record);
     setIsDetailModalOpen(true);
   };
 
   const submitUpdate = async () => {
+    if (!selectedRecord) return;
     try {
-      const simulatedUser = localStorage.getItem("sim_user");
-      const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
-      const currentUserUsername = simulatedUser ? JSON.parse(simulatedUser).username : "admin";
-
       const res = await fetch("/api/records", {
         method: "PATCH",
         headers: { 
-          "x-simulated-user": userName,
-          "x-simulated-username": currentUserUsername
+          ...getAuthHeaders(),
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ id: selectedRecord.id, status: "COMPLETED", ...updateForm }),
       });
@@ -180,15 +179,11 @@ export default function RecordsPage() {
 
   const updateStatus = async (id: number, status: string) => {
     try {
-      const simulatedUser = localStorage.getItem("sim_user");
-      const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
-      const currentUserUsername = simulatedUser ? JSON.parse(simulatedUser).username : "admin";
-
       const res = await fetch("/api/records", {
         method: "PATCH",
         headers: { 
-          "x-simulated-user": userName, 
-          "x-simulated-username": currentUserUsername
+          ...getAuthHeaders(),
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ id, status }),
       });
@@ -200,15 +195,11 @@ export default function RecordsPage() {
 
   const assignColleague = async (id: number, assigneeId: number | null) => {
     try {
-      const simulatedUser = localStorage.getItem("sim_user");
-      const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
-      const currentUserUsername = simulatedUser ? JSON.parse(simulatedUser).username : "admin";
-
       const res = await fetch("/api/records", {
         method: "PATCH",
         headers: { 
-          "x-simulated-user": userName,
-          "x-simulated-username": currentUserUsername
+          ...getAuthHeaders(),
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ id, assigneeId: assigneeId === 0 ? null : assigneeId }),
       });
@@ -221,15 +212,11 @@ export default function RecordsPage() {
   const handleBulkAssign = async (assigneeId: number | null) => {
     if (selectedIds.size === 0) return;
     try {
-      const simulatedUser = localStorage.getItem("sim_user");
-      const userName = simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)";
-      const currentUserUsername = simulatedUser ? JSON.parse(simulatedUser).username : "admin";
-
       const res = await fetch("/api/records", {
         method: "PATCH",
         headers: { 
-          "x-simulated-user": userName,
-          "x-simulated-username": currentUserUsername
+          ...getAuthHeaders(),
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ 
           ids: Array.from(selectedIds), 
@@ -267,7 +254,7 @@ export default function RecordsPage() {
     setSelectedIds(newSelected);
   };
 
-  const getDeadlineStatus = (sp2dDate: string) => {
+  const getDeadlineStatus = (sp2dDate?: string | null) => {
     if (!sp2dDate) return { label: "N/A", type: "neutral", date: null };
     const date = new Date(sp2dDate);
     const targetDate = new Date(date.getFullYear(), date.getMonth() + 1, 15);
@@ -367,7 +354,7 @@ export default function RecordsPage() {
                       >
                         <option value="" disabled className="text-slate-900">{language === "ID" ? "--- Pilih Rekan ---" : "--- Select Colleague ---"}</option>
                         <option value="0" className="text-slate-900">{t.worksheet.unassigned}</option>
-                        {colleagues.map((col: any) => (<option key={col.id} value={col.id} className="text-slate-900">{col.name}</option>))}
+                        {colleagues.map((col: Colleague) => (<option key={col.id} value={col.id} className="text-slate-900">{col.name}</option>))}
                       </select>
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={14} />
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40" size={14} />
@@ -385,7 +372,6 @@ export default function RecordsPage() {
         </div>
       )}
 
-      {/* Header with Multi-Filters */}
       <header className="flex flex-col gap-6">
         <div className="flex flex-col gap-2 text-left">
           <h1 className="text-3xl font-bold tracking-tight">{t.worksheet.title}</h1>
@@ -394,7 +380,7 @@ export default function RecordsPage() {
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} /><input type="text" placeholder={t.worksheet.search_placeholder} className="w-full bg-muted border-none rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/20 transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}/></div>
           <div className="relative"><Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} /><select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}><option value="all">{t.worksheet.all_accounts}</option>{uniqueAccounts.map(acc => (<option key={acc} value={acc}>{acc} ({getTaxAccountLabel(acc)})</option>))}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} /></div>
-          <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} /><select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]" value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}><option value="all">{t.nav.daftar_rekan} ({t.worksheet.show_all})</option><option value="unassigned">{t.worksheet.unassigned}</option>{colleagues.map((col: any) => (<option key={col.id} value={col.id}>{col.name}</option>))}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} /></div>
+          <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} /><select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]" value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}><option value="all">{t.nav.daftar_rekan} ({t.worksheet.show_all})</option><option value="unassigned">{t.worksheet.unassigned}</option>{colleagues.map((col: Colleague) => (<option key={col.id} value={col.id}>{col.name}</option>))}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} /></div>
           <div className="relative"><CheckCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} /><select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">{t.worksheet.status} ({t.worksheet.show_all})</option><option value="PENDING">{t.worksheet.pending}</option><option value="COMPLETED">{t.worksheet.completed}</option></select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} /></div>
         </div>
       </header>
@@ -453,8 +439,8 @@ export default function RecordsPage() {
                       <td><div className="flex flex-col gap-1 text-left"><span className="font-medium text-sm">{record.sp2dNumber || "-"}</span><span className="text-[10px] text-muted-foreground flex items-center gap-1"><Calendar size={10} /> {record.sp2dDate ? new Date(record.sp2dDate).toLocaleDateString(language === "ID" ? "id-ID" : "en-US", { day: 'numeric', month: 'short', year: 'numeric' }) : (language === "ID" ? "Belum terbit" : "Not issued")}</span></div></td>
                       <td className="text-center"><div className="flex flex-col items-center gap-1.5 group cursor-help"><span className="badge bg-accent/5 text-accent border border-accent/10 font-mono text-xs shadow-sm">{record.accountCode}</span><span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight text-center max-w-[80px] leading-tight opacity-70 group-hover:opacity-100 transition-opacity">{accountLabel}</span></div></td>
                       <td><div className="flex flex-col gap-1 text-left"><span className="font-medium text-sm line-clamp-1 max-w-[200px]">{record.recipient}</span><div className="flex flex-col text-left"><span className="text-xs font-bold text-accent">{language === "ID" ? "Potongan" : "Tax"}: IDR {record.deductionAmount.toLocaleString("id-ID")}</span><span className="text-[10px] opacity-70">Total: IDR {record.totalValue?.toLocaleString("id-ID") || "0"}</span></div></div></td>
-                      <td className="text-center"><div className={`p-2 rounded-xl flex flex-col items-center gap-1 ${deadline.type === "overdue" ? "bg-rose-500/10 text-rose-500" : deadline.type === "soon" ? "bg-amber-500/10 text-amber-500" : "bg-emerald-500/10 text-emerald-500"}`}><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider">{deadline.type === "overdue" ? <AlertCircle size={12} /> : <Clock size={12} />}{deadline.type === "overdue" ? t.worksheet.terlewat : deadline.type === "soon" ? t.worksheet.segera : t.worksheet.aman}</div><span className="text-xs font-medium">{deadline.label}</span></div></td>
-                      <td className="text-center"><select className="bg-muted border-none rounded-lg p-2 text-xs outline-none focus:ring-2 focus:ring-accent cursor-pointer w-full max-w-[140px] transition-all text-center" value={record.assigneeId || ""} onChange={(e) => assignColleague(record.id, e.target.value ? Number(e.target.value) : 0)}><option value="">{t.worksheet.unassigned}</option>{colleagues.map((col: any) => (<option key={col.id} value={col.id}>{col.name}</option>))}</select></td>
+                      <td className="text-center"><div className={`p-2 rounded-xl flex flex-col items-center gap-1 ${deadline.type === "overdue" ? "bg-rose-500/10 text-rose-500" : deadline.type === "soon" ? "bg-amber-500/10 text-amber-500" : "bg-emerald-500/10 text-emerald-500"}`}><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider">{deadline.type === "overdue" ? <Clock size={12} /> : <Clock size={12} />}{deadline.type === "overdue" ? t.worksheet.terlewat : deadline.type === "soon" ? t.worksheet.segera : t.worksheet.aman}</div><span className="text-xs font-medium">{deadline.label}</span></div></td>
+                      <td className="text-center"><select className="bg-muted border-none rounded-lg p-2 text-xs outline-none focus:ring-2 focus:ring-accent cursor-pointer w-full max-w-[140px] transition-all text-center" value={record.assigneeId || ""} onChange={(e) => assignColleague(record.id, e.target.value ? Number(e.target.value) : 0)}><option value="">{t.worksheet.unassigned}</option>{colleagues.map((col: Colleague) => (<option key={col.id} value={col.id}>{col.name}</option>))}</select></td>
                       <td className="text-center"><div className={`badge ${record.status === "COMPLETED" ? "badge-completed" : "badge-pending"}`}>{record.status === "COMPLETED" ? t.worksheet.completed : t.worksheet.pending}</div></td>
                       <td className="text-center">
                         <div className="flex items-center justify-center gap-1">
@@ -477,7 +463,6 @@ export default function RecordsPage() {
           </table>
         </div>
 
-        {/* Pagination Footer */}
         {!isLoading && filteredAndSortedRecords.length > 0 && (
           <div className="p-4 border-t border-border bg-muted/30 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
