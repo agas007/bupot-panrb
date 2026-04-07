@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export const runtime = 'nodejs';
 
@@ -44,13 +45,16 @@ export async function POST(req: NextRequest) {
 
     // Auto-generate username and password if not provided
     const finalUsername = username || name.toLowerCase().replace(/\s+/g, '.');
-    const finalPassword = password || process.env.DEFAULT_USER_PASSWORD || "Placeholder123!";
+    const rawPassword = password || process.env.DEFAULT_USER_PASSWORD || "Placeholder123!";
+    
+    // 🔥 NEW: Password Hashing
+    const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
     const colleague = await (prisma.colleague as any).create({
       data: { 
         name, 
         username: finalUsername,
-        password: finalPassword,
+        password: hashedPassword,
         role: role || "USER" 
       }
     });
@@ -61,7 +65,7 @@ export async function POST(req: NextRequest) {
     await prisma.auditLog.create({
       data: {
         userName: reqUser,
-        action: "Added New Member",
+        action: "Added New Member (Hashed)",
         target: `${name} (${role || "USER"})`,
         type: "admin",
       }
@@ -100,8 +104,12 @@ export async function PATCH(req: NextRequest) {
     const updateData: any = {};
     if (name) updateData.name = name;
     if (username && isTargetAdmin) updateData.username = username; // Only admin can change username
-    if (password) updateData.password = password;
     if (role && isTargetAdmin) updateData.role = role; // Only admin can change role
+    
+    // 🔥 NEW: Password Hashing for updates
+    if (password) {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
 
     const colleague = await prisma.colleague.update({
       where: { id: targetId },
@@ -114,7 +122,7 @@ export async function PATCH(req: NextRequest) {
     await prisma.auditLog.create({
       data: {
         userName: reqUserName,
-        action: isSelf ? "Updated Own Profile" : "Updated Member Info",
+        action: isSelf ? "Updated Own Profile" : "Updated Member Info (Encrypted)",
         target: isSelf ? "Self" : colleague.name,
         type: isTargetAdmin ? "admin" : "user",
       }
