@@ -1,31 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseExcel, mergeExcelData } from "@/lib/excel";
 import { prisma } from "@/lib/prisma";
+import { applyRateLimit } from "@/lib/rate-limit";
+
+export const runtime = 'nodejs';
 
 /**
- * @swagger
- * /api/import:
- *   post:
- *     summary: Bulk import records from Excel
- *     description: Upload Potongan and SPP files to merge and import records into the system.
- *     tags: [Management]
- *     security:
- *       - SimulatorUser: []
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               potongan: { type: string, format: binary }
- *               spp: { type: string, format: binary }
- *     responses:
- *       200:
- *         description: Data imported successfully.
+ * Handle POST: Bulk import records from Excel with optional preview mode
  */
 export async function POST(req: NextRequest) {
   try {
+    // 0. Rate Limit Check
+    const rateLimit = await applyRateLimit(req, 10, 60 * 1000); // 10 imports/min
+    if (rateLimit) return rateLimit;
+
+    const { searchParams } = new URL(req.url);
+    const isPreview = searchParams.get("preview") === "true";
+
     // 1. Administrative Security Check
     const reqUsername = req.headers.get("x-simulated-username");
     const adminUser = reqUsername ? await (prisma.colleague as any).findFirst({ where: { username: reqUsername } }) : null;
@@ -45,23 +36,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validation stage
+    if (!potonganFile.name.endsWith('.xlsx') && !potonganFile.name.endsWith('.csv')) {
+      return NextResponse.json({ error: "Potongan file must be .xlsx or .csv" }, { status: 400 });
+    }
+    if (!sppFile.name.endsWith('.xlsx') && !sppFile.name.endsWith('.csv')) {
+      return NextResponse.json({ error: "SPP file must be .xlsx or .csv" }, { status: 400 });
+    }
+
     const potonganBuffer = Buffer.from(await potonganFile.arrayBuffer());
     const sppBuffer = Buffer.from(await sppFile.arrayBuffer());
 
     const potonganData = parseExcel(potonganBuffer);
     const sppData = parseExcel(sppBuffer);
 
+    if (potonganData.length === 0) return NextResponse.json({ error: "Potongan file is empty or invalid" }, { status: 400 });
+    if (sppData.length === 0) return NextResponse.json({ error: "SPP file is empty or invalid" }, { status: 400 });
+
     const mergedData = mergeExcelData(potonganData as any, sppData as any);
+
+    if (isPreview) {
+      return NextResponse.json({
+        success: true,
+        count: mergedData.length,
+        preview: mergedData.slice(0, 100), // Preview only first 100 items
+        isPartial: mergedData.length > 100
+      });
+    }
 
     console.log(`[Import Log] Starting import for ${mergedData.length} records...`);
 
-    // Splitting into smaller chunks (batches) to avoid DB timeouts & connection limits
+    // Batching to prevent DB connection exhaustion
     const CHUNK_SIZE = 50; 
     let resultsCount = 0;
 
     for (let i = 0; i < mergedData.length; i += CHUNK_SIZE) {
       const chunk = mergedData.slice(i, i + CHUNK_SIZE);
-      console.log(`[Import Log] Processing batch ${Math.floor(i / CHUNK_SIZE) + 1} (${chunk.length} items)...`);
       
       const chunkResults = await prisma.$transaction(
         chunk.map((data) =>
@@ -86,17 +96,16 @@ export async function POST(req: NextRequest) {
       resultsCount += chunkResults.length;
     }
 
-    console.log(`[Import Log] Import complete! Total: ${resultsCount} records.`);
-
-    // Add Audit Log
+    // Audit trail
     const userName = req.headers.get("x-simulated-user") || "Admin (Simulated)";
-    // @ts-ignore - Prisma types might be lagging after schema update
+    // @ts-ignore
     await prisma.auditLog.create({
       data: {
         userName,
         action: "Bulk Imported Data",
-        target: `${resultsCount} Records from Excel`,
-        type: "system",
+        target: `${resultsCount} Records`,
+        category: "DATA",
+        type: "success",
       },
     });
 
@@ -107,7 +116,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("[Import Error] Global catch:", error);
     return NextResponse.json(
-      { error: "Failed to process files: " + error.message },
+      { error: "Validation Failed: " + error.message },
       { status: 500 }
     );
   }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+const VALID_ACCOUNTS = ["411121", "411122", "411124"];
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const year = searchParams.get("year");
@@ -21,21 +23,23 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const baseFilter = { ...dateFilter, accountCode: { in: VALID_ACCOUNTS } };
+
     const [totalRecords, completedRecords, unassignedRecords, colleagues] = await Promise.all([
-      prisma.sPMRecord.count({ where: dateFilter }),
-      prisma.sPMRecord.count({ where: { ...dateFilter, status: "COMPLETED" } }),
-      prisma.sPMRecord.count({ where: { ...dateFilter, assigneeId: null } }),
+      prisma.sPMRecord.count({ where: baseFilter }),
+      prisma.sPMRecord.count({ where: { ...baseFilter, status: "COMPLETED" } }),
+      prisma.sPMRecord.count({ where: { ...baseFilter, assigneeId: null } }),
       prisma.colleague.findMany({
         include: {
           _count: {
             select: { 
               records: { 
-                where: { ...dateFilter, status: "COMPLETED" } 
+                where: { ...baseFilter, status: "COMPLETED" } 
               } 
             }
           },
           records: {
-            where: dateFilter,
+            where: baseFilter,
             select: { id: true }
           }
         }
@@ -55,6 +59,7 @@ export async function GET(req: NextRequest) {
     // Format monthly compliance (Based on SP2D Date / Masa Pajak)
     const allRecords = await prisma.sPMRecord.findMany({
       where: { 
+        accountCode: { in: VALID_ACCOUNTS },
         sp2dDate: { not: null },
         ...(year ? { sp2dDate: { gte: new Date(Number(year), 0, 1), lte: new Date(Number(year), 11, 31) } } : {})
       },

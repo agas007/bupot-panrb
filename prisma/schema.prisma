@@ -11,12 +11,24 @@ datasource db {
 }
 
 model Colleague {
+  id            Int            @id @default(autoincrement())
+  username      String         @unique
+  password      String
+  name          String         @unique
+  role          String         @default("USER") // ADMIN or USER
+  records       SPMRecord[]
+  notifications Notification[]
+  createdAt     DateTime       @default(now())
+}
+
+model Notification {
   id        Int       @id @default(autoincrement())
-  username  String    @unique
-  password  String
-  name      String    @unique
-  role      String    @default("USER") // ADMIN or USER
-  records   SPMRecord[]
+  userId    Int
+  user      Colleague @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String    // INFO, WARNING, SUCCESS, DANGER
+  isRead    Boolean   @default(false)
   createdAt DateTime  @default(now())
 }
 
@@ -54,6 +66,7 @@ model AuditLog {
   userName  String
   action    String
   target    String
-  type      String   // system, user, admin, danger
+  category  String   @default("GENERAL") // AUTH, DATA, ADMIN, SECURITY, GENERAL
+  type      String   // info, success, warning, danger
   createdAt DateTime @default(now())
 }

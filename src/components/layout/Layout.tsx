@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
@@ -34,7 +34,11 @@ import {
   KeyRound,
   ShieldCheck,
   AtSign,
-  Settings2
+  Settings2,
+  Bell,
+  CheckCircle2,
+  AlertCircle,
+  FileType
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -43,6 +47,15 @@ interface Colleague {
   name: string;
   role: string;
   username: string;
+}
+
+interface Notification {
+  id: number;
+  title: string;
+  message: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -56,8 +69,47 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<Colleague | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // 🔥 NEW: Notifications State
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const MODAL_VERSION = "1.2.0";
+
+  const fetchNotifications = useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      const res = await fetch("/api/notifications", {
+        headers: {
+          "x-simulated-username": currentUser.username
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    }
+  }, [currentUser]);
+
+  const markAsRead = async (id?: number, all: boolean = false) => {
+    if (!currentUser) return;
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: {
+          "x-simulated-username": currentUser.username,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ id, all })
+      });
+      if (res.ok) fetchNotifications();
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -94,6 +146,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
       router.push("/login");
     }
   }, [mounted, pathname, router]);
+
+  // Periodic notifications fetch
+  useEffect(() => {
+    if (currentUser) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 60000); // 1 minute
+      return () => clearInterval(interval);
+    }
+  }, [currentUser, fetchNotifications]);
 
   const INACTIVITY_LIMIT = 5 * 60 * 1000; // 5 Minutes
 
@@ -188,18 +249,104 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
           <span className="font-bold text-sm tracking-tight">Bupot PANRB</span>
         </div>
-        <button 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-3 bg-accent text-accent-foreground rounded-2xl shadow-lg active:scale-95 transition-all"
-        >
-          {isMobileMenuOpen ? <X size={20} /> : <PanelLeftOpen size={20} />}
-        </button>
+        
+        <div className="flex items-center gap-2">
+           <button 
+             onClick={() => setShowNotifications(!showNotifications)}
+             className="p-3 bg-muted/50 rounded-2xl relative"
+           >
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-background animate-bounce shadow-lg">
+                  {unreadCount}
+                </span>
+              )}
+           </button>
+           <button 
+             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+             className="p-3 bg-accent text-accent-foreground rounded-2xl shadow-lg active:scale-95 transition-all"
+           >
+             {isMobileMenuOpen ? <X size={20} /> : <PanelLeftOpen size={20} />}
+           </button>
+        </div>
       </div>
 
       {/* Sidebar Overlay */}
       {isMobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-110" onClick={() => setIsMobileMenuOpen(false)} />
       )}
+
+      {/* 🔥 NEW: Global Header Toolbar (Only for Desktop) */}
+      <div className="hidden lg:flex fixed top-4 right-4 z-100 items-center gap-4">
+          <div className="relative">
+             <button 
+               onClick={() => setShowNotifications(!showNotifications)}
+               className={`p-3 glass-card rounded-2xl relative transition-all hover:scale-105 active:scale-95 ${showNotifications ? "bg-accent/20 border-accent/40" : "hover:bg-white/10"}`}
+             >
+                <Bell size={20} className={unreadCount > 0 ? "animate-swing origin-top" : ""} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-background shadow-lg">
+                    {unreadCount}
+                  </span>
+                )}
+             </button>
+
+             {showNotifications && (
+               <div className="absolute right-0 mt-4 w-96 glass-card p-6 z-200 shadow-2xl animate-in fade-in slide-in-from-top-4 border-accent/20 max-h-[80vh] flex flex-col gap-6">
+                  <div className="flex justify-between items-center bg-accent/5 p-2 rounded-2xl border border-accent/10">
+                     <div className="flex items-center gap-3 px-2">
+                        <div className="p-2 bg-accent/10 text-accent rounded-xl"><Bell size={20} /></div>
+                        <h3 className="font-black text-sm uppercase tracking-widest">{language === "ID" ? "Notifikasi" : "Notifications"}</h3>
+                     </div>
+                     <button onClick={() => setShowNotifications(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all text-white/40 hover:text-white"><X size={20}/></button>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-3 min-h-[100px] max-h-[400px]">
+                     {notifications.length === 0 ? (
+                       <div className="py-20 flex flex-col items-center justify-center text-muted-foreground gap-3 opacity-50">
+                          <CheckCircle2 size={40} />
+                          <p className="text-[10px] font-black uppercase tracking-widest">{language === "ID" ? "Tidak ada notifikasi" : "No Notifications"}</p>
+                       </div>
+                     ) : (
+                       notifications.map(n => (
+                         <div 
+                           key={n.id} 
+                           className={`p-4 rounded-2xl border transition-all text-left flex gap-4 ${n.isRead ? "bg-white/5 border-white/5 opacity-60" : "bg-accent/5 border-accent/20 hover:bg-accent/10 hover:-translate-y-0.5"}`}
+                           onClick={() => markAsRead(n.id)}
+                         >
+                            <div className={`p-2 rounded-xl mt-1 shrink-0 ${n.type === "WARNING" ? "bg-amber-500/10 text-amber-500" : "bg-accent/10 text-accent"}`}>
+                               {n.type === "WARNING" ? <AlertCircle size={16}/> : <Info size={16}/>}
+                            </div>
+                            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                               <div className="flex justify-between items-start">
+                                  <span className="text-xs font-black tracking-tight leading-none text-foreground uppercase">{n.title}</span>
+                                  <span className="text-[8px] font-bold text-muted-foreground whitespace-nowrap">{new Date(n.createdAt).toLocaleDateString()}</span>
+                               </div>
+                               <p className="text-[11px] leading-relaxed text-muted-foreground line-clamp-3">{n.message}</p>
+                               {!n.isRead && (
+                                 <button className="text-[9px] font-black uppercase tracking-widest text-accent hover:underline mt-1 text-left">
+                                   {language === "ID" ? "Tandai dibaca" : "Mark as read"}
+                                 </button>
+                               )}
+                            </div>
+                         </div>
+                       ))
+                     )}
+                  </div>
+
+                  {unreadCount > 0 && (
+                    <button 
+                      onClick={() => markAsRead(undefined, true)}
+                      className="premium-button py-3 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 group shadow-xl"
+                    >
+                       <Check size={16} className="group-hover:scale-110 transition-transform" />
+                       {language === "ID" ? "Baca Semua" : "Read All"}
+                    </button>
+                  )}
+               </div>
+             )}
+          </div>
+      </div>
 
       <aside className={`
         fixed left-0 top-0 h-full z-120 lg:z-50 transition-all duration-500 ease-in-out flex flex-col p-4 gap-6
@@ -315,29 +462,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
                    <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
                       <ShieldCheck className="text-emerald-400 shrink-0 mt-1" size={18} />
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-white leading-none">Login Berbasis Kredensial</span>
-                        <p className="text-[11px] text-white/50 leading-relaxed">Sistem kini mewajibkan login dengan Username & Password resmi untuk keamanan data.</p>
+                         <span className="text-xs font-bold text-white leading-none">Login Berbasis Kredensial</span>
+                         <p className="text-[11px] text-white/50 leading-relaxed">Sistem kini mewajibkan login dengan Username & Password resmi untuk keamanan data.</p>
                       </div>
                    </div>
                    <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                      <AtSign className="text-indigo-400 shrink-0 mt-1" size={18} />
+                      <Bell className="text-indigo-400 shrink-0 mt-1" size={18} />
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-white leading-none">Manajemen Akun Custom</span>
-                        <p className="text-[11px] text-white/50 leading-relaxed">Admin dapat menentukan username dan password khusus saat mengundang anggota baru.</p>
+                         <span className="text-xs font-bold text-white leading-none">Notifikasi In-App</span>
+                         <p className="text-[11px] text-white/50 leading-relaxed">Terima pemberitahuan tugas baru dan pengingat deadline langsung di aplikasi.</p>
                       </div>
                    </div>
                    <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
                       <History className="text-amber-400 shrink-0 mt-1" size={18} />
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-white leading-none">Audit Aktivitas Sesi</span>
-                        <p className="text-[11px] text-white/50 leading-relaxed">Semua riwayat login, logout, dan percobaan masuk tidak sah kini tercatat di Log Aktivitas.</p>
+                         <span className="text-xs font-bold text-white leading-none">Audit Aktivitas Sesi</span>
+                         <p className="text-[11px] text-white/50 leading-relaxed">Semua riwayat login, logout, dan percobaan masuk tidak sah kini tercatat di Log Aktivitas.</p>
                       </div>
                    </div>
                    <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                      <Code className="text-purple-400 shrink-0 mt-1" size={18} />
+                      <FileType className="text-rose-400 shrink-0 mt-1" size={18} />
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-white leading-none">Akses Dokumentasi API</span>
-                        <p className="text-[11px] text-white/50 leading-relaxed">Technical reference sekarang dapat diakses secara publik (guest) untuk transparansi sistem.</p>
+                         <span className="text-xs font-bold text-white leading-none">Multi-Format Export</span>
+                         <p className="text-[11px] text-white/50 leading-relaxed">Ekspor laporan lembar kerja kini tersedia dalam format PDF, Excel, dan CSV.</p>
                       </div>
                    </div>
                  </div>
@@ -346,15 +493,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
                    <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10">
                       <Languages className="text-sky-400 shrink-0 mt-1" size={18} />
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-white leading-none">Bilingual Support</span>
-                        <p className="text-[11px] text-white/50 leading-relaxed">Dukungan penuh Bahasa Indonesia & English di seluruh modul aplikasi.</p>
+                         <span className="text-xs font-bold text-white leading-none">Bilingual Support</span>
+                         <p className="text-[11px] text-white/50 leading-relaxed">Dukungan penuh Bahasa Indonesia & English di seluruh modul aplikasi.</p>
                       </div>
                    </div>
                    <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10">
                       <Moon className="text-indigo-400 shrink-0 mt-1" size={18} />
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-white leading-none">Premium Dark Mode</span>
-                        <p className="text-[11px] text-white/50 leading-relaxed">Pengalaman visual yang lebih nyaman untuk penggunaan durasi panjang.</p>
+                         <span className="text-xs font-bold text-white leading-none">Premium Dark Mode</span>
+                         <p className="text-[11px] text-white/50 leading-relaxed">Pengalaman visual yang lebih nyaman untuk penggunaan durasi panjang.</p>
                       </div>
                    </div>
                  </div>
