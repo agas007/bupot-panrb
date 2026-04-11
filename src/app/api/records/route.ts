@@ -74,13 +74,13 @@ export async function PATCH(req: NextRequest) {
     
     // Assignment Logic with Notifications
     if (assigneeId !== undefined) {
-      const adminUser = reqUsername ? await (prisma.colleague as any).findFirst({ where: { username: reqUsername } }) : null;
-      if (!adminUser || adminUser.role !== "ADMIN") {
-        return NextResponse.json({ error: "Access Denied: Administrative role required for assignment" }, { status: 403 });
+      const user = reqUsername ? await (prisma.colleague as any).findFirst({ where: { username: reqUsername } }) : null;
+      if (!user) {
+        return NextResponse.json({ error: "Access Denied: Authentication required for assignment" }, { status: 403 });
       }
       updateData.assigneeId = assigneeId === 0 ? null : assigneeId;
       action = assigneeId === 0 ? "Unassigned Task" : "Assigned Task";
-      type = "admin";
+      type = user.role === "ADMIN" ? "admin" : "user";
     }
 
     const userName = adminName;
