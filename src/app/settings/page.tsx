@@ -133,11 +133,11 @@ export default function SettingsPage() {
            </button>
         </form>
 
-        <div className="border-t border-white/5 pt-8 flex flex-col items-center gap-2 opacity-30">
-           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
+        <div className="border-t border-border pt-8 flex flex-col items-center gap-2 opacity-60">
+           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-foreground/80">
               <ShieldCheck size={14} className="text-accent" /> Optimized Security Pipeline v2.1
            </div>
-           <p className="text-[9px] text-center max-w-sm">Dukungan teknis tersedia melalui Administrator Biro Umum jika Anda kehilangan akses akun.</p>
+           <p className="text-[9px] text-center max-w-sm text-muted-foreground">Dukungan teknis tersedia melalui Administrator Biro Umum jika Anda kehilangan akses akun.</p>
         </div>
       </section>
     </div>

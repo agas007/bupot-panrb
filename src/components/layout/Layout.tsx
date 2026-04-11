@@ -281,7 +281,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="relative">
              <button 
                onClick={() => setShowNotifications(!showNotifications)}
-               className={`p-3 glass-card rounded-2xl relative transition-all hover:scale-105 active:scale-95 ${showNotifications ? "bg-accent/20 border-accent/40" : "hover:bg-white/10"}`}
+               className={`p-3 glass-card rounded-2xl relative transition-all hover:scale-105 active:scale-95 overflow-visible! ${showNotifications ? "bg-accent/20 border-accent/40" : "hover:bg-white/10"}`}
              >
                 <Bell size={20} className={unreadCount > 0 ? "animate-swing origin-top" : ""} />
                 {unreadCount > 0 && (
@@ -397,7 +397,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  isActive ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  isActive 
+                    ? (theme === "dark" 
+                        ? "bg-primary text-primary-foreground shadow-lg" 
+                        : "bg-accent/10 text-accent shadow-sm ring-1 ring-accent/20") 
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 } ${isSidebarCollapsed ? "justify-center" : ""}`}
               >
                 <Icon size={20} className="shrink-0" />
@@ -409,15 +413,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         <div className="mt-auto border-t border-border pt-4 px-2 flex flex-col gap-1 overflow-hidden">
           <div className={`flex flex-wrap items-center gap-1 ${isSidebarCollapsed ? "flex-col" : "flex-row"}`}>
-            <button onClick={() => setShowAnnouncement(true)} className="flex-1 flex items-center gap-2 text-muted-foreground hover:text-accent p-2 rounded-lg hover:bg-accent/5 justify-center transition-colors" title={t.nav.fitur_baru}>
+            <button onClick={() => setShowAnnouncement(true)} className="flex-1 flex items-center gap-2 text-foreground/60 hover:text-accent dark:text-muted-foreground p-2 rounded-lg hover:bg-accent/5 justify-center transition-colors" title={t.nav.fitur_baru}>
               <Sparkles size={16} />
               {!isSidebarCollapsed && <span className="font-medium text-[11px] uppercase tracking-wider">{t.nav.fitur_baru}</span>}
             </button>
-            <button onClick={toggleTheme} className="flex-1 flex items-center gap-2 text-muted-foreground hover:text-foreground p-2 rounded-lg hover:bg-muted justify-center transition-colors">
+            <button onClick={toggleTheme} className="flex-1 flex items-center gap-2 text-foreground/60 hover:text-foreground dark:text-muted-foreground p-2 rounded-lg hover:bg-muted justify-center transition-colors">
               {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
               {!isSidebarCollapsed && <span className="font-medium text-[11px] uppercase tracking-wider">{theme === "light" ? t.nav.mode_gelap : t.nav.mode_terang}</span>}
             </button>
-            <button onClick={() => setLanguage(language === "ID" ? "EN" : "ID")} className="flex-1 flex items-center gap-2 text-muted-foreground hover:text-foreground p-2 rounded-lg hover:bg-muted justify-center transition-colors" title={t.nav.ganti_bahasa}>
+            <button onClick={() => setLanguage(language === "ID" ? "EN" : "ID")} className="flex-1 flex items-center gap-2 text-foreground/60 hover:text-foreground dark:text-muted-foreground p-2 rounded-lg hover:bg-muted justify-center transition-colors" title={t.nav.ganti_bahasa}>
               <Languages size={16} />
               {!isSidebarCollapsed && <span className="font-medium text-[11px] uppercase tracking-wider">{language}</span>}
             </button>
@@ -437,15 +441,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Modern Announcement Modal v1.2.0 */}
       {showAnnouncement && mounted && (
-         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-9999 flex items-center justify-center p-4">
-            <div className="glass-card w-full max-w-xl p-8 flex flex-col gap-8 shadow-2xl animate-in zoom-in duration-300">
+         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-9999 flex items-center justify-center p-4">
+            <div className="glass-card bg-slate-900/95! border-white/10! w-full max-w-xl p-8 flex flex-col gap-8 shadow-2xl animate-in zoom-in duration-300">
                <div className="flex justify-between items-center text-left">
                   <div className="flex items-center gap-4">
                      <div className="bg-accent/20 text-accent p-3 rounded-2xl animate-pulse">
                         <Sparkles size={32} />
                      </div>
                      <div className="flex flex-col">
-                        <h2 className="text-2xl font-black uppercase tracking-tight">Rilis v1.2.0 Stabil</h2>
+                        <h2 className="text-2xl font-black uppercase tracking-tight text-white">Rilis v1.2.0 Stabil</h2>
                         <span className="text-accent text-[10px] font-bold uppercase tracking-[0.2em]">Security & Authentication Update</span>
                      </div>
                   </div>

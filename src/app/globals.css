@@ -32,12 +32,12 @@
     --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 11%;
     --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted-foreground: 215 16% 30%; /* Darkened further for maximum readability */
     --background: 0 0% 100%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
-    --border: 214 32% 91%;
+    --border: 214 25% 85%; /* Darkened for better definition (was 91%) */
     --radius: 0.75rem;
   }
 
@@ -69,9 +69,9 @@
   .glass-card {
     background: hsla(var(--card), 0.7);
     backdrop-filter: blur(16px);
-    border: 1px solid hsla(var(--border), 1);
+    border: 1.5px solid hsla(var(--border), 0.8); /* Slightly thicker and more visible */
     border-radius: var(--radius-2xl);
-    box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 30px -4px rgba(0, 0, 0, 0.1); /* Softer but deeper shadow */
     overflow: hidden;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
@@ -82,7 +82,8 @@
   }
 
   .premium-button {
-    @apply bg-accent text-accent-foreground px-6 py-3 rounded-xl font-semibold cursor-pointer transition-all duration-200 hover:brightness-110 hover:-translate-y-px active:translate-y-0 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+    background: linear-gradient(135deg, hsl(var(--accent)), hsl(174 100% 25%));
+    @apply text-white px-6 py-3 rounded-xl font-bold cursor-pointer transition-all duration-300 hover:brightness-110 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md;
   }
 
   .premium-table {
@@ -94,11 +95,11 @@
   }
 
   .premium-table th {
-    @apply text-muted-foreground text-left p-4 font-semibold text-xs uppercase tracking-widest border-b border-border;
+    @apply text-muted-foreground/80 text-left p-4 font-bold text-[11px] uppercase tracking-widest border-b border-border bg-muted/30;
   }
 
   .premium-table td {
-    @apply p-4 border-b border-border text-[0.9rem];
+    @apply p-4 border-b border-border/60 text-[0.9rem];
   }
 
   .premium-table tr:hover {
@@ -114,14 +115,14 @@
   }
 
   .badge-pending { 
-    background-color: hsla(38, 92%, 50%, 0.1); 
-    color: hsl(38, 92%, 50%);
-    border: 1px solid hsla(38, 92%, 50%, 0.2);
+    background-color: hsla(38, 92%, 45%, 0.15); 
+    color: hsl(38, 92%, 35%); /* Darkened for accessibility */
+    border: 1px solid hsla(38, 92%, 45%, 0.3);
   }
   .badge-completed { 
-    background-color: hsla(160, 84%, 39%, 0.1); 
-    color: hsl(160, 84%, 39%);
-    border: 1px solid hsla(160, 84%, 39%, 0.2);
+    background-color: hsla(160, 84%, 35%, 0.15); 
+    color: hsl(160, 84%, 30%); /* Darkened for accessibility */
+    border: 1px solid hsla(160, 84%, 35%, 0.3);
   }
 
   .dashboard-grid {
@@ -148,7 +149,7 @@
 
 @layer utilities {
   .bg-overlay {
-    @apply fixed inset-0 bg-black/50 backdrop-blur-[8px] z-[100];
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-100;
   }
   
   .grid-auto-fill {

@@ -86,16 +86,16 @@ export default function RecordsPage() {
     }
     if (statusFilter !== "all") result = result.filter(r => r.status === statusFilter);
     
-    // 🔥 NEW: Advanced Date Range Filtering
+    // 🔥 UPDATED: Advanced Date Range Filtering by SP2D Date
     if (startDate) {
       const start = new Date(startDate).getTime();
-      result = result.filter(r => new Date(r.spmDate).getTime() >= start);
+      result = result.filter(r => r.sp2dDate && new Date(r.sp2dDate).getTime() >= start);
     }
     if (endDate) {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
       const endTs = end.getTime();
-      result = result.filter(r => new Date(r.spmDate).getTime() <= endTs);
+      result = result.filter(r => r.sp2dDate && new Date(r.sp2dDate).getTime() <= endTs);
     }
 
     // Sorting Logic
@@ -314,7 +314,7 @@ export default function RecordsPage() {
   const exportToExcel = () => {
     const data = filteredAndSortedRecords.map(r => ({
       SPM: r.spmNumber,
-      Tanggal_SPM: new Date(r.spmDate).toLocaleDateString(),
+      Tanggal_SP2D: r.sp2dDate ? new Date(r.sp2dDate).toLocaleDateString() : (language === "ID" ? "Belum Terbit" : "Not Issued"),
       Account: r.accountCode,
       Potongan: r.deductionAmount,
       Penerima: r.recipient,
@@ -328,10 +328,10 @@ export default function RecordsPage() {
   };
 
   const exportToCSV = () => {
-    const headers = ["SPM", "Tanggal SPM", "Account", "Potongan", "Penerima", "Status", "Petugas"];
+    const headers = ["SPM", "Tanggal SP2D", "Account", "Potongan", "Penerima", "Status", "Petugas"];
     const rows = filteredAndSortedRecords.map(r => [
       r.spmNumber,
-      new Date(r.spmDate).toLocaleDateString(),
+      r.sp2dDate ? new Date(r.sp2dDate).toLocaleDateString() : (language === "ID" ? "Belum Terbit" : "Not Issued"),
       r.accountCode,
       r.deductionAmount,
       r.recipient || "",
@@ -350,10 +350,10 @@ export default function RecordsPage() {
 
   const exportToPDF = () => {
     const doc = new jsPDF('l', 'pt', 'a4');
-    const headers = [["SPM", "Date", "Account", "Amount", "Recipient", "Status", "Assignee"]];
+    const headers = [["SPM", "SP2D Date", "Account", "Amount", "Recipient", "Status", "Assignee"]];
     const data = filteredAndSortedRecords.map(r => [
       r.spmNumber,
-      new Date(r.spmDate).toLocaleDateString(),
+      r.sp2dDate ? new Date(r.sp2dDate).toLocaleDateString() : (language === "ID" ? "Belum Terbit" : "Not Issued"),
       r.accountCode,
       r.deductionAmount.toLocaleString(),
       r.recipient || "-",
@@ -374,10 +374,10 @@ export default function RecordsPage() {
   };
 
   const SortHeader = ({ label, sortKey, className = "" }: { label: string, sortKey: string, className?: string }) => (
-    <th className={`cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group p-4 ${className}`} onClick={() => handleSort(sortKey)}>
-      <div className="flex items-center justify-center gap-2 text-xs uppercase tracking-widest font-semibold">
+    <th className={`cursor-pointer hover:bg-black/10 dark:hover:bg-white/5 transition-colors group p-4 ${className}`} onClick={() => handleSort(sortKey)}>
+      <div className="flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest font-black text-muted-foreground/80">
         {label}
-        <ArrowUpDown size={14} className={`transition-opacity ${sortConfig?.key === sortKey ? "opacity-100 text-accent" : "opacity-0 group-hover:opacity-40"}`} />
+        <ArrowUpDown size={12} className={`transition-opacity ${sortConfig?.key === sortKey ? "opacity-100 text-accent" : "opacity-0 group-hover:opacity-40"}`} />
       </div>
     </th>
   );
@@ -395,8 +395,8 @@ export default function RecordsPage() {
     <div className="flex flex-col gap-8 pb-10">
       {/* Update/Completion Modal (Same as before) */}
       {isUpdateModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-1000">
-          <div className="glass-card p-8 rounded-3xl w-full max-w-md flex flex-col gap-6 shadow-2xl animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-1000">
+          <div className="glass-card bg-white/95! dark:bg-card/70! p-8 rounded-3xl w-full max-w-md flex flex-col gap-6 shadow-2xl animate-in fade-in zoom-in duration-300">
             <div className="flex justify-between items-center text-left">
               <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardCheck className="text-accent" /> {t.worksheet.modal_title}</h2>
               <button onClick={() => setIsUpdateModalOpen(false)} className="text-muted-foreground hover:text-foreground p-1 transition-colors"><X size={24}/></button>
@@ -412,9 +412,9 @@ export default function RecordsPage() {
 
       {/* Detail Modal (Same as before) */}
       {isDetailModalOpen && selectedRecord && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-1000">
-          <div className="glass-card p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-8 shadow-2xl animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
-             <div className="flex justify-between items-center bg-muted/-5 p-2 rounded-2xl">
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-1000">
+          <div className="glass-card bg-white/95! dark:bg-card/70! p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-8 shadow-2xl animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
+             <div className="flex justify-between items-center bg-muted/10 p-2 rounded-2xl">
                <div className="flex items-center gap-4">
                  <div className="p-3 bg-accent/10 rounded-2xl text-accent"><Hash size={24} /></div>
                  <div className="text-left"><h2 className="text-2xl font-bold tracking-tight">{selectedRecord.spmNumber}</h2><p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">{t.worksheet.spm_detail}</p></div>
@@ -424,7 +424,7 @@ export default function RecordsPage() {
              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
                <div className="flex flex-col gap-6">
                  <div><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">{t.worksheet.account_code}</label><div className="flex items-center gap-3"><span className="badge bg-accent/10 text-accent border border-accent/20 text-sm py-1.5 px-4">{selectedRecord.accountCode}</span><span className="text-xs font-bold opacity-70">{getTaxAccountLabel(selectedRecord.accountCode)}</span></div></div>
-                 <div><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">{t.worksheet.recipient_amount}</label><div className="p-4 bg-muted/30 rounded-2xl border border-border/50"><p className="font-bold text-lg mb-1">{selectedRecord.recipient}</p><div className="flex flex-col gap-1"><div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">{language === "ID" ? "Nilai SPM" : "SPM Amount"}</span><span className="font-mono font-bold text-slate-500">IDR {selectedRecord.totalValue?.toLocaleString("id-ID") || "0"}</span></div><div className="flex justify-between items-center text-base"><span className="font-medium">{language === "ID" ? "Potongan Pajak" : "Tax Deduction"}</span><span className="font-mono font-bold text-accent">IDR {selectedRecord.deductionAmount.toLocaleString("id-ID")}</span></div></div></div></div>
+                 <div><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">{t.worksheet.recipient_amount}</label><div className="p-4 bg-muted/60 rounded-2xl border border-border"><p className="font-bold text-lg mb-1">{selectedRecord.recipient}</p><div className="flex flex-col gap-1"><div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">{language === "ID" ? "Nilai SPM" : "SPM Amount"}</span><span className="font-mono font-bold text-foreground/70">IDR {selectedRecord.totalValue?.toLocaleString("id-ID") || "0"}</span></div><div className="flex justify-between items-center text-base"><span className="font-medium">{language === "ID" ? "Potongan Pajak" : "Tax Deduction"}</span><span className="font-mono font-bold text-accent">IDR {selectedRecord.deductionAmount.toLocaleString("id-ID")}</span></div></div></div></div>
                  <div><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">{t.worksheet.spm_description}</label><p className="text-sm leading-relaxed italic text-muted-foreground bg-accent/5 p-4 rounded-2xl border border-accent/10">"{selectedRecord.description || "-"}"</p></div>
                </div>
                <div className="flex flex-col gap-6">
@@ -546,14 +546,14 @@ export default function RecordsPage() {
           <div className="glass-card p-6 border-accent/20 animate-in slide-in-from-top-4 duration-300">
              <div className="flex flex-col md:flex-row items-center gap-8">
                 <div className="flex flex-col gap-2 flex-1 text-left">
-                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Rentang Tanggal SPM (Mulai)</label>
+                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Rentang Tanggal SP2D (Mulai)</label>
                    <div className="relative group">
                       <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent transition-colors" size={16} />
                       <input type="date" className="w-full bg-muted/50 border-none py-3 pl-12 pr-4 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 transition-all font-bold text-sm" value={startDate} onChange={e => setStartDate(e.target.value)} />
                    </div>
                 </div>
                 <div className="flex flex-col gap-2 flex-1 text-left">
-                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Rentang Tanggal SPM (Selesai)</label>
+                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Rentang Tanggal SP2D (Selesai)</label>
                    <div className="relative group">
                       <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent transition-colors" size={16} />
                       <input type="date" className="w-full bg-muted/50 border-none py-3 pl-12 pr-4 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 transition-all font-bold text-sm" value={endDate} onChange={e => setEndDate(e.target.value)} />
@@ -562,7 +562,7 @@ export default function RecordsPage() {
                 <div className="h-full flex items-end">
                    <div className="bg-accent/5 p-4 rounded-2xl border border-accent/10 flex items-center gap-3">
                       <AlertCircle className="text-accent" size={18} />
-                      <span className="text-[10px] uppercase font-black tracking-tighter opacity-70">Filtering by SPM Issuance Date</span>
+                      <span className="text-[10px] uppercase font-black tracking-tighter opacity-70">Filtering by SP2D Issuance Date</span>
                    </div>
                 </div>
              </div>
