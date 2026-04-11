@@ -16,7 +16,7 @@ import { getTaxAccountLabel } from "@/lib/tax-codes";
 import { SPMRecord, Colleague } from "@/types";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 type SortConfig = {
   key: string;
@@ -314,9 +314,13 @@ export default function RecordsPage() {
   const exportToExcel = () => {
     const data = filteredAndSortedRecords.map(r => ({
       SPM: r.spmNumber,
+      Tanggal_SPM: new Date(r.spmDate).toLocaleDateString(),
+      Uraian_SPM: r.description || "-",
+      Nomor_SP2D: r.sp2dNumber || "-",
       Tanggal_SP2D: r.sp2dDate ? new Date(r.sp2dDate).toLocaleDateString() : (language === "ID" ? "Belum Terbit" : "Not Issued"),
       Account: r.accountCode,
-      Potongan: r.deductionAmount,
+      Potongan_Pajak: r.deductionAmount,
+      Nilai_Pembayaran: r.totalValue || 0,
       Penerima: r.recipient,
       Status: r.status,
       Petugas: colleagues.find(c => c.id === r.assigneeId)?.name || 'Unassigned'
@@ -328,12 +332,16 @@ export default function RecordsPage() {
   };
 
   const exportToCSV = () => {
-    const headers = ["SPM", "Tanggal SP2D", "Account", "Potongan", "Penerima", "Status", "Petugas"];
+    const headers = ["SPM", "Tanggal SPM", "Uraian SPM", "Nomor SP2D", "Tanggal SP2D", "Account", "Potongan Pajak", "Nilai Pembayaran", "Penerima", "Status", "Petugas"];
     const rows = filteredAndSortedRecords.map(r => [
       r.spmNumber,
+      new Date(r.spmDate).toLocaleDateString(),
+      r.description || "-",
+      r.sp2dNumber || "-",
       r.sp2dDate ? new Date(r.sp2dDate).toLocaleDateString() : (language === "ID" ? "Belum Terbit" : "Not Issued"),
       r.accountCode,
       r.deductionAmount,
+      r.totalValue || 0,
       r.recipient || "",
       r.status,
       colleagues.find(c => c.id === r.assigneeId)?.name || "Unassigned"
@@ -350,20 +358,20 @@ export default function RecordsPage() {
 
   const exportToPDF = () => {
     const doc = new jsPDF('l', 'pt', 'a4');
-    const headers = [["SPM", "SP2D Date", "Account", "Amount", "Recipient", "Status", "Assignee"]];
+    const headers = [["SPM", "SPM Date", "SP2D No", "SP2D Date", "Account", "Tax", "Payment", "Status"]];
     const data = filteredAndSortedRecords.map(r => [
       r.spmNumber,
-      r.sp2dDate ? new Date(r.sp2dDate).toLocaleDateString() : (language === "ID" ? "Belum Terbit" : "Not Issued"),
+      new Date(r.spmDate).toLocaleDateString(),
+      r.sp2dNumber || "-",
+      r.sp2dDate ? new Date(r.sp2dDate).toLocaleDateString() : "-",
       r.accountCode,
       r.deductionAmount.toLocaleString(),
-      r.recipient || "-",
-      r.status,
-      colleagues.find(c => c.id === r.assigneeId)?.name || "Unassigned"
+      (r.totalValue || 0).toLocaleString(),
+      r.status
     ]);
 
     doc.text("Bupot PANRB - Worksheet Report", 40, 40);
-    // @ts-ignore
-    doc.autoTable({
+    autoTable(doc, {
       head: headers,
       body: data,
       startY: 60,
