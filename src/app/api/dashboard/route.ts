@@ -25,36 +25,35 @@ export async function GET(req: NextRequest) {
 
     const baseFilter = { ...dateFilter, accountCode: { in: VALID_ACCOUNTS } };
 
-    const [totalRecords, completedRecords, unassignedRecords, colleagues] = await Promise.all([
+    const [totalRecords, completedRecords, issuesRecords, unassignedRecords, colleagues] = await Promise.all([
       prisma.sPMRecord.count({ where: baseFilter }),
       prisma.sPMRecord.count({ where: { ...baseFilter, status: "COMPLETED" } }),
+      prisma.sPMRecord.count({ where: { ...baseFilter, status: "ISSUES" } }),
       prisma.sPMRecord.count({ where: { ...baseFilter, assigneeId: null } }),
       prisma.colleague.findMany({
         include: {
-          _count: {
-            select: { 
-              records: { 
-                where: { ...baseFilter, status: "COMPLETED" } 
-              } 
-            }
-          },
           records: {
             where: baseFilter,
-            select: { id: true }
+            select: { id: true, status: true }
           }
         }
       })
     ]);
 
     // Format colleague stats
-    const colleagueStats = colleagues.map((col: any) => ({
-      name: col.name,
-      total: col.records.length,
-      completed: col._count.records,
-      percentage: col.records.length > 0 
-        ? Math.round((col._count.records / col.records.length) * 100) 
-        : 0
-    }));
+    const colleagueStats = colleagues.map((col: any) => {
+      const completed = col.records.filter((r: any) => r.status === "COMPLETED").length;
+      const issues = col.records.filter((r: any) => r.status === "ISSUES").length;
+      return {
+        name: col.name,
+        total: col.records.length,
+        completed,
+        issues,
+        percentage: col.records.length > 0 
+          ? Math.round((completed / col.records.length) * 100) 
+          : 0
+      };
+    });
 
     // Format monthly compliance (Based on SP2D Date / Masa Pajak)
     const allRecords = await prisma.sPMRecord.findMany({
@@ -66,16 +65,17 @@ export async function GET(req: NextRequest) {
       select: { sp2dDate: true, status: true }
     });
 
-    const monthlyStatsMap: Record<string, { total: number; completed: number }> = {};
+    const monthlyStatsMap: Record<string, { total: number; completed: number; issues: number }> = {};
     allRecords.forEach((rec: any) => {
       const date = new Date(rec.sp2dDate!);
       const monthIdx = date.getMonth() + 1; // 1-12
       const yearVal = date.getFullYear();
       const key = `${yearVal}-${monthIdx}`;
       
-      if (!monthlyStatsMap[key]) monthlyStatsMap[key] = { total: 0, completed: 0 };
+      if (!monthlyStatsMap[key]) monthlyStatsMap[key] = { total: 0, completed: 0, issues: 0 };
       monthlyStatsMap[key].total++;
       if (rec.status === "COMPLETED") monthlyStatsMap[key].completed++;
+      if (rec.status === "ISSUES") (monthlyStatsMap[key] as any).issues++;
     });
 
     const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -97,6 +97,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       total: totalRecords,
       completed: completedRecords,
+      issues: issuesRecords,
       unassigned: unassignedRecords,
       colleagueStats,
       monthlyStats: sortedMonthlyStats

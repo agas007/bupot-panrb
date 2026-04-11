@@ -11,7 +11,7 @@ export interface Colleague {
   };
 }
 
-export type RecordStatus = "PENDING" | "COMPLETED";
+export type RecordStatus = "PENDING" | "COMPLETED" | "ISSUES";
 
 export interface SPMRecord {
   id: number;

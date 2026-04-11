@@ -67,7 +67,7 @@ export async function PATCH(req: NextRequest) {
       if (status === "COMPLETED") {
         updateData.completionDate = new Date();
       }
-      action = status === "COMPLETED" ? "Marked as Done" : "Reverted to Pending";
+      action = status === "COMPLETED" ? "Marked as Done" : status === "ISSUES" ? "Flagged with Issues" : "Reverted to Pending";
     }
     if (docLink !== undefined) updateData.docLink = docLink;
     if (notes !== undefined) updateData.notes = notes;

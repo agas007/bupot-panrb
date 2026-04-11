@@ -25,10 +25,12 @@ import { useLanguage } from "@/components/LanguageProvider";
 interface DashboardStats {
   total: number;
   completed: number;
+  issues: number;
   unassigned: number;
   colleagueStats: Array<{
     name: string;
     completed: number;
+    issues: number;
     total: number;
     percentage: number;
   }>;
@@ -172,10 +174,19 @@ export default function Dashboard() {
 
         <div className="glass-card metric-card group hover:border-amber-500 transition-all duration-300 border-l-4 border-l-amber-500/10">
           <div className="flex justify-between items-start">
-            <span className="metric-label">{t.dashboard.unassigned}</span>
+            <span className="metric-label">{language === "ID" ? "Dalam Kendala" : "Flagged Issues"}</span>
             <AlertCircle className="text-muted-foreground group-hover:text-amber-500 transition-colors" size={20} />
           </div>
-          <span className="metric-value text-amber-500 tracking-tighter">{stats.unassigned.toLocaleString()}</span>
+          <span className="metric-value text-amber-500 tracking-tighter">{(stats as any).issues.toLocaleString()}</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-2 opacity-60 italic">{language === "ID" ? "Memerlukan tindak lanjut" : "Requires follow-up"}</span>
+        </div>
+
+        <div className="glass-card metric-card group hover:border-rose-500 transition-all duration-300 border-l-4 border-l-rose-500/10">
+          <div className="flex justify-between items-start">
+            <span className="metric-label">{t.dashboard.unassigned}</span>
+            <X className="text-muted-foreground group-hover:text-rose-500 transition-colors" size={20} />
+          </div>
+          <span className="metric-value text-rose-500 tracking-tighter">{stats.unassigned.toLocaleString()}</span>
           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-2 opacity-60 italic">{t.dashboard.unassigned_hint}</span>
         </div>
 
@@ -287,9 +298,16 @@ export default function Dashboard() {
                       <span className="text-sm font-bold tracking-tight">
                         {col.completed.toLocaleString()} / {col.total.toLocaleString()}
                       </span>
-                      <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">
-                        {language === "ID" ? "Tugas Terinput" : "Tasks Inputted"}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {col.issues > 0 && (
+                          <span className="text-[10px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded-md font-bold">
+                            {col.issues} {language === "ID" ? "Kendala" : "Issues"}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">
+                          {language === "ID" ? "Tugas Terinput" : "Tasks Inputted"}
+                        </span>
+                      </div>
                     </div>
                   </td>
                 </tr>
