@@ -8,37 +8,27 @@ import {
   FileSpreadsheet, 
   Users, 
   Settings, 
-  LogIn, 
   X,
   Shield,
   User as UserIcon,
-  CircleCheck,
   Sparkles,
   Info,
   Check,
   Sun,
   Moon,
   Languages,
-  Clock,
   History,
-  ChevronLeft,
-  ChevronRight,
-  Menu,
-  Globe,
   LogOut,
-  Code,
   FileText,
   PanelLeftClose,
   PanelLeftOpen,
-  Search,
-  KeyRound,
   ShieldCheck,
-  AtSign,
   Settings2,
   Bell,
   CheckCircle2,
   AlertCircle,
-  FileType
+  FileType,
+  Scale
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -57,6 +47,8 @@ interface Notification {
   isRead: boolean;
   createdAt: string;
 }
+
+const INACTIVITY_LIMIT = 5 * 60 * 1000; // 5 Minutes
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -112,6 +104,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     
     if (typeof window !== "undefined") {
@@ -141,6 +134,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     const isPublicRoute = pathname === "/login" || pathname === "/api-docs";
     
     if (savedUser) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentUser(JSON.parse(savedUser));
     } else if (mounted && !isPublicRoute) {
       router.push("/login");
@@ -150,13 +144,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // Periodic notifications fetch
   useEffect(() => {
     if (currentUser) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchNotifications();
       const interval = setInterval(fetchNotifications, 60000); // 1 minute
       return () => clearInterval(interval);
     }
   }, [currentUser, fetchNotifications]);
 
-  const INACTIVITY_LIMIT = 5 * 60 * 1000; // 5 Minutes
+  const handleLogout = useCallback(async () => {
+    try {
+      if (currentUser) {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          body: JSON.stringify({ username: currentUser.username }),
+        });
+      }
+    } catch (err) {
+      console.error("Logout log error:", err);
+    }
+    localStorage.removeItem("sim_user");
+    setCurrentUser(null);
+    router.push("/login");
+  }, [currentUser, router]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -181,23 +190,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       if (logoutTimer) clearTimeout(logoutTimer);
       events.forEach(event => window.removeEventListener(event, resetTimer));
     };
-  }, [currentUser, pathname]);
-  
-  const handleLogout = async () => {
-    try {
-      if (currentUser) {
-        await fetch("/api/auth/logout", {
-          method: "POST",
-          body: JSON.stringify({ username: currentUser.username }),
-        });
-      }
-    } catch (err) {
-      console.error("Logout log error:", err);
-    }
-    localStorage.removeItem("sim_user");
-    setCurrentUser(null);
-    router.push("/login");
-  };
+  }, [currentUser, pathname, handleLogout]);
 
   const toggleSidebar = () => {
     if (window.innerWidth < 1024) {
@@ -226,6 +219,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const filteredNavItems = [
     { href: "/", label: t.nav.beranda, icon: LayoutDashboard, minRole: "USER" },
     { href: "/records", label: t.nav.lembar_kerja, icon: FileSpreadsheet, minRole: "USER" },
+    { href: "/reconciliation", label: t.nav.rekonsiliasi_spt || "Rekonsiliasi SPT", icon: Scale, minRole: "USER" },
     { href: "/colleagues", label: t.nav.daftar_rekan, icon: Users, minRole: "ADMIN" },
     { href: "/logs", label: t.nav.log_aktivitas || "Log Aktivitas", icon: History, minRole: "ADMIN" },
     { href: "/api-docs", label: t.nav.dokumentasi_api || "API Docs", icon: FileText },

@@ -11,14 +11,15 @@ datasource db {
 }
 
 model Colleague {
-  id            Int            @id @default(autoincrement())
-  username      String         @unique
-  password      String
-  name          String         @unique
-  role          String         @default("USER") // ADMIN or USER
-  records       SPMRecord[]
-  notifications Notification[]
-  createdAt     DateTime       @default(now())
+  id                    Int                         @id @default(autoincrement())
+  username              String                      @unique
+  password              String
+  name                  String                      @unique
+  role                  String                      @default("USER") // ADMIN or USER
+  records               SPMRecord[]
+  notifications         Notification[]
+  reconciliationPeriods TaxReconciliationPeriod[]   @relation("ReconciliationCreatedBy")
+  createdAt             DateTime                    @default(now())
 }
 
 model Notification {
@@ -69,4 +70,34 @@ model AuditLog {
   category  String   @default("GENERAL") // AUTH, DATA, ADMIN, SECURITY, GENERAL
   type      String   // info, success, warning, danger
   createdAt DateTime @default(now())
+}
+
+model TaxReconciliationPeriod {
+  id          Int                        @id @default(autoincrement())
+  year        Int
+  month       Int
+  title       String?
+  notes       String?
+  status      String                     @default("DRAFT")
+  createdById Int?
+  createdBy   Colleague?                  @relation("ReconciliationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  targets     TaxReconciliationTarget[]
+  createdAt   DateTime                    @default(now())
+  updatedAt   DateTime                    @updatedAt
+
+  @@unique([year, month])
+  @@index([year, month])
+}
+
+model TaxReconciliationTarget {
+  id          Int                       @id @default(autoincrement())
+  periodId    Int
+  period      TaxReconciliationPeriod    @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  accountCode String
+  coretaxAmount Float
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+
+  @@unique([periodId, accountCode])
+  @@index([accountCode])
 }

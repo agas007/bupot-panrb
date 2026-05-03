@@ -11,7 +11,8 @@ export const translations = {
       mode_terang: "Mode Terang",
       ganti_bahasa: "Ganti Bahasa",
       log_aktivitas: "Log Aktivitas",
-      pengaturan: "Pengaturan"
+      pengaturan: "Pengaturan",
+      rekonsiliasi_spt: "Rekonsiliasi Coretax"
     },
     dashboard: {
       title: "Beranda Bupot PANRB",
@@ -95,6 +96,27 @@ export const translations = {
       choose_file: "Pilih File atau Seret ke Sini",
       import_button: "Gabungkan & Impor Data",
       processing: "Memproses..."
+    },
+    reconciliation: {
+      title: "Rekonsiliasi Coretax",
+      subtitle: "Bandingkan input Coretax manual dengan data yang sudah di-mark as done pada periode SP2D.",
+      period_label: "Periode",
+      coretax_label: "Input Coretax",
+      done_label: "Mark as Done",
+      difference_label: "Selisih",
+      summary_title: "Ringkasan per Akun",
+      drilldown_title: "Drilldown Transaksi",
+      add_row: "Tambah Baris",
+      save_period: "Simpan Rekonsiliasi",
+      readonly_hint: "Mode lihat saja",
+      no_detail: "Pilih baris ringkasan untuk melihat transaksi detail.",
+      total_coretax: "Total Coretax",
+      total_done: "Total Mark as Done",
+      total_difference: "Total Selisih",
+      balanced_count: "Akun Seimbang",
+      balanced: "Sesuai",
+      over: "Lebih Bayar",
+      under: "Kurang Bayar"
     }
   },
   EN: {
@@ -109,7 +131,8 @@ export const translations = {
       mode_terang: "Light Mode",
       ganti_bahasa: "Change Language",
       log_aktivitas: "Activity Logs",
-      pengaturan: "Settings"
+      pengaturan: "Settings",
+      rekonsiliasi_spt: "Coretax Reconciliation"
     },
     dashboard: {
       title: "Bupot PANRB Dashboard",
@@ -193,6 +216,27 @@ export const translations = {
       choose_file: "Choose File or Drag here",
       import_button: "Merge & Import Data",
       processing: "Processing..."
+    },
+    reconciliation: {
+      title: "Coretax Reconciliation",
+      subtitle: "Compare manual Coretax input against records already marked as done for a selected SP2D period.",
+      period_label: "Period",
+      coretax_label: "Coretax Input",
+      done_label: "Mark as Done",
+      difference_label: "Difference",
+      summary_title: "Account Summary",
+      drilldown_title: "Transaction Drilldown",
+      add_row: "Add Row",
+      save_period: "Save Reconciliation",
+      readonly_hint: "Read-only mode",
+      no_detail: "Select a summary row to inspect the transaction details.",
+      total_coretax: "Total Coretax",
+      total_done: "Total Mark as Done",
+      total_difference: "Total Difference",
+      balanced_count: "Balanced Accounts",
+      balanced: "Balanced",
+      over: "Overpaid",
+      under: "Underpaid"
     }
   }
 };
