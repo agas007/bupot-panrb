@@ -53,6 +53,7 @@
     --background: 222 47% 4%;
     --foreground: 210 40% 98%;
     --card: 222 47% 8%;
+    --card-foreground: 210 40% 98%;
     --border: 217 32% 22%;
   }
 
@@ -108,6 +109,26 @@
 
   [data-theme='dark'] .premium-table tr:hover {
     background-color: rgba(255, 255, 255, 0.03);
+  }
+
+  .admin-preview-table thead tr {
+    @apply bg-card/95;
+  }
+
+  .admin-preview-table th {
+    @apply bg-card/95 text-muted-foreground/90 border-b border-border/70;
+  }
+
+  .admin-preview-table td {
+    @apply border-b border-border/60 text-foreground/90;
+  }
+
+  .admin-preview-table tbody tr:hover {
+    background-color: hsla(var(--accent), 0.05);
+  }
+
+  [data-theme='dark'] .admin-preview-table tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
   }
 
   .badge {

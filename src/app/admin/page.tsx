@@ -3,10 +3,18 @@
 import { useState } from "react";
 import { 
   Upload, CheckCircle, AlertCircle, Loader2, 
-  Table, X, Check, Eye, Trash2, 
-  AlertTriangle, History, Hammer, ChevronRight 
+  X, Eye, Trash2, 
+  History, Hammer
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+
+interface PreviewRow {
+  spmNumber: string;
+  recipient: string;
+  deductionAmount: number;
+  sp2dNumber?: string;
+  description?: string;
+}
 
 export default function AdminPage() {
   const { language, t } = useLanguage();
@@ -16,13 +24,15 @@ export default function AdminPage() {
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   
   // 🔥 NEW: Preview states
-  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [previewData, setPreviewData] = useState<PreviewRow[]>([]);
   const [previewCount, setPreviewCount] = useState(0);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   // 🔥 NEW: Log Retention states
   const [retentionDays, setRetentionDays] = useState(30);
   const [isCleaning, setIsCleaning] = useState(false);
+
+  const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : "Unknown error");
 
   const handleProcessPreview = async () => {
     if (!potonganFile || !sppFile) return;
@@ -43,16 +53,16 @@ export default function AdminPage() {
         body: formData,
       });
 
-      const data = await res.json();
+      const data: { preview?: PreviewRow[]; count?: number; error?: string } = await res.json();
       if (res.ok) {
-        setPreviewData(data.preview);
-        setPreviewCount(data.count);
+        setPreviewData(data.preview ?? []);
+        setPreviewCount(data.count ?? 0);
         setShowPreviewModal(true);
       } else {
-        throw new Error(data.error);
+        throw new Error(data.error ?? "Failed to load preview data.");
       }
-    } catch (err: any) {
-      setStatus({ type: "error", message: err.message });
+    } catch (err: unknown) {
+      setStatus({ type: "error", message: getErrorMessage(err) });
     } finally {
       setIsProcessing(false);
     }
@@ -78,21 +88,21 @@ export default function AdminPage() {
         body: formData,
       });
 
-      const data = await res.json();
+      const data: { count?: number; error?: string } = await res.json();
       if (res.ok) {
         setStatus({
           type: "success",
           message: language === "ID" 
-            ? `Berhasil mengimpor ${data.count} data ke sistem.` 
-            : `Successfully imported ${data.count} records.`,
+            ? `Berhasil mengimpor ${data.count ?? 0} data ke sistem.` 
+            : `Successfully imported ${data.count ?? 0} records.`,
         });
         setPotonganFile(null);
         setSppFile(null);
       } else {
-        throw new Error(data.error);
+        throw new Error(data.error ?? "Failed to import data.");
       }
-    } catch (err: any) {
-      setStatus({ type: "error", message: err.message });
+    } catch (err: unknown) {
+      setStatus({ type: "error", message: getErrorMessage(err) });
     } finally {
       setIsProcessing(false);
     }
@@ -111,14 +121,14 @@ export default function AdminPage() {
         },
         body: JSON.stringify({ days: retentionDays }),
       });
-      const data = await res.json();
+      const data: { message?: string; error?: string } = await res.json();
       if (res.ok) {
-        alert(data.message);
+        alert(data.message ?? "Cleanup completed.");
       } else {
-        throw new Error(data.error);
+        throw new Error(data.error ?? "Failed to cleanup logs.");
       }
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(getErrorMessage(err));
     } finally {
       setIsCleaning(false);
     }
@@ -133,8 +143,8 @@ export default function AdminPage() {
 
       {/* Preview Modal */}
       {showPreviewModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-1000 flex items-center justify-center p-4">
-           <div className="glass-card w-full max-w-6xl p-8 flex flex-col gap-8 shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] border-accent/20">
+        <div className="fixed inset-0 bg-background/70 backdrop-blur-md z-1000 flex items-center justify-center p-4">
+           <div className="glass-card w-full max-w-6xl p-8 flex flex-col gap-8 shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] border-border/70 bg-card/95 text-card-foreground">
               <div className="flex justify-between items-center text-left">
                  <div className="flex items-center gap-4">
                     <div className="p-3 bg-accent/20 text-accent rounded-2xl"><Eye size={32} /></div>
@@ -143,13 +153,13 @@ export default function AdminPage() {
                        <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">{language === "ID" ? `Menemukan ${previewCount} baris data dari penggabungan file.` : `Discovered ${previewCount} rows after merging files.`}</p>
                     </div>
                  </div>
-                 <button onClick={() => setShowPreviewModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-all text-white/40 hover:text-white"><X size={24}/></button>
+                 <button onClick={() => setShowPreviewModal(false)} className="p-2 hover:bg-muted rounded-full transition-all text-muted-foreground hover:text-foreground"><X size={24}/></button>
               </div>
 
-              <div className="flex-1 overflow-auto border border-white/5 rounded-3xl bg-black/20">
-                 <table className="w-full text-left text-xs border-collapse">
-                    <thead className="sticky top-0 bg-muted/80 backdrop-blur-md">
-                       <tr className="uppercase font-black tracking-widest text-[10px] text-muted-foreground border-b border-white/5">
+              <div className="flex-1 overflow-auto border border-border/70 rounded-3xl bg-background/80 shadow-inner">
+                 <table className="admin-preview-table w-full text-left text-xs border-collapse">
+                    <thead className="sticky top-0 bg-card/95 backdrop-blur-md">
+                       <tr className="uppercase font-black tracking-widest text-[10px] text-muted-foreground border-b border-border/70">
                           <th className="p-4 px-6">SPM NUMBER</th>
                           <th className="p-4">RECIPIENT</th>
                           <th className="p-4">DEDUCTION (IDR)</th>
@@ -157,14 +167,14 @@ export default function AdminPage() {
                           <th className="p-4">DESCRIPTION</th>
                        </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className="divide-y divide-border/60">
                        {previewData.map((row, i) => (
-                         <tr key={i} className="hover:bg-accent/5 transition-colors">
-                            <td className="p-4 px-6 font-bold">{row.spmNumber}</td>
-                            <td className="p-4 font-medium opacity-80">{row.recipient}</td>
+                         <tr key={i} className="hover:bg-accent/5 transition-colors even:bg-muted/20">
+                            <td className="p-4 px-6 font-semibold text-foreground">{row.spmNumber}</td>
+                            <td className="p-4 font-medium text-foreground/90">{row.recipient}</td>
                             <td className="p-4 font-black tabular-nums text-accent">{row.deductionAmount.toLocaleString("id-ID")}</td>
-                            <td className="p-4 font-mono opacity-50">{row.sp2dNumber || "-"}</td>
-                            <td className="p-4 italic opacity-40 max-w-[200px] truncate">{row.description}</td>
+                            <td className="p-4 font-mono text-muted-foreground">{row.sp2dNumber || "-"}</td>
+                            <td className="p-4 italic text-muted-foreground max-w-[200px] truncate">{row.description || "-"}</td>
                          </tr>
                        ))}
                     </tbody>
