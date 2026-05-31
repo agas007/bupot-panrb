@@ -76,7 +76,7 @@ export default function LoginPage() {
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-accent transition-colors" size={18} />
                     <input 
                        className="w-full bg-white/5 border border-white/5 hover:border-white/10 focus:border-accent/40 rounded-2xl py-4 pl-12 pr-4 text-sm font-medium text-white transition-all outline-none focus:ring-4 focus:ring-accent/5"
-                       placeholder="agastya.arnanda"
+                       placeholder="username"
                        value={username}
                        onChange={e => setUsername(e.target.value)}
                        required
