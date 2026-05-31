@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     // Auto-generate username and password if not provided
     const finalUsername = username || name.toLowerCase().replace(/\s+/g, '.');
-    const rawPassword = password || process.env.DEFAULT_USER_PASSWORD || "Placeholder123!";
+    const rawPassword = password || process.env.DEFAULT_USER_PASSWORD || "PajakAman2026";
     
     // 🔥 NEW: Password Hashing
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
