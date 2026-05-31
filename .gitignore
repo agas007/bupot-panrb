@@ -43,3 +43,5 @@ next-env.d.ts
 /src/generated/prisma
 *.db
 prisma/migrations
+# Added by code-review-graph
+.code-review-graph/

@@ -1,0 +1,41 @@
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "command": "/Users/agas/.nvm/versions/node/v24.12.0/lib/node_modules/@reizhafajrian/code-review-graph/.venv/bin/python3.14",
+      "args": [
+        "-m",
+        "code_review_graph",
+        "serve"
+      ],
+      "cwd": "/Users/agas/code/bupot-panrb"
+    }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .gemini/hooks/crg-session-start.sh",
+            "name": "code-review-graph status",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "AfterTool": [
+      {
+        "matcher": "write_file|replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .gemini/hooks/crg-update.sh",
+            "name": "code-review-graph update",
+            "timeout": 30000
+          }
+        ]
+      }
+    ]
+  }
+}
