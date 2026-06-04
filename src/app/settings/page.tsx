@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { User, KeyRound, Save, Loader2, ShieldCheck, CheckCircle2, UserPen, AtSign } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useAuth } from "@/hooks/useAuth";
+import { saveSession } from "@/lib/auth-session";
 
 export default function SettingsPage() {
   const { language, t } = useLanguage();
@@ -43,7 +44,7 @@ export default function SettingsPage() {
       if (res.ok) {
         const updatedUser = await res.json();
         const newSession = { ...user, name: updatedUser.name };
-        localStorage.setItem("sim_user", JSON.stringify(newSession));
+        saveSession(newSession);
         syncUser();
         setSuccess(true);
         setPassword("");

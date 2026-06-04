@@ -31,6 +31,7 @@ import {
   Scale
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { clearSession, readSession, touchSession, SESSION_MAX_AGE_MS } from "@/lib/auth-session";
 
 interface Colleague {
   id: number;
@@ -48,7 +49,7 @@ interface Notification {
   createdAt: string;
 }
 
-const INACTIVITY_LIMIT = 5 * 60 * 1000; // 5 Minutes
+const INACTIVITY_LIMIT = SESSION_MAX_AGE_MS;
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -130,15 +131,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("sim_user");
     const isPublicRoute = pathname === "/login" || pathname === "/api-docs";
-    
-    if (savedUser) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCurrentUser(JSON.parse(savedUser));
-    } else if (mounted && !isPublicRoute) {
-      router.push("/login");
-    }
+
+    const initialize = window.setTimeout(() => {
+      const session = readSession();
+      if (session) {
+        setCurrentUser(session.user);
+        return;
+      }
+
+      if (mounted && !isPublicRoute) {
+        setCurrentUser(null);
+        router.push("/login");
+      }
+    }, 0);
+
+    return () => window.clearTimeout(initialize);
   }, [mounted, pathname, router]);
 
   // Periodic notifications fetch
@@ -162,7 +170,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error("Logout log error:", err);
     }
-    localStorage.removeItem("sim_user");
+    clearSession();
     setCurrentUser(null);
     router.push("/login");
   }, [currentUser, router]);
@@ -171,26 +179,49 @@ export function Layout({ children }: { children: React.ReactNode }) {
     if (!currentUser) return;
 
     let logoutTimer: NodeJS.Timeout;
+    const isPublicRoute = pathname === "/login" || pathname === "/api-docs";
 
-    const resetTimer = () => {
+    const scheduleLogout = () => {
       if (logoutTimer) clearTimeout(logoutTimer);
       logoutTimer = setTimeout(() => {
-        console.log("[Security] User inactive for 5 minutes. Logging out...");
+        console.log("[Security] User inactive for 30 minutes. Logging out...");
         handleLogout();
       }, INACTIVITY_LIMIT);
     };
 
+    const resetTimer = () => {
+      touchSession();
+      scheduleLogout();
+    };
+
+    const syncFromStorage = () => {
+      const session = readSession();
+      if (session) {
+        setCurrentUser(session.user);
+        resetTimer();
+        return;
+      }
+
+      if (logoutTimer) clearTimeout(logoutTimer);
+      setCurrentUser(null);
+      if (!isPublicRoute) {
+        router.push("/login");
+      }
+    };
+
     // Events to track activity
-    const events = ["mousedown", "mousemove", "keydown", "scroll", "touchstart"];
+    const events = ["mousedown", "keydown", "scroll", "touchstart"];
     events.forEach(event => window.addEventListener(event, resetTimer));
+    window.addEventListener("storage", syncFromStorage);
 
     resetTimer();
 
     return () => {
       if (logoutTimer) clearTimeout(logoutTimer);
       events.forEach(event => window.removeEventListener(event, resetTimer));
+      window.removeEventListener("storage", syncFromStorage);
     };
-  }, [currentUser, pathname, handleLogout]);
+  }, [currentUser, pathname, router, handleLogout]);
 
   const toggleSidebar = () => {
     if (window.innerWidth < 1024) {

@@ -1,31 +1,30 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { AuthSession } from "@/types";
+import { clearSession, readSessionUser } from "@/lib/auth-session";
 
 export function useAuth() {
   const [user, setUser] = useState<AuthSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
 
   const syncUser = useCallback(() => {
     if (typeof window === "undefined") return;
-    const savedUser = localStorage.getItem("sim_user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    } else {
-      setUser(null);
-    }
+    const savedUser = readSessionUser();
+    setUser(savedUser);
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    syncUser();
+    const initialize = window.setTimeout(syncUser, 0);
     // Re-sync if localStorage changes in other tabs
     window.addEventListener("storage", syncUser);
-    return () => window.removeEventListener("storage", syncUser);
+    return () => {
+      window.clearTimeout(initialize);
+      window.removeEventListener("storage", syncUser);
+    };
   }, [syncUser]);
 
   const logout = useCallback(async () => {
@@ -39,7 +38,7 @@ export function useAuth() {
     } catch (err) {
       console.error("Logout error:", err);
     }
-    localStorage.removeItem("sim_user");
+    clearSession();
     setUser(null);
     router.push("/login");
   }, [user, router]);

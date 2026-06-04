@@ -3,13 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
-  Lock, User, LogIn, ShieldAlert, CheckCircle2, 
+  User, ShieldAlert, CheckCircle2,
   ArrowRight, ShieldCheck, KeyRound, Loader2, Code
 } from "lucide-react";
-import { useLanguage } from "@/components/LanguageProvider";
+import { readSession, saveSession } from "@/lib/auth-session";
 
 export default function LoginPage() {
-  const { language, t } = useLanguage();
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -18,8 +17,8 @@ export default function LoginPage() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("sim_user");
-    if (savedUser) router.push("/");
+    const session = readSession();
+    if (session) router.push("/");
   }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -37,14 +36,14 @@ export default function LoginPage() {
 
       if (res.ok) {
         setSuccess(true);
-        localStorage.setItem("sim_user", JSON.stringify(data));
+        saveSession(data);
         setTimeout(() => {
           window.location.href = "/";
         }, 1500);
       } else {
         setError(data.error || "Login Gagal. Silakan cek kembali username & password Anda.");
       }
-    } catch (err) {
+    } catch {
       setError("Kesalahan koneksi. Silakan coba lagi.");
     } finally {
       setIsLoading(false);

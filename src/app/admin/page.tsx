@@ -7,6 +7,7 @@ import {
   History, Hammer
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { readSessionUser } from "@/lib/auth-session";
 
 interface PreviewRow {
   spmNumber: string;
@@ -44,11 +45,11 @@ export default function AdminPage() {
     formData.append("spp", sppFile);
 
     try {
-      const simulatedUser = localStorage.getItem("sim_user");
+      const simulatedUser = readSessionUser();
       const res = await fetch("/api/import?preview=true", {
         method: "POST",
         headers: {
-          "x-simulated-username": simulatedUser ? JSON.parse(simulatedUser).username : "admin"
+          "x-simulated-username": simulatedUser?.username ?? "admin"
         },
         body: formData,
       });
@@ -78,12 +79,12 @@ export default function AdminPage() {
     formData.append("spp", sppFile!);
 
     try {
-      const simulatedUser = localStorage.getItem("sim_user");
+      const simulatedUser = readSessionUser();
       const res = await fetch("/api/import", {
         method: "POST",
         headers: {
-          "x-simulated-user": simulatedUser ? JSON.parse(simulatedUser).name : "Admin (Simulated)",
-          "x-simulated-username": simulatedUser ? JSON.parse(simulatedUser).username : "admin"
+          "x-simulated-user": simulatedUser?.name ?? "Admin (Simulated)",
+          "x-simulated-username": simulatedUser?.username ?? "admin"
         },
         body: formData,
       });
@@ -112,12 +113,12 @@ export default function AdminPage() {
     if (!confirm(language === "ID" ? `Hapus semua log aktivitas yang lebih lama dari ${retentionDays} hari?` : `Delete all logs older than ${retentionDays} days?`)) return;
     setIsCleaning(true);
     try {
-      const simulatedUser = localStorage.getItem("sim_user");
+      const simulatedUser = readSessionUser();
       const res = await fetch("/api/admin/system/cleanup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-simulated-username": simulatedUser ? JSON.parse(simulatedUser).username : "admin"
+          "x-simulated-username": simulatedUser?.username ?? "admin"
         },
         body: JSON.stringify({ days: retentionDays }),
       });
