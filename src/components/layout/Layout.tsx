@@ -280,10 +280,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   if (pathname === "/login") return <>{children}</>;
 
+  const shellSurfaceClass = theme === "light"
+    ? "bg-white/96 border-border/80 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.18)]"
+    : "bg-card/90 border-white/10 shadow-[0_20px_70px_-28px_rgba(0,0,0,0.45)]";
+
+  const shellSurfaceSoftClass = theme === "light"
+    ? "bg-white/92 border-border/70"
+    : "bg-card/85 border-white/10";
+
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       {/* Mobile Top Bar */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 glass-card rounded-none! z-100 flex items-center justify-between px-6 border-b border-white/5">
+      <div className={`lg:hidden fixed top-0 left-0 right-0 h-16 rounded-none! z-100 flex items-center justify-between px-6 border-b ${shellSurfaceSoftClass}`}>
         <div className="flex items-center gap-3">
           <div className="bg-accent text-accent-foreground p-2 rounded-xl">
             <FileSpreadsheet size={20} />
@@ -294,7 +302,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-2">
            <button 
              onClick={() => setShowNotifications(!showNotifications)}
-             className="p-3 bg-muted/50 rounded-2xl relative"
+             className="p-3 bg-muted/70 text-foreground rounded-2xl relative border border-border/60"
            >
               <Bell size={20} />
               {unreadCount > 0 && (
@@ -393,7 +401,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         fixed left-0 top-0 h-full z-120 lg:z-50 transition-all duration-500 ease-in-out flex flex-col p-4 gap-6
         ${isMobileMenuOpen ? "translate-x-0 w-[280px]" : "-translate-x-full w-[280px] lg:translate-x-0"} 
         ${isSidebarCollapsed ? "lg:w-22" : "lg:w-60"}
-        glass-card overflow-visible! lg:h-[calc(100vh-2rem)] lg:m-4
+        overflow-visible! lg:h-[calc(100vh-2rem)] lg:m-4 ${shellSurfaceClass}
       `}>
         <button 
           onClick={toggleSidebar}
@@ -416,7 +424,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         <Link 
           href="/settings"
-          className={`bg-muted/50 p-3 rounded-xl flex items-center gap-3 overflow-hidden transition-all hover:bg-accent/10 active:scale-95 group ${isSidebarCollapsed ? "justify-center" : ""}`}
+          className={`bg-muted/70 p-3 rounded-xl flex items-center gap-3 overflow-hidden transition-all hover:bg-accent/10 active:scale-95 group border border-transparent hover:border-accent/20 ${isSidebarCollapsed ? "justify-center" : ""}`}
         >
           <div className={`p-2 rounded-lg shrink-0 transition-transform group-hover:scale-110 ${currentUser?.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
             {currentUser?.role === "ADMIN" ? <Shield size={18} /> : <UserIcon size={18} />}
@@ -442,7 +450,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     ? (theme === "dark" 
                         ? "bg-primary text-primary-foreground shadow-lg" 
                         : "bg-accent/10 text-accent shadow-sm ring-1 ring-accent/20") 
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    : theme === "light"
+                      ? "text-foreground/72 hover:bg-muted/80 hover:text-foreground"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 } ${isSidebarCollapsed ? "justify-center" : ""}`}
               >
                 <Icon size={20} className="shrink-0" />
@@ -454,21 +464,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         <div className="mt-auto border-t border-border pt-4 px-2 flex flex-col gap-1 overflow-hidden">
           <div className={`flex flex-wrap items-center gap-1 ${isSidebarCollapsed ? "flex-col" : "flex-row"}`}>
-            <button onClick={() => setShowAnnouncement(true)} className="flex-1 flex items-center gap-2 text-foreground/60 hover:text-accent dark:text-muted-foreground p-2 rounded-lg hover:bg-accent/5 justify-center transition-colors" title={t.nav.fitur_baru}>
+            <button onClick={() => setShowAnnouncement(true)} className="flex-1 flex items-center gap-2 text-foreground/75 hover:text-accent p-2 rounded-lg hover:bg-accent/8 justify-center transition-colors" title={t.nav.fitur_baru}>
               <Sparkles size={16} />
               {!isSidebarCollapsed && <span className="font-medium text-[11px] uppercase tracking-wider">{t.nav.fitur_baru}</span>}
             </button>
-            <button onClick={toggleTheme} className="flex-1 flex items-center gap-2 text-foreground/60 hover:text-foreground dark:text-muted-foreground p-2 rounded-lg hover:bg-muted justify-center transition-colors">
+            <button onClick={toggleTheme} className="flex-1 flex items-center gap-2 text-foreground/75 hover:text-foreground p-2 rounded-lg hover:bg-muted/80 justify-center transition-colors">
               {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
               {!isSidebarCollapsed && <span className="font-medium text-[11px] uppercase tracking-wider">{theme === "light" ? t.nav.mode_gelap : t.nav.mode_terang}</span>}
             </button>
-            <button onClick={() => setLanguage(language === "ID" ? "EN" : "ID")} className="flex-1 flex items-center gap-2 text-foreground/60 hover:text-foreground dark:text-muted-foreground p-2 rounded-lg hover:bg-muted justify-center transition-colors" title={t.nav.ganti_bahasa}>
+            <button onClick={() => setLanguage(language === "ID" ? "EN" : "ID")} className="flex-1 flex items-center gap-2 text-foreground/75 hover:text-foreground p-2 rounded-lg hover:bg-muted/80 justify-center transition-colors" title={t.nav.ganti_bahasa}>
               <Languages size={16} />
               {!isSidebarCollapsed && <span className="font-medium text-[11px] uppercase tracking-wider">{language}</span>}
             </button>
           </div>
           
-          <button onClick={handleLogout} className={`w-full flex items-center gap-3 text-muted-foreground hover:text-rose-500 cursor-pointer transition-colors p-2 rounded-lg hover:bg-rose-500/5 group ${isSidebarCollapsed ? "justify-center" : ""}`}>
+          <button onClick={handleLogout} className={`w-full flex items-center gap-3 text-foreground/70 hover:text-rose-500 cursor-pointer transition-colors p-2 rounded-lg hover:bg-rose-500/8 group ${isSidebarCollapsed ? "justify-center" : ""}`}>
              <LogOut size={20} className="group-hover:translate-x-1 transition-transform" />
              {!isSidebarCollapsed && <span className="font-medium text-sm">Keluar / Logout</span>}
           </button>
