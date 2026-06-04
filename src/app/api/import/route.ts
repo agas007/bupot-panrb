@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseExcel, mergeExcelData } from "@/lib/excel";
 import { prisma } from "@/lib/prisma";
 import { applyRateLimit } from "@/lib/rate-limit";
+import { getRequestSessionUser } from "@/lib/session-cookie";
 
 export const runtime = 'nodejs';
 
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
     const isPreview = searchParams.get("preview") === "true";
 
     // 1. Administrative Security Check
-    const reqUsername = req.headers.get("x-simulated-username");
+    const reqUsername = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
     const adminUser = reqUsername ? await (prisma.colleague as any).findFirst({ where: { username: reqUsername } }) : null;
     
     if (!adminUser || adminUser.role !== "ADMIN") {
@@ -97,8 +98,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Audit trail
-    const userName = req.headers.get("x-simulated-user") || "Admin (Simulated)";
-    // @ts-ignore
+    const userName = getRequestSessionUser(req)?.name || req.headers.get("x-simulated-user") || "Admin (Simulated)";
     await prisma.auditLog.create({
       data: {
         userName,

@@ -31,7 +31,7 @@ import {
   Scale
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
-import { clearSession, readSession, touchSession, SESSION_MAX_AGE_MS } from "@/lib/auth-session";
+import { clearSession, readSession, saveSession, touchSession, SESSION_MAX_AGE_MS } from "@/lib/auth-session";
 
 interface Colleague {
   id: number;
@@ -140,10 +140,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (mounted && !isPublicRoute) {
-        setCurrentUser(null);
-        router.push("/login");
-      }
+      void fetch("/api/auth/session")
+        .then(async (res) => {
+          if (!res.ok) {
+            if (mounted && !isPublicRoute) {
+              setCurrentUser(null);
+              router.push("/login");
+            }
+            return;
+          }
+
+          const sessionUser = await res.json();
+          saveSession(sessionUser);
+          setCurrentUser(sessionUser);
+        })
+        .catch(() => {
+          if (mounted && !isPublicRoute) {
+            setCurrentUser(null);
+            router.push("/login");
+          }
+        });
     }, 0);
 
     return () => window.clearTimeout(initialize);

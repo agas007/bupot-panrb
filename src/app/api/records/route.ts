@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getRequestSessionUser } from "@/lib/session-cookie";
 
 const VALID_ACCOUNTS = ["411121", "411122", "411124"];
 
@@ -59,8 +60,8 @@ export async function PATCH(req: NextRequest) {
     let type = "user";
     
     // Auth context for notifications & audit
-    const reqUsername = req.headers.get("x-simulated-username");
-    const adminName = req.headers.get("x-simulated-user") || "Admin (Simulated)";
+    const reqUsername = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
+    const adminName = getRequestSessionUser(req)?.name || req.headers.get("x-simulated-user") || "Admin (Simulated)";
 
     if (status) {
       updateData.status = status;
@@ -103,7 +104,6 @@ export async function PATCH(req: NextRequest) {
         );
       }
       
-      // @ts-ignore
       await prisma.auditLog.create({
         data: { userName, action, target, type }
       });
@@ -130,7 +130,6 @@ export async function PATCH(req: NextRequest) {
       // For now, only for assignments.
     }
 
-    // @ts-ignore
     await prisma.auditLog.create({
       data: { userName, action, target: record.spmNumber, type }
     });

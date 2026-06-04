@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getRequestSessionUser } from "@/lib/session-cookie";
 
 export const runtime = 'nodejs';
 
@@ -8,7 +9,7 @@ export const runtime = 'nodejs';
  */
 export async function POST(req: NextRequest) {
   try {
-    const username = req.headers.get("x-simulated-username");
+    const username = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
     const adminUser = username ? await (prisma.colleague as any).findFirst({ where: { username } }) : null;
 
     if (!adminUser || adminUser.role !== "ADMIN") {

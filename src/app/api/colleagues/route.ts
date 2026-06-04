@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { getRequestSessionUser } from "@/lib/session-cookie";
 
 export const runtime = 'nodejs';
 
@@ -8,7 +9,8 @@ export const runtime = 'nodejs';
  * Administrative permission check
  */
 async function isAdmin(req: NextRequest) {
-  const username = req.headers.get("x-simulated-username");
+  const sessionUser = getRequestSessionUser(req);
+  const username = sessionUser?.username ?? req.headers.get("x-simulated-username");
   if (!username) return false;
   // Use findFirst with cast to bypass Prisma's lagging types
   const user = await (prisma.colleague as any).findFirst({
@@ -60,8 +62,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Audit Log
-    const reqUser = req.headers.get("x-simulated-user") || "Admin (Simulated)";
-    // @ts-ignore
+    const reqUser = getRequestSessionUser(req)?.name || req.headers.get("x-simulated-user") || "Admin (Simulated)";
     await prisma.auditLog.create({
       data: {
         userName: reqUser,
@@ -81,7 +82,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const { id, name, username, password, role } = await req.json();
     const targetId = Number(id);
-    const reqUsername = req.headers.get("x-simulated-username");
+    const reqUsername = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
 
     // 1. Get Requester Info
     const requester = await (prisma.colleague as any).findFirst({
@@ -117,8 +118,7 @@ export async function PATCH(req: NextRequest) {
     });
 
     // Audit Log
-    const reqUserName = req.headers.get("x-simulated-user") || requester.name;
-    // @ts-ignore
+    const reqUserName = getRequestSessionUser(req)?.name || req.headers.get("x-simulated-user") || requester.name;
     await prisma.auditLog.create({
       data: {
         userName: reqUserName,
@@ -145,8 +145,7 @@ export async function DELETE(req: NextRequest) {
     const targetId = Number(id);
 
     // 2. Prevent Self-Deletion
-    const reqUsername = req.headers.get("x-simulated-username");
-    // @ts-ignore
+    const reqUsername = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
     const reqUser = await prisma.colleague.findFirst({ where: { username: reqUsername } });
     
     if (reqUser && reqUser.id === targetId) {
@@ -159,8 +158,7 @@ export async function DELETE(req: NextRequest) {
     await prisma.colleague.delete({ where: { id: targetId } });
 
     // Audit Log
-    const reqUserName = req.headers.get("x-simulated-user") || "Admin (Simulated)";
-    // @ts-ignore
+    const reqUserName = getRequestSessionUser(req)?.name || req.headers.get("x-simulated-user") || "Admin (Simulated)";
     await prisma.auditLog.create({
       data: {
         userName: reqUserName,

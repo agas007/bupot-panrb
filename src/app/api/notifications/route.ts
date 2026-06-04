@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getRequestSessionUser } from "@/lib/session-cookie";
 
 export const runtime = 'nodejs';
 
@@ -8,7 +9,7 @@ export const runtime = 'nodejs';
  */
 export async function GET(req: NextRequest) {
   try {
-    const username = req.headers.get("x-simulated-username");
+    const username = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
     if (!username) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const user = await (prisma.colleague as any).findFirst({
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
  */
 export async function PATCH(req: NextRequest) {
   try {
-    const username = req.headers.get("x-simulated-username");
+    const username = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
     if (!username) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id, all } = await req.json();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { createCookieSessionValue, SESSION_COOKIE_MAX_AGE_SECONDS, SESSION_COOKIE_NAME } from "@/lib/session-cookie";
 
 const isBcryptHash = (password: string) => /^\$2[aby]\$\d{2}\$/.test(password);
 
@@ -47,13 +48,30 @@ export async function POST(req: NextRequest) {
     });
 
     // Return user without password
-    return NextResponse.json({
+    const response = NextResponse.json({
       id: user.id,
       name: user.name,
       username: user.username,
       role: user.role,
       createdAt: user.createdAt,
     });
+
+    response.cookies.set({
+      name: SESSION_COOKIE_NAME,
+      value: createCookieSessionValue({
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        role: user.role,
+      }),
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
+    });
+
+    return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json({ error: message }, { status: 500 });

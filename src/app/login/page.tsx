@@ -18,7 +18,18 @@ export default function LoginPage() {
 
   useEffect(() => {
     const session = readSession();
-    if (session) router.push("/");
+    if (session) {
+      router.push("/");
+      return;
+    }
+
+    void fetch("/api/auth/session")
+      .then((res) => {
+        if (res.ok) {
+          router.push("/");
+        }
+      })
+      .catch(() => undefined);
   }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {

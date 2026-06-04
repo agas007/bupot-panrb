@@ -7,6 +7,7 @@ import {
   ReconciliationTargetInput,
   ReconciliationRecordInput,
 } from "@/lib/reconciliation";
+import { getRequestSessionUser } from "@/lib/session-cookie";
 
 export const runtime = "nodejs";
 
@@ -47,7 +48,7 @@ type SavedPeriodRow = {
 };
 
 async function getCurrentUser(req: NextRequest) {
-  const username = req.headers.get("x-simulated-username");
+  const username = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
   if (!username) return null;
   return prisma.colleague.findFirst({
     where: { username },
