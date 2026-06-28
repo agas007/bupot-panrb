@@ -79,6 +79,10 @@ export async function POST(req: NextRequest) {
             return { batchId: batch.id, recipientId: recipient.id, recipientName: recipient.name, taxObjectCode: line.taxObjectCode, gross: line.gross, deemed: line.deemed, rate: line.rate, calculatedTax: line.calculatedTax };
           }),
         });
+        await tx.sPMRecord.update({
+          where: { id: recordId },
+          data: { status: "COMPLETED", completionDate: new Date() },
+        });
         group.status = "IMPORTED";
       }, { maxWait: 10_000, timeout: 20_000 });
     }
