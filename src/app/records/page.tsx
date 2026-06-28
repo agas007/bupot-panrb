@@ -15,6 +15,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { useAuth } from "@/hooks/useAuth";
 import { getTaxAccountLabel } from "@/lib/tax-codes";
 import { SPMRecord, Colleague } from "@/types";
+import { TableSkeletonRows } from "@/components/TableSkeleton";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -29,11 +30,13 @@ export default function RecordsPage() {
   const { getAuthHeaders } = useAuth();
   
   const [records, setRecords] = useState<SPMRecord[]>([]);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [colleagues, setColleagues] = useState<Colleague[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Filtering & Sorting states
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -55,89 +58,13 @@ export default function RecordsPage() {
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  const filteredAndSortedRecords = useMemo(() => {
-    let result = [...records];
-    
-    // Text Search
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(record => {
-        const deductionStr = record.deductionAmount.toString();
-        const totalValueStr = record.totalValue?.toString() || "";
-        const descriptionStr = record.description?.toLowerCase() || "";
-        const kapDescription = getTaxAccountLabel(record.accountCode).toLowerCase();
-        return (
-          record.spmNumber?.toLowerCase().includes(query) ||
-          (record.sp2dNumber || "").toLowerCase().includes(query) ||
-          record.recipient?.toLowerCase().includes(query) ||
-          descriptionStr.includes(query) ||
-          deductionStr.includes(query) ||
-          totalValueStr.includes(query) ||
-          record.accountCode?.includes(query) ||
-          kapDescription.includes(query)
-        );
-      });
-    }
-
-    // Category Filters
-    if (accountFilter !== "all") result = result.filter(r => r.accountCode === accountFilter);
-    if (assigneeFilter !== "all") {
-      if (assigneeFilter === "unassigned") result = result.filter(r => !r.assigneeId);
-      else result = result.filter(r => r.assigneeId === Number(assigneeFilter));
-    }
-    if (statusFilter !== "all") result = result.filter(r => r.status === statusFilter);
-    
-    // 🔥 UPDATED: Advanced Date Range Filtering by SP2D Date
-    if (startDate) {
-      const start = new Date(startDate).getTime();
-      result = result.filter(r => r.sp2dDate && new Date(r.sp2dDate).getTime() >= start);
-    }
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      const endTs = end.getTime();
-      result = result.filter(r => r.sp2dDate && new Date(r.sp2dDate).getTime() <= endTs);
-    }
-
-    // Sorting Logic
-    if (sortConfig) {
-      result.sort((a, b) => {
-        let aVal: any, bVal: any;
-        switch (sortConfig.key) {
-          case 'spm': aVal = a.spmNumber; bVal = b.spmNumber; break;
-          case 'description': aVal = a.description || ""; bVal = b.description || ""; break;
-          case 'sp2d': aVal = a.sp2dNumber || ""; bVal = b.sp2dNumber || ""; break;
-          case 'akun': aVal = a.accountCode; bVal = b.accountCode; break;
-          case 'recipient': aVal = a.recipient || ""; bVal = a.recipient || ""; break;
-          case 'assignee': 
-            aVal = colleagues.find(c => c.id === a.assigneeId)?.name || "";
-            bVal = colleagues.find(c => c.id === b.assigneeId)?.name || "";
-            break;
-          case 'deadline':
-            aVal = a.sp2dDate ? new Date(a.sp2dDate).getTime() : 0;
-            bVal = b.sp2dDate ? new Date(b.sp2dDate).getTime() : 0;
-            break;
-          default: aVal = 0; bVal = 0;
-        }
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-    return result;
-  }, [records, searchQuery, accountFilter, assigneeFilter, statusFilter, startDate, endDate, sortConfig, colleagues]);
-
-  const paginatedRecords = useMemo(() => {
-    if (rowsPerPage === "max") return filteredAndSortedRecords;
-    const start = (currentPage - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-    return filteredAndSortedRecords.slice(start, end);
-  }, [filteredAndSortedRecords, currentPage, rowsPerPage]);
+  const filteredAndSortedRecords = records;
+  const paginatedRecords = records;
 
   const totalPages = useMemo(() => {
     if (rowsPerPage === "max") return 1;
-    return Math.ceil(filteredAndSortedRecords.length / rowsPerPage);
-  }, [filteredAndSortedRecords, rowsPerPage]);
+    return Math.max(1, Math.ceil(totalRecords / rowsPerPage));
+  }, [totalRecords, rowsPerPage]);
 
   const isAllOnPageSelected = useMemo(() => {
     if (paginatedRecords.length === 0) return false;
@@ -147,23 +74,37 @@ export default function RecordsPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [recRes, colRes] = await Promise.all([
-        fetch("/api/records"),
-        fetch("/api/colleagues")
-      ]);
-      const [recData, colData] = await Promise.all([recRes.json(), colRes.json()]);
-      setRecords(recData);
-      setColleagues(colData);
+      const params = new URLSearchParams({ page: String(currentPage), pageSize: String(rowsPerPage) });
+      if (debouncedSearch) params.set("q", debouncedSearch);
+      if (accountFilter !== "all") params.set("accountCode", accountFilter);
+      if (assigneeFilter !== "all") params.set("assigneeId", assigneeFilter);
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (startDate) params.set("startDate", startDate);
+      if (endDate) params.set("endDate", endDate);
+      if (sortConfig) { params.set("sortKey", sortConfig.key); params.set("sortDirection", sortConfig.direction); }
+      const recRes = await fetch(`/api/records?${params}`);
+      const recData = await recRes.json();
+      setRecords(recData.records || []);
+      setTotalRecords(recData.total || 0);
     } catch (err) {
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [accountFilter, assigneeFilter, currentPage, debouncedSearch, endDate, rowsPerPage, sortConfig, startDate, statusFilter]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    void fetch("/api/colleagues").then((res) => res.json()).then(setColleagues).catch(console.error);
+  }, []);
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -629,8 +570,8 @@ export default function RecordsPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={11} className="text-center p-12 text-muted-foreground italic">{t.worksheet.loading}</td></tr>
-              ) : filteredAndSortedRecords.length === 0 ? (
+                <TableSkeletonRows columns={11} rows={8} />
+              ) : totalRecords === 0 ? (
                 <tr><td colSpan={11} className="text-center p-12 text-muted-foreground italic">{t.worksheet.not_found}</td></tr>
               ) : (
                 paginatedRecords.map((record) => {
@@ -684,11 +625,11 @@ export default function RecordsPage() {
           </table>
         </div>
 
-        {!isLoading && filteredAndSortedRecords.length > 0 && (
+        {!isLoading && totalRecords > 0 && (
           <div className="p-4 border-t border-border bg-muted/30 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4 text-sm text-muted-foreground font-bold">
               <div className="flex items-center gap-2"><span>{t.worksheet.rows_per_page}:</span><select className="bg-muted border-none rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-accent cursor-pointer" value={rowsPerPage} onChange={(e) => { const val = e.target.value === "max" ? "max" : Number(e.target.value); setRowsPerPage(val); setCurrentPage(1); }}><option value={5}>5</option><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option><option value="max">{t.worksheet.show_all}</option></select></div>
-              <div className="whitespace-nowrap">{rowsPerPage === "max" ? (<span>{filteredAndSortedRecords.length} {t.worksheet.of} {filteredAndSortedRecords.length}</span>) : (<span>{(currentPage - 1) * (rowsPerPage as number) + 1} - {Math.min(currentPage * (rowsPerPage as number), filteredAndSortedRecords.length)} {t.worksheet.of} {filteredAndSortedRecords.length}</span>)}</div>
+              <div className="whitespace-nowrap">{rowsPerPage === "max" ? (<span>{records.length} {t.worksheet.of} {totalRecords}</span>) : (<span>{(currentPage - 1) * (rowsPerPage as number) + 1} - {Math.min(currentPage * (rowsPerPage as number), totalRecords)} {t.worksheet.of} {totalRecords}</span>)}</div>
             </div>
             {rowsPerPage !== "max" && (<div className="flex items-center gap-2"><button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="p-2 rounded-lg hover:bg-accent/10 disabled:opacity-20 transition-colors"><ChevronsLeft size={16} /></button><div className="flex items-center gap-1">{Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => { if (totalPages <= 7) return true; if (p === 1 || p === totalPages) return true; return Math.abs(p - currentPage) <= 1; }).map((p, i, arr) => (<div key={p} className="flex items-center">{i > 0 && p - arr[i-1] > 1 && <span className="px-2 text-muted-foreground opacity-50">...</span>}<button onClick={() => setCurrentPage(p)} className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${currentPage === p ? "bg-accent text-white shadow-lg shadow-accent/20" : "hover:bg-accent/10 text-muted-foreground"}`}>{p}</button></div>))}</div><button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="p-2 rounded-lg hover:bg-accent/10 disabled:opacity-20 transition-colors"><ChevronsRight size={16} /></button></div>)}
           </div>

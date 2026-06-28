@@ -62,6 +62,11 @@ model SPMRecord {
   importDate DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   pph21Batch Pph21Batch?
+
+  @@index([accountCode, sp2dDate])
+  @@index([sp2dNumber])
+  @@index([status])
+  @@index([assigneeId])
 }
 
 model Pph21Recipient {

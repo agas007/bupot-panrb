@@ -11,8 +11,6 @@ const batchInclude = {
   exportItems: { orderBy: { id: "desc" as const }, take: 1, include: { export: true } },
 };
 
-type Pph21Record = Prisma.SPMRecordGetPayload<{ include: { assignee: { select: { id: true; name: true } }; pph21Batch: { include: { withholdings: { include: { recipient: true } }; exportItems: { include: { export: true } } } } } }>;
-
 export async function GET(req: NextRequest) {
   const user = await getPph21User(req);
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 403 });
@@ -29,10 +27,15 @@ export async function GET(req: NextRequest) {
 
   const records = await prisma.sPMRecord.findMany({
     where: { accountCode: PPH21_ACCOUNT_CODE },
-    include: { assignee: { select: { id: true, name: true } }, pph21Batch: { include: batchInclude } },
+    select: {
+      id: true, spmNumber: true, sp2dNumber: true, sp2dDate: true, deductionAmount: true, recipient: true, assigneeId: true,
+      assignee: { select: { id: true, name: true } },
+      pph21Batch: { select: { id: true, status: true, withholdingDate: true, issueNotes: true, _count: { select: { withholdings: true } } } },
+    },
     orderBy: [{ sp2dDate: "desc" }, { spmNumber: "asc" }],
-  }) as Pph21Record[];
-  return NextResponse.json(records.map((record) => ({ ...record, canManage: canManagePph21(user, record) })));
+    take: 500,
+  });
+  return NextResponse.json(records.map((record: { assigneeId: number | null } & Record<string, unknown>) => ({ ...record, canManage: canManagePph21(user, record) })));
 }
 
 export async function POST(req: NextRequest) {

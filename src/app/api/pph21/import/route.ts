@@ -62,10 +62,14 @@ export async function POST(req: NextRequest) {
           update: { withholdingDate: new Date(withholdingDate), status: "DATA_ENTERED", issueNotes: null },
         });
         const uniqueRecipients = Array.from(new Map(group.lines.map((line) => [line.counterpartTin, line])).values());
-        await tx.pph21Recipient.createMany({
-          data: uniqueRecipients.map((line) => ({ nik: line.counterpartTin, name: `NIK ${line.counterpartTin}`, defaultTaxObjectCode: line.taxObjectCode })),
-          skipDuplicates: true,
-        });
+        const existingRecipients = await tx.pph21Recipient.findMany({ where: { nik: { in: uniqueRecipients.map((line) => line.counterpartTin) } } });
+        const existingByNik = new Map(existingRecipients.map((recipient) => [recipient.nik, recipient]));
+        const missingRecipients = uniqueRecipients
+          .filter((line) => !existingByNik.has(line.counterpartTin))
+          .map((line) => ({ nik: line.counterpartTin, name: `NIK ${line.counterpartTin}`, defaultTaxObjectCode: line.taxObjectCode }));
+        if (missingRecipients.length > 0) {
+          await tx.pph21Recipient.createMany({ data: missingRecipients, skipDuplicates: true });
+        }
         const recipients = await tx.pph21Recipient.findMany({ where: { nik: { in: uniqueRecipients.map((line) => line.counterpartTin) } } });
         const recipientsByNik = new Map(recipients.map((recipient) => [recipient.nik, recipient]));
         await tx.pph21Withholding.createMany({
