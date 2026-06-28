@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPph21Xml, calculatePph21Tax, normalizePph21Lines } from "../src/lib/pph21.ts";
+import { buildPph21Xml, calculatePph21Tax, normalizePph21Lines, parsePph21Xml } from "../src/lib/pph21.ts";
 
 test("maps supported tax objects and floors each calculated tax", () => {
   const lines = normalizePph21Lines([
@@ -31,4 +31,14 @@ test("builds a Coretax-compatible XML row for every recipient", () => {
   assert.match(xml, /<TaxPeriodMonth>5<\/TaxPeriodMonth>/);
   assert.match(xml, /<IDPlaceOfBusinessActivityOfIncomeRecipient>1277014308900003000000/);
   assert.match(xml, /<WithholdingDate>2026-06-12<\/WithholdingDate>/);
+  const imported = parsePph21Xml(xml);
+  assert.equal(imported.length, 2);
+  assert.equal(imported[0].documentNumber, "261330000047614");
+  assert.equal(imported[0].calculatedTax, 150000);
+  assert.equal(imported[1].calculatedTax, 13600);
+});
+
+test("rejects unsafe or malformed imported XML", () => {
+  assert.throws(() => parsePph21Xml('<!DOCTYPE x [<!ENTITY test "x">]><Bp21Bulk/>'), /DOCTYPE/);
+  assert.throws(() => parsePph21Xml("<root />"), /Bp21Bulk/);
 });

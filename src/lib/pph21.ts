@@ -119,3 +119,59 @@ export function buildPph21Xml(batches: XmlBatch[]) {
     "</Bp21Bulk>",
   ].join("\n");
 }
+
+export type ImportedPph21Line = {
+  documentNumber: string;
+  documentDate: string;
+  withholdingDate: string;
+  counterpartTin: string;
+  taxObjectCode: string;
+  gross: number;
+  deemed: number;
+  rate: number;
+  calculatedTax: number;
+  taxPeriodMonth: number;
+  taxPeriodYear: number;
+};
+
+function decodeXml(value: string) {
+  return value
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
+function readXmlTag(block: string, tag: string) {
+  const match = block.match(new RegExp(`<${tag}\\s*>([\\s\\S]*?)<\\/${tag}>`, "i"));
+  return match ? decodeXml(match[1].trim()) : "";
+}
+
+export function parsePph21Xml(xml: string): ImportedPph21Line[] {
+  if (!xml.trim()) throw new Error("File XML kosong.");
+  if (/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new Error("DOCTYPE dan ENTITY tidak diperbolehkan.");
+  if (!/<Bp21Bulk\b/i.test(xml)) throw new Error("Root Bp21Bulk tidak ditemukan.");
+  const blocks = Array.from(xml.matchAll(/<Bp21\b[^>]*>([\s\S]*?)<\/Bp21>/gi), (match) => match[1]);
+  if (blocks.length === 0) throw new Error("XML tidak memiliki data Bp21.");
+
+  return blocks.map((block, index) => {
+    const documentNumber = readXmlTag(block, "DocumentNumber");
+    const documentDate = readXmlTag(block, "DocumentDate");
+    const withholdingDate = readXmlTag(block, "WithholdingDate");
+    const counterpartTin = normalizeNik(readXmlTag(block, "CounterpartTin"));
+    const taxObjectCode = readXmlTag(block, "TaxObjectCode");
+    const gross = Number(readXmlTag(block, "Gross"));
+    const deemed = Number(readXmlTag(block, "Deemed"));
+    const rate = Number(readXmlTag(block, "Rate"));
+    const taxPeriodMonth = Number(readXmlTag(block, "TaxPeriodMonth"));
+    const taxPeriodYear = Number(readXmlTag(block, "TaxPeriodYear"));
+    if (!documentNumber) throw new Error(`DocumentNumber baris ${index + 1} kosong.`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(withholdingDate) || Number.isNaN(new Date(withholdingDate).getTime())) throw new Error(`WithholdingDate baris ${index + 1} tidak valid.`);
+    if (!/^\d{16}$/.test(counterpartTin)) throw new Error(`CounterpartTin baris ${index + 1} harus 16 digit.`);
+    if (!isPph21TaxObjectCode(taxObjectCode)) throw new Error(`TaxObjectCode baris ${index + 1} tidak didukung.`);
+    if (![gross, deemed, rate].every(Number.isFinite) || gross < 0 || deemed < 0 || rate < 0) throw new Error(`Nilai pajak baris ${index + 1} tidak valid.`);
+    if (!Number.isInteger(taxPeriodMonth) || taxPeriodMonth < 1 || taxPeriodMonth > 12 || !Number.isInteger(taxPeriodYear)) throw new Error(`Periode pajak baris ${index + 1} tidak valid.`);
+    return { documentNumber, documentDate, withholdingDate, counterpartTin, taxObjectCode, gross, deemed, rate, calculatedTax: calculatePph21Tax(gross, deemed, rate), taxPeriodMonth, taxPeriodYear };
+  });
+}

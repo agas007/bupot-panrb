@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, Download, Plus, ReceiptText, Save, Search, Trash2, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, Plus, ReceiptText, Save, Search, Trash2, Upload, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { PPH21_TAX_OBJECTS } from "@/lib/pph21";
 
@@ -10,6 +10,7 @@ type Line = { nik: string; name: string; taxObjectCode: Code; gross: string };
 type Batch = { id: number; status: string; withholdingDate: string | null; issueNotes?: string | null; withholdings: Array<{ id: number; recipient: { nik: string; name: string }; recipientName: string; taxObjectCode: Code; gross: number; calculatedTax: number }> };
 type RecordRow = { id: number; spmNumber: string; sp2dNumber: string | null; sp2dDate: string | null; deductionAmount: number; recipient?: string | null; canManage: boolean; pph21Batch: Batch | null };
 type Recipient = { id: number; nik: string; name: string; defaultTaxObjectCode: Code; transactionCount: number; totalGross: number; totalTax: number; exportedGross: number; exportedTax: number; monthlySummary: Array<{ period: string; count: number; gross: number; tax: number }>; transactions: Array<{ id: number; spmNumber: string; sp2dNumber: string | null; sp2dDate: string | null; status: string; taxObjectCode: string; gross: number; calculatedTax: number }> };
+type ImportReport = { fileName: string; totalRows: number; totalDocuments: number; importedCount: number; matchCount: number; mismatchCount: number; notFoundCount: number; groups: Array<{ documentNumber: string; spmNumber: string | null; recipientCount: number; xmlGross: number; xmlTax: number; sp2dDeduction: number | null; difference: number | null; status: "IMPORTED" | "MISMATCH" | "NOT_FOUND" | "ALREADY_FILLED" | "FORBIDDEN" | "INVALID_DATES" }> };
 
 const codes = Object.keys(PPH21_TAX_OBJECTS) as Code[];
 const money = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 });
@@ -29,6 +30,7 @@ export default function Pph21Page() {
   const [expandedRecipient, setExpandedRecipient] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<{ type: "error" | "success"; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [importReport, setImportReport] = useState<ImportReport | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -108,15 +110,30 @@ export default function Pph21Page() {
     await load(); setFeedback({ type: "success", message: "Master penerima diperbarui tanpa mengubah histori." });
   }
 
+  async function checkImportedXml(file: File) {
+    setBusy(true); setFeedback(null);
+    try {
+      const formData = new FormData(); formData.append("xml", file);
+      const res = await fetch("/api/pph21/import", { method: "POST", headers: getAuthHeaders(), body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setImportReport(data);
+      await load();
+      setFeedback({ type: data.mismatchCount || data.notFoundCount ? "error" : "success", message: `${data.importedCount} SP2D berhasil diisi, ${data.mismatchCount} selisih, ${data.notFoundCount} tidak ditemukan.` });
+    } catch (error) { setFeedback({ type: "error", message: error instanceof Error ? error.message : "Gagal memeriksa XML" }); }
+    finally { setBusy(false); }
+  }
+
   const visibleRecords = records.filter((record) => [record.spmNumber, record.sp2dNumber, record.recipient].some((value) => value?.toLowerCase().includes(search.toLowerCase())));
   const visibleRecipients = recipients.filter((recipient) => `${recipient.name} ${recipient.nik}`.toLowerCase().includes(search.toLowerCase()));
 
   return <div className="flex flex-col gap-6 pb-10 text-left">
     <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
       <div><h1 className="text-3xl font-black flex items-center gap-3"><ReceiptText className="text-accent" /> PPh 21</h1><p className="text-sm text-muted-foreground mt-1">Master penerima, rincian SP2D, dan export XML Coretax.</p></div>
-      <button onClick={exportXml} disabled={busy || !selected.size} className="premium-button px-5 py-3 flex items-center justify-center gap-2 disabled:opacity-40"><Download size={17} /> Export {selected.size} SP2D ke XML</button>
+      <div className="flex flex-wrap gap-2"><label className="px-5 py-3 rounded-xl border border-accent/30 text-accent font-bold flex items-center gap-2 cursor-pointer hover:bg-accent/10"><Upload size={17}/> Import & Check XML<input type="file" accept=".xml,application/xml,text/xml" className="hidden" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void checkImportedXml(file); event.target.value = ""; }}/></label><button onClick={exportXml} disabled={busy || !selected.size} className="premium-button px-5 py-3 flex items-center justify-center gap-2 disabled:opacity-40"><Download size={17} /> Export {selected.size} SP2D ke XML</button></div>
     </header>
     {feedback && <div className={`p-4 rounded-2xl border flex items-center gap-3 ${feedback.type === "error" ? "bg-rose-500/10 border-rose-500/20 text-rose-600" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600"}`}>{feedback.type === "error" ? <AlertCircle size={18}/> : <CheckCircle2 size={18}/>} {feedback.message}</div>}
+    {importReport && <section className="glass-card p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="font-black text-lg">Hasil import dan pengecekan XML</h2><p className="text-sm text-muted-foreground">{importReport.fileName} · {importReport.totalRows} recipient dalam {importReport.totalDocuments} SP2D</p></div><button onClick={() => setImportReport(null)}><X size={20}/></button></div><div className="grid grid-cols-3 gap-3 mt-4"><div className="rounded-xl bg-emerald-500/10 text-emerald-600 p-3"><div className="text-xs font-bold uppercase">Berhasil diisi</div><div className="text-2xl font-black">{importReport.importedCount}</div></div><div className="rounded-xl bg-amber-500/10 text-amber-600 p-3"><div className="text-xs font-bold uppercase">Selisih</div><div className="text-2xl font-black">{importReport.mismatchCount}</div></div><div className="rounded-xl bg-rose-500/10 text-rose-600 p-3"><div className="text-xs font-bold uppercase">Tidak ditemukan</div><div className="text-2xl font-black">{importReport.notFoundCount}</div></div></div><div className="overflow-x-auto mt-4"><table className="premium-table min-w-[850px]"><thead><tr><th>Document / SP2D</th><th>Recipient</th><th>Gross XML</th><th>Pajak XML</th><th>Potongan SP2D</th><th>Selisih</th><th>Hasil</th></tr></thead><tbody>{importReport.groups.map((group) => <tr key={group.documentNumber}><td><div className="font-bold">{group.documentNumber}</div><div className="text-xs text-muted-foreground">{group.spmNumber || "SP2D tidak ditemukan"}</div></td><td>{group.recipientCount}</td><td>Rp{money.format(group.xmlGross)}</td><td>Rp{money.format(group.xmlTax)}</td><td>{group.sp2dDeduction === null ? "—" : `Rp${money.format(group.sp2dDeduction)}`}</td><td>{group.difference === null ? "—" : `Rp${money.format(group.difference)}`}</td><td><span className={`badge ${group.status === "IMPORTED" || group.status === "ALREADY_FILLED" ? "badge-completed" : "bg-amber-500/10! text-amber-600!"}`}>{group.status}</span></td></tr>)}</tbody></table></div></section>}
     <div className="flex flex-col md:flex-row gap-3 justify-between"><div className="flex bg-muted p-1 rounded-xl"><button onClick={() => setTab("sp2d")} className={`px-4 py-2 rounded-lg text-sm font-bold ${tab === "sp2d" ? "bg-background shadow" : "text-muted-foreground"}`}>SP2D PPh 21</button><button onClick={() => setTab("recipients")} className={`px-4 py-2 rounded-lg text-sm font-bold ${tab === "recipients" ? "bg-background shadow" : "text-muted-foreground"}`}>Master Penerima</button></div><div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"/><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama, NIK, SPM, atau SP2D" className="bg-muted rounded-xl pl-10 pr-4 py-2.5 outline-none min-w-[300px]"/></div></div>
 
     {tab === "sp2d" ? <div className="glass-card overflow-x-auto"><table className="premium-table"><thead><tr><th></th><th>SPM / SP2D</th><th>Tanggal SP2D</th><th>Potongan</th><th>Recipients</th><th>PPh 21 Process</th><th>Aksi</th></tr></thead><tbody>{visibleRecords.map((record) => <tr key={record.id}><td><input type="checkbox" disabled={!record.canManage} checked={selected.has(record.id)} onChange={(e) => setSelected((current) => { const next = new Set(current); if (e.target.checked) next.add(record.id); else next.delete(record.id); return next; })}/></td><td><div className="font-bold">{record.spmNumber}</div><div className="text-xs text-muted-foreground">{record.sp2dNumber || "Belum terbit"}</div></td><td>{record.sp2dDate ? new Date(record.sp2dDate).toLocaleDateString("id-ID") : "—"}</td><td>Rp{money.format(record.deductionAmount)}</td><td>{record.pph21Batch?.withholdings.length || 0}</td><td><span className={`badge ${record.pph21Batch?.status === "COMPLETED" ? "badge-completed" : "badge-pending"}`}>{record.pph21Batch?.status || "PENDING"}</span>{record.pph21Batch?.issueNotes && <div className="text-xs text-amber-600 mt-1">{record.pph21Batch.issueNotes}</div>}</td><td><button disabled={!record.canManage} onClick={() => openEditor(record)} className="text-accent font-bold text-xs hover:underline disabled:opacity-30">Kelola rincian</button></td></tr>)}</tbody></table></div> :
