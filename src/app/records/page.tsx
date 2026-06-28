@@ -646,6 +646,10 @@ export default function RecordsPage() {
                           <div className="font-black mt-1 line-clamp-2">{selectedPph21Record?.description || selectedRecord.description || "-"}</div>
                         </div>
                         <div className="bg-background/80 rounded-xl p-3">
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Nilai SPM</div>
+                          <div className="font-black mt-1">IDR {selectedRecord.totalValue?.toLocaleString("id-ID") || "0"}</div>
+                        </div>
+                        <div className="bg-background/80 rounded-xl p-3">
                           <div className="text-[10px] uppercase font-bold text-muted-foreground">Potongan</div>
                           <div className="font-black mt-1">IDR {selectedRecord.deductionAmount.toLocaleString("id-ID")}</div>
                         </div>
