@@ -58,7 +58,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { language, setLanguage, t } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
-  const [announcementTab, setAnnouncementTab] = useState<"v1.2.0" | "v1.1.0">("v1.2.0");
+  const [announcementTab, setAnnouncementTab] = useState<"v1.3.0" | "v1.2.0">("v1.3.0");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [currentUser, setCurrentUser] = useState<Colleague | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -69,7 +69,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  const MODAL_VERSION = "1.2.0";
+  const MODAL_VERSION = "1.3.0";
 
   const fetchNotifications = useCallback(async () => {
     if (!currentUser) return;
@@ -492,7 +492,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="container min-w-0 max-w-full">{children}</div>
       </main>
 
-      {/* Modern Announcement Modal v1.2.0 */}
+      {/* Modern Announcement Modal v1.3.0 */}
       {showAnnouncement && mounted && (
          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-9999 flex items-center justify-center p-4">
             <div className="glass-card bg-slate-900/95! border-white/10! w-full max-w-xl p-8 flex flex-col gap-8 shadow-2xl animate-in zoom-in duration-300">
@@ -502,19 +502,50 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <Sparkles size={32} />
                      </div>
                      <div className="flex flex-col">
-                        <h2 className="text-2xl font-black uppercase tracking-tight text-white">Rilis v1.2.0 Stabil</h2>
-                        <span className="text-accent text-[10px] font-bold uppercase tracking-[0.2em]">Security & Authentication Update</span>
+                        <h2 className="text-2xl font-black uppercase tracking-tight text-white">Rilis v1.3.0 Stabil</h2>
+                        <span className="text-accent text-[10px] font-bold uppercase tracking-[0.2em]">Workflow Expansion & Visibility</span>
                      </div>
                   </div>
                   <button onClick={() => setShowAnnouncement(false)} className="p-2 hover:bg-white/10 rounded-full transition-all text-white/40 hover:text-white"><X size={24}/></button>
                </div>
                
                <div className="flex gap-2 bg-white/5 p-1 rounded-xl">
-                  <button onClick={() => setAnnouncementTab("v1.2.0")} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.2.0" ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-white/40"}`}>LATEST v1.2.0</button>
-                  <button onClick={() => setAnnouncementTab("v1.1.0")} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.1.0" ? "bg-white/20 text-white" : "text-white/40"}`}>PREVIOUS v1.1.0</button>
+                  <button onClick={() => setAnnouncementTab("v1.3.0")} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.3.0" ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-white/40"}`}>LATEST v1.3.0</button>
+                  <button onClick={() => setAnnouncementTab("v1.2.0")} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.2.0" ? "bg-white/20 text-white" : "text-white/40"}`}>PREVIOUS v1.2.0</button>
                </div>
 
-               {announcementTab === "v1.2.0" ? (
+               {announcementTab === "v1.3.0" ? (
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                      <Scale className="text-emerald-400 shrink-0 mt-1" size={18} />
+                      <div className="flex flex-col gap-1">
+                         <span className="text-xs font-bold text-white leading-none">Rekonsiliasi Lebih Rapi</span>
+                         <p className="text-[11px] text-white/50 leading-relaxed">Alur pencocokan data sekarang lebih jelas untuk membandingkan, mengoreksi, dan menutup selisih dokumen.</p>
+                      </div>
+                   </div>
+                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                      <FileText className="text-indigo-400 shrink-0 mt-1" size={18} />
+                      <div className="flex flex-col gap-1">
+                         <span className="text-xs font-bold text-white leading-none">Workspace PPh 21</span>
+                         <p className="text-[11px] text-white/50 leading-relaxed">Ekstraksi, telaah, dan pengelolaan bukti potong PPh 21 kini terkonsolidasi di satu ruang kerja.</p>
+                      </div>
+                   </div>
+                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                      <Info className="text-amber-400 shrink-0 mt-1" size={18} />
+                      <div className="flex flex-col gap-1">
+                         <span className="text-xs font-bold text-white leading-none">API Docs Interaktif</span>
+                         <p className="text-[11px] text-white/50 leading-relaxed">Referensi endpoint backend kini lebih mudah ditelusuri untuk integrasi dan pengecekan payload.</p>
+                      </div>
+                   </div>
+                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                      <Bell className="text-rose-400 shrink-0 mt-1" size={18} />
+                      <div className="flex flex-col gap-1">
+                         <span className="text-xs font-bold text-white leading-none">Notifikasi & Audit Lebih Cepat</span>
+                         <p className="text-[11px] text-white/50 leading-relaxed">Peringatan aktivitas dan log sesi tampil lebih responsif untuk pemantauan harian tim.</p>
+                      </div>
+                   </div>
+               </div>
+               ) : (
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
                    <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
                       <ShieldCheck className="text-emerald-400 shrink-0 mt-1" size={18} />
@@ -544,24 +575,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                          <p className="text-[11px] text-white/50 leading-relaxed">Ekspor laporan lembar kerja kini tersedia dalam format PDF, Excel, dan CSV.</p>
                       </div>
                    </div>
-                 </div>
-               ) : (
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10">
-                      <Languages className="text-sky-400 shrink-0 mt-1" size={18} />
-                      <div className="flex flex-col gap-1">
-                         <span className="text-xs font-bold text-white leading-none">Bilingual Support</span>
-                         <p className="text-[11px] text-white/50 leading-relaxed">Dukungan penuh Bahasa Indonesia & English di seluruh modul aplikasi.</p>
-                      </div>
-                   </div>
-                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10">
-                      <Moon className="text-indigo-400 shrink-0 mt-1" size={18} />
-                      <div className="flex flex-col gap-1">
-                         <span className="text-xs font-bold text-white leading-none">Premium Dark Mode</span>
-                         <p className="text-[11px] text-white/50 leading-relaxed">Pengalaman visual yang lebih nyaman untuk penggunaan durasi panjang.</p>
-                      </div>
-                   </div>
-                 </div>
+               </div>
                )}
 
                <button onClick={() => { setShowAnnouncement(false); localStorage.setItem("bupot_announcement_seen", MODAL_VERSION); }} className="premium-button py-4 font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3">

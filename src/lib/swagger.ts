@@ -7,7 +7,7 @@ export const getApiDocs = async () => {
       openapi: "3.0.0",
       info: {
         title: "Bupot PANRB API Documentation",
-        version: "1.2.0",
+        version: "1.3.0",
         description: "Official API Documentation for the Bupot PANRB Management Suite.",
       },
       servers: [
