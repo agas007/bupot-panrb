@@ -476,9 +476,6 @@ export default function RecordsPage() {
                       <h3 className="text-sm font-black uppercase tracking-widest text-accent">Data Pendukung PPh 21</h3>
                       <p className="text-xs text-muted-foreground mt-1">Cek detail penerima sebelum menandai selesai.</p>
                     </div>
-                    <Link href={`/pph21?recordId=${selectedRecord.id}`} className="text-[10px] font-black uppercase text-accent hover:underline">
-                      Buka rincian
-                    </Link>
                   </div>
                   {isPph21DetailLoading ? (
                     <div className="text-xs text-muted-foreground">Memuat detail PPh 21...</div>
@@ -540,9 +537,6 @@ export default function RecordsPage() {
                         >
                           {isPph21EditorOpen ? "Tutup editor" : "Edit rincian di sini"}
                         </button>
-                        <Link href={`/pph21?recordId=${selectedRecord.id}`} className="text-[10px] font-black uppercase text-accent hover:underline">
-                          Buka halaman PPh 21
-                        </Link>
                       </div>
                       {isPph21EditorOpen && (
                         <div className="rounded-2xl border border-border bg-background/70 p-4 flex flex-col gap-4">
@@ -911,7 +905,7 @@ export default function RecordsPage() {
                         {record.accountCode === "411121" ? (
                           <div className="flex flex-col items-center gap-2">
                             <span className={`badge ${getPph21BadgeClass(record.pph21Batch?.status)}`}>{record.pph21Batch?.status || "PENDING"}</span>
-                            <Link href={`/pph21?recordId=${record.id}`} className="text-[10px] font-black uppercase text-accent hover:underline">Kelola rincian</Link>
+                            <Link href={`/master-penerima-pph21?recordId=${record.id}`} className="text-[10px] font-black uppercase text-accent hover:underline">Kelola rincian</Link>
                           </div>
                         ) : <span className="text-muted-foreground">—</span>}
                       </td>
