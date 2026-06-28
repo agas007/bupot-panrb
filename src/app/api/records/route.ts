@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const assigneeId = searchParams.get("assigneeId");
   const status = searchParams.get("status");
+  const pph21Process = searchParams.get("pph21Process");
   const q = String(searchParams.get("q") || "").trim();
   const accountCode = searchParams.get("accountCode");
   const startDate = searchParams.get("startDate");
@@ -44,6 +45,16 @@ export async function GET(req: NextRequest) {
       accountCode: accountCode && VALID_ACCOUNTS.includes(accountCode) ? accountCode : { in: VALID_ACCOUNTS },
       ...(assigneeId === "unassigned" ? { assigneeId: null } : assigneeId ? { assigneeId: Number(assigneeId) } : {}),
       ...(status ? { status } : {}),
+      ...(pph21Process
+        ? pph21Process === "PENDING"
+          ? {
+              OR: [
+                { pph21Batch: null },
+                { pph21Batch: { is: { status: "PENDING" } } },
+              ],
+            }
+          : { pph21Batch: { is: { status: pph21Process } } }
+        : {}),
       ...(startDate || endDate ? { sp2dDate: { ...(startDate ? { gte: new Date(`${startDate}T00:00:00.000Z`) } : {}), ...(endDate ? { lt: new Date(new Date(`${endDate}T00:00:00.000Z`).getTime() + 86_400_000) } : {}) } } : {}),
       ...(q ? { OR: [
         { spmNumber: { contains: q, mode: "insensitive" } },

@@ -70,6 +70,7 @@ export default function RecordsPage() {
   const [accountFilter, setAccountFilter] = useState("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [pph21ProcessFilter, setPph21ProcessFilter] = useState<"all" | "PENDING" | "DATA_ENTERED" | "COMPLETED" | "ISSUES">("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [sortConfig, setSortConfig] = useState<SortConfig>(null);
@@ -89,6 +90,7 @@ export default function RecordsPage() {
   const [isPph21EditorOpen, setIsPph21EditorOpen] = useState(false);
   const [isPph21Saving, setIsPph21Saving] = useState(false);
   const [isPph21XmlDownloading, setIsPph21XmlDownloading] = useState(false);
+  const [isPph21XmlExporting, setIsPph21XmlExporting] = useState(false);
   const [pph21WithholdingDate, setPph21WithholdingDate] = useState("");
   const [pph21Lines, setPph21Lines] = useState<Pph21Line[]>([{ nik: "", name: "", taxObjectCode: "21-402-02", gross: "" }]);
   const [updateForm, setUpdateForm] = useState<{ docLink: string, notes: string, status: "COMPLETED" | "ISSUES" }>({ docLink: "", notes: "", status: "COMPLETED" });
@@ -99,6 +101,20 @@ export default function RecordsPage() {
     if (status === "COMPLETED" || status === "DATA_ENTERED") return "badge-completed";
     if (status === "ISSUES") return "bg-amber-500/10! text-amber-500! border-amber-500/20!";
     return "badge-pending";
+  };
+  const getPph21ProcessLabel = (status?: string | null) => {
+    switch (status || "PENDING") {
+      case "PENDING":
+        return "Pending";
+      case "DATA_ENTERED":
+        return "Data Entered";
+      case "COMPLETED":
+        return "Completed";
+      case "ISSUES":
+        return "Issues";
+      default:
+        return status || "PENDING";
+    }
   };
 
   const filteredAndSortedRecords = records;
@@ -122,6 +138,7 @@ export default function RecordsPage() {
       if (accountFilter !== "all") params.set("accountCode", accountFilter);
       if (assigneeFilter !== "all") params.set("assigneeId", assigneeFilter);
       if (statusFilter !== "all") params.set("status", statusFilter);
+      if (pph21ProcessFilter !== "all") params.set("pph21Process", pph21ProcessFilter);
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
       if (sortConfig) { params.set("sortKey", sortConfig.key); params.set("sortDirection", sortConfig.direction); }
@@ -134,7 +151,7 @@ export default function RecordsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [accountFilter, assigneeFilter, currentPage, debouncedSearch, endDate, rowsPerPage, sortConfig, startDate, statusFilter]);
+  }, [accountFilter, assigneeFilter, currentPage, debouncedSearch, endDate, pph21ProcessFilter, rowsPerPage, sortConfig, startDate, statusFilter]);
 
   useEffect(() => {
     fetchData();
@@ -338,7 +355,7 @@ export default function RecordsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, accountFilter, assigneeFilter, statusFilter, startDate, endDate, sortConfig]);
+  }, [searchQuery, accountFilter, assigneeFilter, statusFilter, pph21ProcessFilter, startDate, endDate, sortConfig]);
 
   // Export Functions
   const exportToExcel = () => {
@@ -425,6 +442,7 @@ export default function RecordsPage() {
     setAccountFilter("all");
     setAssigneeFilter("all");
     setStatusFilter("all");
+    setPph21ProcessFilter("all");
     setStartDate("");
     setEndDate("");
   };
@@ -435,6 +453,10 @@ export default function RecordsPage() {
       return sum + Math.floor((Number(line.gross) || 0) * rule.deemed / 100 * rule.rate / 100);
     }, 0);
   }, [pph21Lines]);
+
+  const selectedPph21Ids = useMemo(() => {
+    return Array.from(selectedIds).filter((id) => records.find((record) => record.id === id)?.accountCode === "411121");
+  }, [records, selectedIds]);
 
   const selectedPph21TaxTotal = useMemo(() => {
     return selectedPph21Record?.pph21Batch?.withholdings?.reduce((sum, line) => sum + line.calculatedTax, 0) || 0;
@@ -527,6 +549,44 @@ export default function RecordsPage() {
       console.error(error);
     } finally {
       setIsPph21XmlDownloading(false);
+    }
+  };
+
+  const exportSelectedPph21Xml = async () => {
+    if (selectedPph21Ids.length === 0) return;
+    setIsPph21XmlExporting(true);
+    try {
+      const res = await fetch("/api/pph21/export", {
+        method: "POST",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ recordIds: selectedPph21Ids }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Gagal mengekspor XML PPh 21");
+      }
+
+      const blob = await res.blob();
+      const fileName = res.headers.get("X-Export-Filename") || `Bupot_PPh21_${new Date().toISOString().slice(0, 10)}.xml`;
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      setSelectedIds(new Set());
+      fetchData();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsPph21XmlExporting(false);
     }
   };
 
@@ -787,7 +847,7 @@ export default function RecordsPage() {
                <div className="flex flex-col gap-6">
                  <div><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">{t.worksheet.account_code}</label><div className="flex items-center gap-3"><span className="badge bg-accent/10 text-accent border border-accent/20 text-sm py-1.5 px-4">{selectedRecord.accountCode}</span><span className="text-xs font-bold opacity-70">{getTaxAccountLabel(selectedRecord.accountCode)}</span></div></div>
                  <div><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">{t.worksheet.recipient_amount}</label><div className="p-4 bg-muted/60 rounded-2xl border border-border"><p className="font-bold text-lg mb-1">{selectedRecord.recipient}</p><div className="flex flex-col gap-1"><div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">{language === "ID" ? "Nilai SPM" : "SPM Amount"}</span><span className="font-mono font-bold text-foreground/70">IDR {selectedRecord.totalValue?.toLocaleString("id-ID") || "0"}</span></div><div className="flex justify-between items-center text-base"><span className="font-medium">{language === "ID" ? "Potongan Pajak" : "Tax Deduction"}</span><span className="font-mono font-bold text-accent">IDR {selectedRecord.deductionAmount.toLocaleString("id-ID")}</span></div></div></div></div>
-                 <div><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">{t.worksheet.spm_description}</label><p className="text-sm leading-relaxed italic text-muted-foreground bg-accent/5 p-4 rounded-2xl border border-accent/10">"{selectedRecord.description || "-"}"</p></div>
+                 <div><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">{t.worksheet.spm_description}</label><p className="text-sm leading-relaxed italic text-muted-foreground bg-accent/5 p-4 rounded-2xl border border-accent/10">“{selectedRecord.description || "-"}”</p></div>
                </div>
                <div className="flex flex-col gap-6">
                  <div className="flex flex-col gap-4">
@@ -921,6 +981,16 @@ export default function RecordsPage() {
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40" size={14} />
                    </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={exportSelectedPph21Xml}
+                  disabled={selectedPph21Ids.length === 0 || isPph21XmlExporting || isLoading}
+                  className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2.5 text-[11px] md:text-xs font-bold text-emerald-300 transition-all hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:opacity-40"
+                  title={selectedPph21Ids.length > 0 ? "Export XML PPh 21 untuk record terpilih" : "Pilih minimal satu SP2D PPh 21"}
+                >
+                  {isPph21XmlExporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  Export XML {selectedPph21Ids.length > 0 ? `(${selectedPph21Ids.length})` : ""}
+                </button>
               </div>
               <button onClick={() => setSelectedIds(new Set())} className="text-white/40 hover:text-rose-400 p-2 transition-colors"><X size={20} /></button>
            </div>
@@ -978,8 +1048,9 @@ export default function RecordsPage() {
           <div className="relative"><Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} /><select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}><option value="all">{t.worksheet.all_accounts}</option>{uniqueAccounts.map(acc => (<option key={acc} value={acc}>{acc} ({getTaxAccountLabel(acc)})</option>))}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} /></div>
           <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} /><select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]" value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}><option value="all">{t.nav.daftar_rekan} ({t.worksheet.show_all})</option><option value="unassigned">{t.worksheet.unassigned}</option>{colleagues.map((col: Colleague) => (<option key={col.id} value={col.id}>{col.name}</option>))}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} /></div>
           <div className="relative"><CheckCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} /><select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">{t.worksheet.all_status}</option><option value="PENDING">{t.worksheet.pending}</option><option value="COMPLETED">{t.worksheet.completed}</option><option value="ISSUES">{t.worksheet.issues}</option></select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} /></div>
+          <div className="relative"><FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} /><select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[160px]" value={pph21ProcessFilter} onChange={(e) => setPph21ProcessFilter(e.target.value as typeof pph21ProcessFilter)}><option value="all">Semua PPh 21 Process</option><option value="PENDING">{getPph21ProcessLabel("PENDING")}</option><option value="DATA_ENTERED">{getPph21ProcessLabel("DATA_ENTERED")}</option><option value="COMPLETED">{getPph21ProcessLabel("COMPLETED")}</option><option value="ISSUES">{getPph21ProcessLabel("ISSUES")}</option></select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} /></div>
           
-          {(searchQuery || accountFilter !== "all" || assigneeFilter !== "all" || statusFilter !== "all" || startDate || endDate) && (
+          {(searchQuery || accountFilter !== "all" || assigneeFilter !== "all" || statusFilter !== "all" || pph21ProcessFilter !== "all" || startDate || endDate) && (
             <button onClick={resetFilters} className="p-2.5 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500/20 transition-all" title="Reset semua filter">
               <RefreshCw size={18} />
             </button>
@@ -1078,7 +1149,7 @@ export default function RecordsPage() {
                           ) : (
                             <div className="flex flex-col items-center gap-1 p-2">
                               {record.docLink && (<a href={record.docLink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-accent hover:underline flex items-center gap-1 font-black uppercase tracking-widest"><ExternalLink size={10} /> {language === "ID" ? "Lihat" : "View"}</a>)}
-                              {record.notes && (<span className="text-[10px] text-muted-foreground italic max-w-[120px] truncate" title={record.notes}>"{record.notes}"</span>)}
+                              {record.notes && (<span className="text-[10px] text-muted-foreground italic max-w-[120px] truncate" title={record.notes}>“{record.notes}”</span>)}
                               <button onClick={() => updateStatus(record.id, "PENDING")} className="text-[10px] text-rose-500 hover:underline mt-1 font-bold">{t.worksheet.revert}</button>
                             </div>
                           )}
