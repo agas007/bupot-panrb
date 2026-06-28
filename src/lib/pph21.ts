@@ -7,6 +7,13 @@ export const PPH21_TAX_OBJECTS = {
   "21-402-03": { deemed: 100, rate: 15 },
 } as const;
 
+export const PPH21_TAX_OBJECT_LABELS = {
+  "21-100-07": "Imbalan tenaga ahli / konsultan / profesional, deemed 50% tarif 5%",
+  "21-402-04": "Honor/imbalan lain APBN/APBD untuk gol I/II, TNI/Polri tamtama/bintara, pensiunan — deemed 100% tarif 0%",
+  "21-402-02": "Honor/imbalan lain APBN/APBD untuk PNS gol III, TNI/Polri perwira pertama, pensiunan — deemed 100% tarif 5%",
+  "21-402-03": "Honor/imbalan lain APBN/APBD untuk pejabat negara, PNS gol IV, TNI/Polri perwira menengah/tinggi, pensiunan — deemed 100% tarif 15%",
+} as const satisfies Record<keyof typeof PPH21_TAX_OBJECTS, string>;
+
 export type Pph21TaxObjectCode = keyof typeof PPH21_TAX_OBJECTS;
 export type Pph21ProcessStatus = "PENDING" | "DATA_ENTERED" | "COMPLETED" | "ISSUES";
 

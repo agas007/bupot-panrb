@@ -1,15 +1,28 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, Download, Loader2, Plus, ReceiptText, Save, Search, Trash2, Upload, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, Download, Loader2, Plus, ReceiptText, Save, Search, Trash2, Upload, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { PPH21_TAX_OBJECTS } from "@/lib/pph21";
+import { PPH21_TAX_OBJECT_LABELS, PPH21_TAX_OBJECTS } from "@/lib/pph21";
 import { RecipientCardSkeletons, TableSkeletonRows } from "@/components/TableSkeleton";
 
 type Code = keyof typeof PPH21_TAX_OBJECTS;
 type Line = { nik: string; name: string; taxObjectCode: Code; gross: string };
 type Batch = { id: number; status: string; withholdingDate: string | null; issueNotes?: string | null; _count?: { withholdings: number }; withholdings?: Array<{ id: number; recipient: { nik: string; name: string }; recipientName: string; taxObjectCode: Code; gross: number; calculatedTax: number }> };
-type RecordRow = { id: number; spmNumber: string; sp2dNumber: string | null; sp2dDate: string | null; deductionAmount: number; recipient?: string | null; canManage: boolean; pph21Batch: Batch | null };
+type RecordRow = {
+  id: number;
+  spmNumber: string;
+  sp2dNumber: string | null;
+  sp2dDate: string | null;
+  deductionAmount: number;
+  totalValue?: number | null;
+  recipient?: string | null;
+  canManage: boolean;
+  assigneeId?: number | null;
+  assignee?: { id: number; name: string } | null;
+  pph21Batch: Batch | null;
+};
+type ColleagueOption = { id: number; name: string };
 type Recipient = { id: number; nik: string; name: string; defaultTaxObjectCode: Code; transactionCount: number; totalGross: number; totalTax: number; exportedGross: number; exportedTax: number; monthlySummary: Array<{ period: string; count: number; gross: number; tax: number }>; transactions: Array<{ id: number; spmNumber: string; sp2dNumber: string | null; sp2dDate: string | null; status: string; taxObjectCode: string; gross: number; calculatedTax: number }> };
 type ImportReport = { fileName: string; totalRows: number; totalDocuments: number; importedCount: number; matchCount: number; mismatchCount: number; notFoundCount: number; groups: Array<{ documentNumber: string; spmNumber: string | null; recipientCount: number; xmlGross: number; xmlTax: number; sp2dDeduction: number | null; difference: number | null; status: "IMPORTED" | "MISMATCH" | "NOT_FOUND" | "ALREADY_FILLED" | "FORBIDDEN" | "INVALID_DATES" }> };
 
@@ -29,6 +42,8 @@ export default function Pph21Page() {
   const [records, setRecords] = useState<RecordRow[]>([]);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [search, setSearch] = useState("");
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [colleagues, setColleagues] = useState<ColleagueOption[]>([]);
   const [recipientTaxObjectFilter, setRecipientTaxObjectFilter] = useState<"all" | Code>("all");
   const [recipientNameFilter, setRecipientNameFilter] = useState<"all" | "placeholder" | "named">("all");
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -53,6 +68,18 @@ export default function Pph21Page() {
       if (!response.ok) throw new Error("Gagal memuat master penerima");
       setRecipients(await response.json());
     } finally { setIsRecipientsLoading(false); }
+  }, [getAuthHeaders, user]);
+
+  const loadColleagues = useCallback(async () => {
+    if (!user) return;
+    try {
+      const response = await fetch("/api/colleagues", { headers: getAuthHeaders() });
+      if (!response.ok) throw new Error("Gagal memuat daftar petugas");
+      const data = await response.json();
+      setColleagues(data);
+    } catch {
+      setColleagues([]);
+    }
   }, [getAuthHeaders, user]);
 
   const openEditor = useCallback(async (record: RecordRow) => {
@@ -91,7 +118,13 @@ export default function Pph21Page() {
   }, [getAuthHeaders, openEditor, user]);
 
   useEffect(() => { if (!authLoading && user) void load().catch((error) => setFeedback({ type: "error", message: error.message })); }, [authLoading, load, user]);
+  useEffect(() => { if (!authLoading && user) void loadColleagues(); }, [authLoading, loadColleagues, user]);
   useEffect(() => { if (tab === "recipients" && recipients.length === 0) void loadRecipients().catch((error) => setFeedback({ type: "error", message: error.message })); }, [loadRecipients, recipients.length, tab]);
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = window.setTimeout(() => setFeedback(null), 4500);
+    return () => window.clearTimeout(timer);
+  }, [feedback]);
 
   function chooseRecipient(index: number, nik: string) {
     const recipient = recipients.find((item) => item.nik === nik);
@@ -166,7 +199,19 @@ export default function Pph21Page() {
     finally { setBusy(false); setIsImportingXml(false); }
   }
 
-  const visibleRecords = records.filter((record) => [record.spmNumber, record.sp2dNumber, record.recipient].some((value) => value?.toLowerCase().includes(search.toLowerCase())));
+  const visibleRecords = useMemo(
+    () => records.filter((record) => {
+      const matchesSearch = [record.spmNumber, record.sp2dNumber, record.recipient].some((value) => value?.toLowerCase().includes(search.toLowerCase()));
+      const matchesAssignee =
+        assigneeFilter === "all"
+          ? true
+          : assigneeFilter === "unassigned"
+            ? !record.assigneeId
+            : String(record.assigneeId || "") === assigneeFilter;
+      return matchesSearch && matchesAssignee;
+    }),
+    [assigneeFilter, records, search],
+  );
   const visibleRecipients = recipients.filter((recipient) => {
     const matchesSearch = `${recipient.name} ${recipient.nik}`.toLowerCase().includes(search.toLowerCase());
     const matchesTaxObject = recipientTaxObjectFilter === "all" || recipient.defaultTaxObjectCode === recipientTaxObjectFilter;
@@ -196,7 +241,7 @@ export default function Pph21Page() {
         </button>
       </div>
     </header>
-    {feedback && <div className={`p-4 rounded-2xl border flex items-center gap-3 ${feedback.type === "error" ? "bg-rose-500/10 border-rose-500/20 text-rose-600" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600"}`}>{feedback.type === "error" ? <AlertCircle size={18}/> : <CheckCircle2 size={18}/>} {feedback.message}</div>}
+    {feedback && <div className={`fixed bottom-6 right-6 z-[1100] max-w-md rounded-2xl border p-4 shadow-2xl backdrop-blur-sm flex items-start gap-3 ${feedback.type === "error" ? "bg-rose-500/15 border-rose-500/30 text-rose-500" : "bg-emerald-500/15 border-emerald-500/30 text-emerald-500"}`}>{feedback.type === "error" ? <AlertCircle size={18} className="mt-0.5 shrink-0" /> : <CheckCircle2 size={18} className="mt-0.5 shrink-0" />}<div className="text-sm font-medium leading-relaxed">{feedback.message}</div></div>}
     {importReport && <section className="glass-card p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="font-black text-lg">Hasil import dan pengecekan XML</h2><p className="text-sm text-muted-foreground">{importReport.fileName} · {importReport.totalRows} recipient dalam {importReport.totalDocuments} SP2D</p></div><button onClick={() => setImportReport(null)}><X size={20}/></button></div><div className="grid grid-cols-3 gap-3 mt-4"><div className="rounded-xl bg-emerald-500/10 text-emerald-600 p-3"><div className="text-xs font-bold uppercase">Berhasil diisi</div><div className="text-2xl font-black">{importReport.importedCount}</div></div><div className="rounded-xl bg-amber-500/10 text-amber-600 p-3"><div className="text-xs font-bold uppercase">Selisih</div><div className="text-2xl font-black">{importReport.mismatchCount}</div></div><div className="rounded-xl bg-rose-500/10 text-rose-600 p-3"><div className="text-xs font-bold uppercase">Tidak ditemukan</div><div className="text-2xl font-black">{importReport.notFoundCount}</div></div></div><div className="overflow-x-auto mt-4"><table className="premium-table min-w-[850px]"><thead><tr><th>Document / SP2D</th><th>Recipient</th><th>Gross XML</th><th>Pajak XML</th><th>Potongan SP2D</th><th>Selisih</th><th>Hasil</th></tr></thead><tbody>{importReport.groups.map((group) => <tr key={group.documentNumber}><td><div className="font-bold">{group.documentNumber}</div><div className="text-xs text-muted-foreground">{group.spmNumber || "SP2D tidak ditemukan"}</div></td><td>{group.recipientCount}</td><td>Rp{money.format(group.xmlGross)}</td><td>Rp{money.format(group.xmlTax)}</td><td>{group.sp2dDeduction === null ? "—" : `Rp${money.format(group.sp2dDeduction)}`}</td><td>{group.difference === null ? "—" : `Rp${money.format(group.difference)}`}</td><td><span className={`badge ${group.status === "IMPORTED" || group.status === "ALREADY_FILLED" ? "badge-completed" : "bg-amber-500/10! text-amber-600!"}`}>{group.status}</span></td></tr>)}</tbody></table></div></section>}
     <div className="flex flex-col md:flex-row gap-3 justify-between">
       <div className="flex bg-muted p-1 rounded-xl">
@@ -208,6 +253,22 @@ export default function Pph21Page() {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"/>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama, NIK, SPM, atau SP2D" className="bg-muted rounded-xl pl-10 pr-4 py-2.5 outline-none min-w-[300px]"/>
         </div>
+        {tab === "sp2d" && (
+          <div className="relative min-w-[220px]">
+            <select
+              value={assigneeFilter}
+              onChange={(e) => setAssigneeFilter(e.target.value)}
+              className="w-full bg-muted rounded-xl px-4 py-2.5 outline-none text-sm appearance-none pr-10"
+            >
+              <option value="all">Semua petugas</option>
+              <option value="unassigned">Belum di-assign</option>
+              {colleagues.map((colleague) => (
+                <option key={colleague.id} value={String(colleague.id)}>{colleague.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
+          </div>
+        )}
         {tab === "recipients" && (
           <>
             <select
@@ -225,7 +286,7 @@ export default function Pph21Page() {
               className="bg-muted rounded-xl px-4 py-2.5 outline-none text-sm min-w-[220px]"
             >
               <option value="all">Semua tax object code</option>
-              {codes.map((code) => <option key={code} value={code}>{code}</option>)}
+              {codes.map((code) => <option key={code} value={code}>{code} — {PPH21_TAX_OBJECT_LABELS[code]}</option>)}
             </select>
           </>
         )}
@@ -235,10 +296,10 @@ export default function Pph21Page() {
     {tab === "sp2d" ? <div className="glass-card overflow-x-auto"><table className="premium-table"><thead><tr><th></th><th>SPM / SP2D</th><th>Tanggal SP2D</th><th>Potongan</th><th>Recipients</th><th>PPh 21 Process</th><th>Aksi</th></tr></thead><tbody>{isTableLoading ? <TableSkeletonRows columns={7} rows={7}/> : visibleRecords.map((record) => <tr key={record.id}><td><input type="checkbox" disabled={!record.canManage} checked={selected.has(record.id)} onChange={(e) => setSelected((current) => { const next = new Set(current); if (e.target.checked) next.add(record.id); else next.delete(record.id); return next; })}/></td><td><div className="font-bold">{record.spmNumber}</div><div className="text-xs text-muted-foreground">{record.sp2dNumber || "Belum terbit"}</div></td><td>{record.sp2dDate ? new Date(record.sp2dDate).toLocaleDateString("id-ID") : "—"}</td><td>Rp{money.format(record.deductionAmount)}</td><td>{record.pph21Batch?._count?.withholdings ?? record.pph21Batch?.withholdings?.length ?? 0}</td><td><span className={`badge ${pph21ProcessBadgeClass(record.pph21Batch?.status)}`}>{record.pph21Batch?.status || "PENDING"}</span>{record.pph21Batch?.issueNotes && <div className="text-xs text-amber-600 mt-1">{record.pph21Batch.issueNotes}</div>}</td><td><button disabled={!record.canManage || busy} onClick={() => void openEditor(record)} className="text-accent font-bold text-xs hover:underline disabled:opacity-30">Kelola rincian</button></td></tr>)}</tbody></table></div> :
     isRecipientsLoading ? <RecipientCardSkeletons/> : <div className="grid gap-4">{visibleRecipients.map((recipient) => {
       const isPlaceholder = isPlaceholderRecipientName(recipient.name);
-      return <section key={recipient.id} className="glass-card p-5"><div className="flex flex-col lg:flex-row justify-between gap-4"><div className="min-w-0 flex-1"><div className="flex items-center gap-2 min-w-0"><input disabled={!isAdmin || savingRecipientId === recipient.id} value={recipient.name} onChange={(e) => setRecipients((items) => items.map((item) => item.id === recipient.id ? { ...item, name: e.target.value } : item))} onBlur={() => { if (isAdmin) void updateRecipient(recipient, { silent: true }); }} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }} className="min-w-0 flex-1 font-black text-lg bg-transparent border-b border-transparent focus:border-accent outline-none disabled:opacity-100"/>{isPlaceholder && <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-rose-600 shrink-0">Perlu rename</span>}{savingRecipientId === recipient.id && <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground shrink-0"><Loader2 size={12} className="animate-spin" /> Menyimpan</span>}</div><div className="font-mono text-sm text-muted-foreground break-all">{recipient.nik}</div></div><div className="flex gap-2 items-center shrink-0"><select disabled={!isAdmin} value={recipient.defaultTaxObjectCode} onChange={(e) => setRecipients((items) => items.map((item) => item.id === recipient.id ? { ...item, defaultTaxObjectCode: e.target.value as Code } : item))} className="bg-muted rounded-xl p-2 text-sm disabled:opacity-70">{codes.map((code) => <option key={code}>{code}</option>)}</select>{isAdmin && <button onClick={() => updateRecipient(recipient)} className="p-2 text-accent" title="Simpan default"><Save size={17}/></button>}<button onClick={() => setExpandedRecipient(expandedRecipient === recipient.id ? null : recipient.id)} className="px-3 py-2 rounded-xl bg-muted text-xs font-bold">{recipient.transactionCount} transaksi</button></div></div><div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><Stat label="Total Gross" value={recipient.totalGross}/><Stat label="Total Pajak" value={recipient.totalTax}/><Stat label="Gross Exported" value={recipient.exportedGross}/><Stat label="Pajak Exported" value={recipient.exportedTax}/></div>{expandedRecipient === recipient.id && <div className="mt-4 border-t border-border pt-4"><div className="flex gap-2 overflow-x-auto pb-3">{recipient.monthlySummary.map((month) => <div key={month.period} className="min-w-[180px] bg-muted/50 rounded-xl p-3"><div className="font-black text-sm">{month.period}</div><div className="text-xs text-muted-foreground mt-1">{month.count} transaksi · Pajak Rp{money.format(month.tax)}</div></div>)}</div><div className="overflow-x-auto"><table className="premium-table"><thead><tr><th>SP2D</th><th>Periode</th><th>Kode</th><th>Gross</th><th>Pajak</th><th>Status</th></tr></thead><tbody>{recipient.transactions.map((tx) => <tr key={tx.id}><td>{tx.sp2dNumber || tx.spmNumber}</td><td>{tx.sp2dDate ? new Date(tx.sp2dDate).toLocaleDateString("id-ID", { month: "long", year: "numeric" }) : "—"}</td><td>{tx.taxObjectCode}</td><td>Rp{money.format(tx.gross)}</td><td>Rp{money.format(tx.calculatedTax)}</td><td>{tx.status}</td></tr>)}</tbody></table></div></div>}</section>;
+      return <section key={recipient.id} className="glass-card p-5"><div className="flex flex-col lg:flex-row justify-between gap-4"><div className="min-w-0 flex-1"><div className="flex items-center gap-2 min-w-0"><input disabled={!isAdmin || savingRecipientId === recipient.id} value={recipient.name} onChange={(e) => setRecipients((items) => items.map((item) => item.id === recipient.id ? { ...item, name: e.target.value } : item))} onBlur={() => { if (isAdmin) void updateRecipient(recipient, { silent: true }); }} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }} className="min-w-0 flex-1 font-black text-lg bg-transparent border-b border-transparent focus:border-accent outline-none disabled:opacity-100"/>{isPlaceholder && <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-rose-600 shrink-0">Perlu rename</span>}{savingRecipientId === recipient.id && <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground shrink-0"><Loader2 size={12} className="animate-spin" /> Menyimpan</span>}</div><div className="font-mono text-sm text-muted-foreground break-all">{recipient.nik}</div></div><div className="flex gap-2 items-center shrink-0"><select disabled={!isAdmin} value={recipient.defaultTaxObjectCode} onChange={(e) => setRecipients((items) => items.map((item) => item.id === recipient.id ? { ...item, defaultTaxObjectCode: e.target.value as Code } : item))} className="bg-muted rounded-xl p-2 text-sm disabled:opacity-70">{codes.map((code) => <option key={code}>{code} — {PPH21_TAX_OBJECT_LABELS[code]}</option>)}</select>{isAdmin && <button onClick={() => updateRecipient(recipient)} className="p-2 text-accent" title="Simpan default"><Save size={17}/></button>}<button onClick={() => setExpandedRecipient(expandedRecipient === recipient.id ? null : recipient.id)} className="px-3 py-2 rounded-xl bg-muted text-xs font-bold">{recipient.transactionCount} transaksi</button></div></div><div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><Stat label="Total Gross" value={recipient.totalGross}/><Stat label="Total Pajak" value={recipient.totalTax}/><Stat label="Gross Exported" value={recipient.exportedGross}/><Stat label="Pajak Exported" value={recipient.exportedTax}/></div>{expandedRecipient === recipient.id && <div className="mt-4 border-t border-border pt-4"><div className="flex gap-2 overflow-x-auto pb-3">{recipient.monthlySummary.map((month) => <div key={month.period} className="min-w-[180px] bg-muted/50 rounded-xl p-3"><div className="font-black text-sm">{month.period}</div><div className="text-xs text-muted-foreground mt-1">{month.count} transaksi · Pajak Rp{money.format(month.tax)}</div></div>)}</div><div className="overflow-x-auto"><table className="premium-table"><thead><tr><th>SP2D</th><th>Periode</th><th>Kode</th><th>Gross</th><th>Pajak</th><th>Status</th></tr></thead><tbody>{recipient.transactions.map((tx) => <tr key={tx.id}><td>{tx.sp2dNumber || tx.spmNumber}</td><td>{tx.sp2dDate ? new Date(tx.sp2dDate).toLocaleDateString("id-ID", { month: "long", year: "numeric" }) : "—"}</td><td><div className="font-bold">{tx.taxObjectCode}</div><div className="text-[10px] text-muted-foreground">{PPH21_TAX_OBJECT_LABELS[tx.taxObjectCode as Code] || "-"}</div></td><td>Rp{money.format(tx.gross)}</td><td>Rp{money.format(tx.calculatedTax)}</td><td>{tx.status}</td></tr>)}</tbody></table></div></div>}</section>;
     })}</div>}
 
-    {editing && <div className="fixed inset-0 z-1000 bg-black/60 backdrop-blur-sm p-4 flex items-center justify-center"><div className="bg-background border border-border rounded-3xl shadow-2xl w-full max-w-5xl max-h-[92vh] overflow-y-auto p-6"><div className="flex justify-between"><div><h2 className="text-xl font-black">Rincian PPh 21</h2><p className="text-sm text-muted-foreground">{editing.sp2dNumber || editing.spmNumber} · Potongan Rp{money.format(editing.deductionAmount)}</p></div><button onClick={() => setEditing(null)}><X/></button></div><div className="mt-5"><label className="text-xs font-bold uppercase text-muted-foreground">Withholding Date</label><input type="date" value={withholdingDate} onChange={(e) => setWithholdingDate(e.target.value)} className="block mt-1 bg-muted rounded-xl p-3"/></div><datalist id="pph21-recipients">{recipients.map((recipient) => <option key={recipient.id} value={recipient.nik}>{recipient.name}</option>)}</datalist><div className="grid gap-3 mt-5">{lines.map((line, index) => <div key={index} className="grid grid-cols-1 md:grid-cols-[1.2fr_1.5fr_1fr_1fr_auto] gap-2 items-end p-3 rounded-2xl bg-muted/40"><Field label="NIK"><input list="pph21-recipients" value={line.nik} onChange={(e) => chooseRecipient(index, e.target.value)} className="field"/></Field><Field label="Nama"><input value={line.name} onChange={(e) => setLines((items) => items.map((item, i) => i === index ? { ...item, name: e.target.value } : item))} className="field"/></Field><Field label="Tax Object"><select value={line.taxObjectCode} onChange={(e) => setLines((items) => items.map((item, i) => i === index ? { ...item, taxObjectCode: e.target.value as Code } : item))} className="field">{codes.map((code) => <option key={code}>{code}</option>)}</select></Field><Field label="Gross"><input type="number" min="0" step="1" value={line.gross} onChange={(e) => setLines((items) => items.map((item, i) => i === index ? { ...item, gross: e.target.value } : item))} className="field"/></Field><button onClick={() => setLines((items) => items.length > 1 ? items.filter((_, i) => i !== index) : [emptyLine()])} className="p-3 text-rose-500"><Trash2 size={17}/></button></div>)}</div><button onClick={() => setLines((items) => [...items, emptyLine()])} className="mt-3 text-accent text-sm font-bold flex gap-2"><Plus size={17}/> Tambah recipient</button><div className={`mt-5 p-4 rounded-2xl ${editorTax === editing.deductionAmount ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"}`}>Total kalkulasi Rp{money.format(editorTax)} / potongan Rp{money.format(editing.deductionAmount)}</div><div className="mt-4"><label className="text-xs font-bold uppercase text-muted-foreground">Catatan issue</label><textarea value={issueNotes} onChange={(e) => setIssueNotes(e.target.value)} className="w-full bg-muted rounded-xl p-3 mt-1" placeholder="Wajib diisi bila menandai ISSUES"/></div><div className="flex flex-wrap justify-end gap-3 mt-5"><button onClick={setIssue} className="px-4 py-3 rounded-xl bg-amber-500/10 text-amber-600 font-bold"><AlertCircle size={16} className="inline mr-2"/>Tandai Issues</button><button onClick={saveDetails} disabled={busy} className="premium-button px-5 py-3"><Save size={16} className="inline mr-2"/>Simpan rincian</button></div></div></div>}
+    {editing && <div className="fixed inset-0 z-1000 bg-black/60 backdrop-blur-sm p-4 flex items-center justify-center"><div className="bg-background border border-border rounded-3xl shadow-2xl w-full max-w-5xl max-h-[92vh] overflow-y-auto p-6"><div className="flex justify-between gap-4"><div><h2 className="text-xl font-black">Rincian PPh 21</h2><p className="text-sm text-muted-foreground">{editing.spmNumber} · {editing.sp2dNumber || "SP2D belum terbit"} · Potongan Rp{money.format(editing.deductionAmount)}</p></div><button onClick={() => setEditing(null)}><X/></button></div><div className="mt-5 grid gap-4"><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3"><div className="rounded-2xl bg-muted/60 p-4"><div className="text-[10px] font-bold uppercase text-muted-foreground">SPM</div><div className="font-black mt-1 break-all">{editing.spmNumber}</div></div><div className="rounded-2xl bg-muted/60 p-4"><div className="text-[10px] font-bold uppercase text-muted-foreground">Nilai SPM</div><div className="font-black mt-1">Rp{money.format(editing.totalValue || 0)}</div></div><div className="rounded-2xl bg-muted/60 p-4"><div className="text-[10px] font-bold uppercase text-muted-foreground">SP2D</div><div className="font-black mt-1 break-all">{editing.sp2dNumber || "Belum terbit"}</div></div><div className="rounded-2xl bg-muted/60 p-4"><div className="text-[10px] font-bold uppercase text-muted-foreground">Tanggal SP2D</div><div className="font-black mt-1">{editing.sp2dDate ? new Date(editing.sp2dDate).toLocaleDateString("id-ID") : "-"}</div></div><div className="rounded-2xl bg-muted/60 p-4"><div className="text-[10px] font-bold uppercase text-muted-foreground">Potongan</div><div className="font-black mt-1">Rp{money.format(editing.deductionAmount)}</div></div></div><div className="rounded-2xl border border-border bg-muted/20 p-4"><div className="text-[10px] font-bold uppercase text-muted-foreground mb-2">Uraian</div><div className="text-sm leading-relaxed text-foreground/80">{editing.description || "-"}</div></div><div className="rounded-2xl border border-border bg-muted/20 p-4"><div className="flex items-center justify-between gap-3 mb-3"><div className="text-[10px] font-bold uppercase text-muted-foreground">Data Pendukung</div><div className="text-[10px] font-bold uppercase text-muted-foreground">{editing.pph21Batch?.withholdings?.length || 0} recipient</div></div>{editing.pph21Batch?.withholdings?.length ? <div className="flex flex-wrap gap-2">{editing.pph21Batch.withholdings.map((item) => <div key={item.id} className="rounded-full bg-background px-3 py-2 text-xs border border-border"><span className="font-black">{item.recipientName}</span><span className="mx-2 text-muted-foreground">·</span><span className="font-mono text-muted-foreground">{item.recipient?.nik || "-"}</span></div>)}</div> : <div className="text-sm text-muted-foreground">Belum ada recipient diisi.</div>}</div></div><div className="mt-5"><label className="text-xs font-bold uppercase text-muted-foreground">Withholding Date</label><input type="date" value={withholdingDate} onChange={(e) => setWithholdingDate(e.target.value)} className="block mt-1 bg-muted rounded-xl p-3"/></div><datalist id="pph21-recipients">{recipients.map((recipient) => <option key={recipient.id} value={recipient.nik}>{recipient.name}</option>)}</datalist><div className="grid gap-3 mt-5">{lines.map((line, index) => <div key={index} className="grid grid-cols-1 md:grid-cols-[1.2fr_1.5fr_1fr_1fr_auto] gap-2 items-end p-3 rounded-2xl bg-muted/40"><Field label="NIK"><input list="pph21-recipients" value={line.nik} onChange={(e) => chooseRecipient(index, e.target.value)} className="field"/></Field><Field label="Nama"><input value={line.name} onChange={(e) => setLines((items) => items.map((item, i) => i === index ? { ...item, name: e.target.value } : item))} className="field"/></Field><Field label="Tax Object"><select value={line.taxObjectCode} onChange={(e) => setLines((items) => items.map((item, i) => i === index ? { ...item, taxObjectCode: e.target.value as Code } : item))} className="field">{codes.map((code) => <option key={code} value={code}>{code} — {PPH21_TAX_OBJECT_LABELS[code]}</option>)}</select></Field><Field label="Tax Object Info"><div className="rounded-xl bg-background px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">{PPH21_TAX_OBJECT_LABELS[line.taxObjectCode]}</div></Field><Field label="Gross"><input type="number" min="0" step="1" value={line.gross} onChange={(e) => setLines((items) => items.map((item, i) => i === index ? { ...item, gross: e.target.value } : item))} className="field"/></Field><button onClick={() => setLines((items) => items.length > 1 ? items.filter((_, i) => i !== index) : [emptyLine()])} className="p-3 text-rose-500"><Trash2 size={17}/></button></div>)}</div><button onClick={() => setLines((items) => [...items, emptyLine()])} className="mt-3 text-accent text-sm font-bold flex gap-2"><Plus size={17}/> Tambah recipient</button><div className={`mt-5 p-4 rounded-2xl ${editorTax === editing.deductionAmount ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"}`}>Total kalkulasi Rp{money.format(editorTax)} / potongan Rp{money.format(editing.deductionAmount)}</div><div className="mt-4"><label className="text-xs font-bold uppercase text-muted-foreground">Catatan issue</label><textarea value={issueNotes} onChange={(e) => setIssueNotes(e.target.value)} className="w-full bg-muted rounded-xl p-3 mt-1" placeholder="Wajib diisi bila menandai ISSUES"/></div><div className="flex flex-wrap justify-end gap-3 mt-5"><button onClick={setIssue} className="px-4 py-3 rounded-xl bg-amber-500/10 text-amber-600 font-bold"><AlertCircle size={16} className="inline mr-2"/>Tandai Issues</button><button onClick={saveDetails} disabled={busy} className="premium-button px-5 py-3"><Save size={16} className="inline mr-2"/>Simpan rincian</button></div></div></div>}
   </div>;
 }
 

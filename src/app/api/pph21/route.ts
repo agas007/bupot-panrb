@@ -25,10 +25,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ...record, canManage: canManagePph21(user, record) });
   }
 
-  const records = await prisma.sPMRecord.findMany({
+    const records = await prisma.sPMRecord.findMany({
     where: { accountCode: PPH21_ACCOUNT_CODE },
     select: {
-      id: true, spmNumber: true, sp2dNumber: true, sp2dDate: true, deductionAmount: true, recipient: true, assigneeId: true,
+      id: true, spmNumber: true, sp2dNumber: true, sp2dDate: true, deductionAmount: true, totalValue: true, recipient: true, assigneeId: true,
       assignee: { select: { id: true, name: true } },
       pph21Batch: { select: { id: true, status: true, withholdingDate: true, issueNotes: true, _count: { select: { withholdings: true } } } },
     },
@@ -53,26 +53,44 @@ export async function POST(req: NextRequest) {
     const lines = normalizePph21Lines(body.lines);
     const totalTax = lines.reduce((sum, line) => sum + line.calculatedTax, 0);
 
-    const batch = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const savedBatchId = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const savedBatch = await tx.pph21Batch.upsert({
         where: { recordId },
         create: { recordId, withholdingDate, status: "DATA_ENTERED" },
         update: { withholdingDate, status: "DATA_ENTERED", issueNotes: null },
       });
       await tx.pph21Withholding.deleteMany({ where: { batchId: savedBatch.id } });
-      for (const line of lines) {
-        const recipient = await tx.pph21Recipient.upsert({
-          where: { nik: line.nik },
-          create: { nik: line.nik, name: line.name, defaultTaxObjectCode: line.taxObjectCode },
-          update: {},
-        });
-        await tx.pph21Withholding.create({
-          data: { batchId: savedBatch.id, recipientId: recipient.id, recipientName: line.name, taxObjectCode: line.taxObjectCode, gross: line.gross, deemed: line.deemed, rate: line.rate, calculatedTax: line.calculatedTax },
-        });
+      const uniqueNik = [...new Set(lines.map((line) => line.nik))];
+      const existingRecipients = await tx.pph21Recipient.findMany({ where: { nik: { in: uniqueNik } } });
+      const existingByNik = new Map(existingRecipients.map((recipient) => [recipient.nik, recipient]));
+      const missingRecipients = lines
+        .filter((line) => !existingByNik.has(line.nik))
+        .map((line) => ({ nik: line.nik, name: line.name, defaultTaxObjectCode: line.taxObjectCode }));
+      if (missingRecipients.length > 0) {
+        await tx.pph21Recipient.createMany({ data: missingRecipients, skipDuplicates: true });
       }
+      const recipients = await tx.pph21Recipient.findMany({ where: { nik: { in: uniqueNik } } });
+      const recipientsByNik = new Map(recipients.map((recipient) => [recipient.nik, recipient]));
+      await tx.pph21Withholding.createMany({
+        data: lines.map((line) => {
+          const recipient = recipientsByNik.get(line.nik);
+          if (!recipient) throw new Error(`Penerima ${line.nik} gagal disimpan.`);
+          return {
+            batchId: savedBatch.id,
+            recipientId: recipient.id,
+            recipientName: line.name,
+            taxObjectCode: line.taxObjectCode,
+            gross: line.gross,
+            deemed: line.deemed,
+            rate: line.rate,
+            calculatedTax: line.calculatedTax,
+          };
+        }),
+      });
       await tx.auditLog.create({ data: { userName: user.name, action: "Saved PPh 21 Details", target: record.sp2dNumber || record.spmNumber, category: "DATA", type: "success" } });
-      return tx.pph21Batch.findUnique({ where: { id: savedBatch.id }, include: batchInclude });
-    });
+      return savedBatch.id;
+    }, { timeout: 15000, maxWait: 5000 });
+    const batch = await prisma.pph21Batch.findUnique({ where: { id: savedBatchId }, include: batchInclude });
     return NextResponse.json({ batch, totalTax, expectedTax: record.deductionAmount, isBalanced: totalTax === record.deductionAmount });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal menyimpan rincian PPh 21" }, { status: 400 });
