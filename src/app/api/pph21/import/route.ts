@@ -61,18 +61,22 @@ export async function POST(req: NextRequest) {
           create: { recordId, withholdingDate: new Date(withholdingDate), status: "DATA_ENTERED" },
           update: { withholdingDate: new Date(withholdingDate), status: "DATA_ENTERED", issueNotes: null },
         });
-        for (const line of group.lines) {
-          const recipient = await tx.pph21Recipient.upsert({
-            where: { nik: line.counterpartTin },
-            create: { nik: line.counterpartTin, name: `NIK ${line.counterpartTin}`, defaultTaxObjectCode: line.taxObjectCode },
-            update: {},
-          });
-          await tx.pph21Withholding.create({
-            data: { batchId: batch.id, recipientId: recipient.id, recipientName: recipient.name, taxObjectCode: line.taxObjectCode, gross: line.gross, deemed: line.deemed, rate: line.rate, calculatedTax: line.calculatedTax },
-          });
-        }
+        const uniqueRecipients = Array.from(new Map(group.lines.map((line) => [line.counterpartTin, line])).values());
+        await tx.pph21Recipient.createMany({
+          data: uniqueRecipients.map((line) => ({ nik: line.counterpartTin, name: `NIK ${line.counterpartTin}`, defaultTaxObjectCode: line.taxObjectCode })),
+          skipDuplicates: true,
+        });
+        const recipients = await tx.pph21Recipient.findMany({ where: { nik: { in: uniqueRecipients.map((line) => line.counterpartTin) } } });
+        const recipientsByNik = new Map(recipients.map((recipient) => [recipient.nik, recipient]));
+        await tx.pph21Withholding.createMany({
+          data: group.lines.map((line) => {
+            const recipient = recipientsByNik.get(line.counterpartTin);
+            if (!recipient) throw new Error(`Penerima ${line.counterpartTin} gagal disimpan.`);
+            return { batchId: batch.id, recipientId: recipient.id, recipientName: recipient.name, taxObjectCode: line.taxObjectCode, gross: line.gross, deemed: line.deemed, rate: line.rate, calculatedTax: line.calculatedTax };
+          }),
+        });
         group.status = "IMPORTED";
-      });
+      }, { maxWait: 10_000, timeout: 20_000 });
     }
     await prisma.auditLog.create({ data: { userName: user.name, action: "Imported and Checked PPh 21 XML", target: `${file.name} - ${groups.length} SP2D`, category: "DATA", type: groups.every((group) => group.status === "IMPORTED" || group.status === "ALREADY_FILLED") ? "success" : "warning" } });
     return NextResponse.json({
