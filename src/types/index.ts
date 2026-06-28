@@ -33,6 +33,11 @@ export interface SPMRecord {
   notes?: string | null;
   importDate: string;
   updatedAt: string;
+  pph21Batch?: {
+    id: number;
+    status: "PENDING" | "DATA_ENTERED" | "COMPLETED" | "ISSUES";
+    issueNotes?: string | null;
+  } | null;
 }
 
 export interface AuditLog {

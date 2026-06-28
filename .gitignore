@@ -43,5 +43,9 @@ next-env.d.ts
 /src/generated/prisma
 *.db
 prisma/migrations
+!prisma/migrations/
+prisma/migrations/*
+!prisma/migrations/20260628170000_pph21_module/
+!prisma/migrations/20260628170000_pph21_module/migration.sql
 # Added by code-review-graph
 .code-review-graph/

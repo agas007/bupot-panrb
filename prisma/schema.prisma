@@ -11,15 +11,16 @@ datasource db {
 }
 
 model Colleague {
-  id                    Int                         @id @default(autoincrement())
-  username              String                      @unique
+  id                    Int                       @id @default(autoincrement())
+  username              String                    @unique
   password              String
-  name                  String                      @unique
-  role                  String                      @default("USER") // ADMIN or USER
+  name                  String                    @unique
+  role                  String                    @default("USER") // ADMIN or USER
   records               SPMRecord[]
   notifications         Notification[]
-  reconciliationPeriods TaxReconciliationPeriod[]   @relation("ReconciliationCreatedBy")
-  createdAt             DateTime                    @default(now())
+  reconciliationPeriods TaxReconciliationPeriod[] @relation("ReconciliationCreatedBy")
+  pph21Exports          Pph21Export[]             @relation("Pph21ExportedBy")
+  createdAt             DateTime                  @default(now())
 }
 
 model Notification {
@@ -28,38 +29,105 @@ model Notification {
   user      Colleague @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String
   message   String
-  type      String    // INFO, WARNING, SUCCESS, DANGER
+  type      String // INFO, WARNING, SUCCESS, DANGER
   isRead    Boolean   @default(false)
   createdAt DateTime  @default(now())
 }
 
 model SPMRecord {
-  id              Int       @id @default(autoincrement())
+  id              Int      @id @default(autoincrement())
   // Identification (from Excel merging)
-  uniqueKey       String    @unique // Combination of spmNumber + accountCode + deductionAmount
+  uniqueKey       String   @unique // Combination of spmNumber + accountCode + deductionAmount
   spmNumber       String
   spmDate         DateTime
   accountCode     String
   deductionAmount Float
-  
+
   // Details (from the two source excels)
-  sp2dNumber      String?
-  sp2dDate        DateTime?
-  description     String?
-  recipient       String?
-  totalValue      Float?
-  
+  sp2dNumber  String?
+  sp2dDate    DateTime?
+  description String?
+  recipient   String?
+  totalValue  Float?
+
   // Tracking
-  status          String    @default("PENDING") // PENDING, COMPLETED
-  assigneeId      Int?
-  assignee        Colleague? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
-  completionDate  DateTime?
-  docLink         String?
-  notes           String?
-  
+  status         String     @default("PENDING") // PENDING, COMPLETED
+  assigneeId     Int?
+  assignee       Colleague? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  completionDate DateTime?
+  docLink        String?
+  notes          String?
+
   // Metadata
-  importDate      DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  importDate DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  pph21Batch Pph21Batch?
+}
+
+model Pph21Recipient {
+  id                   Int                @id @default(autoincrement())
+  nik                  String             @unique
+  name                 String
+  defaultTaxObjectCode String
+  withholdings         Pph21Withholding[]
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([name])
+}
+
+model Pph21Batch {
+  id              Int                @id @default(autoincrement())
+  recordId        Int                @unique
+  record          SPMRecord          @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  withholdingDate DateTime?
+  status          String             @default("PENDING")
+  issueNotes      String?
+  withholdings    Pph21Withholding[]
+  exportItems     Pph21ExportItem[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([status])
+}
+
+model Pph21Withholding {
+  id            Int            @id @default(autoincrement())
+  batchId       Int
+  batch         Pph21Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  recipientId   Int
+  recipient     Pph21Recipient @relation(fields: [recipientId], references: [id], onDelete: Restrict)
+  recipientName String
+  taxObjectCode String
+  gross         Float
+  deemed        Float
+  rate          Float
+  calculatedTax Float
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([batchId])
+  @@index([recipientId])
+}
+
+model Pph21Export {
+  id           Int               @id @default(autoincrement())
+  fileName     String
+  exportedById Int?
+  exportedBy   Colleague?        @relation("Pph21ExportedBy", fields: [exportedById], references: [id], onDelete: SetNull)
+  items        Pph21ExportItem[]
+  createdAt    DateTime          @default(now())
+}
+
+model Pph21ExportItem {
+  id       Int         @id @default(autoincrement())
+  exportId Int
+  export   Pph21Export @relation(fields: [exportId], references: [id], onDelete: Cascade)
+  batchId  Int
+  batch    Pph21Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([exportId, batchId])
+  @@index([batchId])
 }
 
 model AuditLog {
@@ -68,35 +136,35 @@ model AuditLog {
   action    String
   target    String
   category  String   @default("GENERAL") // AUTH, DATA, ADMIN, SECURITY, GENERAL
-  type      String   // info, success, warning, danger
+  type      String // info, success, warning, danger
   createdAt DateTime @default(now())
 }
 
 model TaxReconciliationPeriod {
-  id          Int                        @id @default(autoincrement())
+  id          Int                       @id @default(autoincrement())
   year        Int
   month       Int
   title       String?
   notes       String?
-  status      String                     @default("DRAFT")
+  status      String                    @default("DRAFT")
   createdById Int?
-  createdBy   Colleague?                  @relation("ReconciliationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy   Colleague?                @relation("ReconciliationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   targets     TaxReconciliationTarget[]
-  createdAt   DateTime                    @default(now())
-  updatedAt   DateTime                    @updatedAt
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
 
   @@unique([year, month])
   @@index([year, month])
 }
 
 model TaxReconciliationTarget {
-  id          Int                       @id @default(autoincrement())
-  periodId    Int
-  period      TaxReconciliationPeriod    @relation(fields: [periodId], references: [id], onDelete: Cascade)
-  accountCode String
+  id            Int                     @id @default(autoincrement())
+  periodId      Int
+  period        TaxReconciliationPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  accountCode   String
   coretaxAmount Float
-  createdAt   DateTime                  @default(now())
-  updatedAt   DateTime                  @updatedAt
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
 
   @@unique([periodId, accountCode])
   @@index([accountCode])

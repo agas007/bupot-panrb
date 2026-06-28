@@ -29,6 +29,7 @@ import {
   AlertCircle,
   FileType,
   Scale
+  ,ReceiptText
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { clearSession, readSession, saveSession, touchSession, SESSION_MAX_AGE_MS } from "@/lib/auth-session";
@@ -266,6 +267,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const filteredNavItems = [
     { href: "/", label: t.nav.beranda, icon: LayoutDashboard, minRole: "USER" },
     { href: "/records", label: t.nav.lembar_kerja, icon: FileSpreadsheet, minRole: "USER" },
+    { href: "/pph21", label: "PPh 21", icon: ReceiptText, minRole: "USER" },
     { href: "/reconciliation", label: t.nav.rekonsiliasi_spt || "Rekonsiliasi SPT", icon: Scale, minRole: "USER" },
     { href: "/colleagues", label: t.nav.daftar_rekan, icon: Users, minRole: "ADMIN" },
     { href: "/logs", label: t.nav.log_aktivitas || "Log Aktivitas", icon: History, minRole: "ADMIN" },

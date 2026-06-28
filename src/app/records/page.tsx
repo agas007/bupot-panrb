@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import Link from "next/link";
 import { 
   Search, Filter, ChevronDown, Calendar, 
   Clock, ArrowUpDown, Check, 
@@ -622,14 +623,15 @@ export default function RecordsPage() {
                 <SortHeader label={t.worksheet.deadline} sortKey="deadline" />
                 <SortHeader label={t.worksheet.assignee} sortKey="assignee" />
                 <th className="text-center font-semibold text-xs uppercase tracking-widest p-4">{t.worksheet.status}</th>
+                <th className="text-center font-semibold text-xs uppercase tracking-widest p-4">PPh 21 Process</th>
                 <th className="text-center font-semibold text-xs uppercase tracking-widest p-4">{t.worksheet.action}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={10} className="text-center p-12 text-muted-foreground italic">{t.worksheet.loading}</td></tr>
+                <tr><td colSpan={11} className="text-center p-12 text-muted-foreground italic">{t.worksheet.loading}</td></tr>
               ) : filteredAndSortedRecords.length === 0 ? (
-                <tr><td colSpan={10} className="text-center p-12 text-muted-foreground italic">{t.worksheet.not_found}</td></tr>
+                <tr><td colSpan={11} className="text-center p-12 text-muted-foreground italic">{t.worksheet.not_found}</td></tr>
               ) : (
                 paginatedRecords.map((record) => {
                   const deadline = getDeadlineStatus(record);
@@ -653,6 +655,14 @@ export default function RecordsPage() {
                       <td className="text-center"><div className={`p-2 rounded-xl flex flex-col items-center gap-1 ${deadline.type === "overdue" ? "bg-rose-500/10 text-rose-500" : deadline.type === "soon" ? "bg-amber-500/10 text-amber-500" : "bg-emerald-500/10 text-emerald-500"}`}><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider">{deadline.type === "overdue" ? <AlertCircle size={12} /> : <Clock size={12} />}{deadline.label.includes(t.worksheet.terlewat) ? t.worksheet.terlewat : deadline.label.includes(t.worksheet.segera) ? t.worksheet.segera : t.worksheet.aman}</div><span className="text-xs font-medium">{deadline.label}</span></div></td>
                       <td className="text-center"><select className="bg-muted border-none rounded-lg p-2 text-xs outline-none focus:ring-2 focus:ring-accent cursor-pointer w-full max-w-[140px] transition-all text-center font-bold" value={record.assigneeId || ""} onChange={(e) => assignColleague(record.id, e.target.value ? Number(e.target.value) : 0)}><option value="">{t.worksheet.unassigned}</option>{colleagues.map((col: Colleague) => (<option key={col.id} value={col.id}>{col.name}</option>))}</select></td>
                       <td className="text-center"><div className={`badge ${record.status === "COMPLETED" ? "badge-completed" : record.status === "ISSUES" ? "bg-amber-500/10! text-amber-500! border-amber-500/20!" : "badge-pending"}`}>{record.status === "COMPLETED" ? t.worksheet.completed : record.status === "ISSUES" ? t.worksheet.issues : t.worksheet.pending}</div></td>
+                      <td className="text-center">
+                        {record.accountCode === "411121" ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <span className={`badge ${record.pph21Batch?.status === "COMPLETED" ? "badge-completed" : record.pph21Batch?.status === "ISSUES" ? "bg-amber-500/10! text-amber-500!" : "badge-pending"}`}>{record.pph21Batch?.status || "PENDING"}</span>
+                            <Link href={`/pph21?recordId=${record.id}`} className="text-[10px] font-black uppercase text-accent hover:underline">Kelola rincian</Link>
+                          </div>
+                        ) : <span className="text-muted-foreground">—</span>}
+                      </td>
                       <td className="text-center">
                         <div className="flex items-center justify-center gap-1">
                           {record.status !== "COMPLETED" ? (

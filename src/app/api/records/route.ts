@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
       },
       include: {
         assignee: true,
+        pph21Batch: { select: { id: true, status: true, issueNotes: true } },
       },
       orderBy: {
         sp2dDate: "desc",
