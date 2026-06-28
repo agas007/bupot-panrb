@@ -47,6 +47,13 @@ type Pph21ModalRecord = SPMRecord & {
   } | null;
 };
 
+const formatGrossInput = (value: string) => {
+  if (!value) return "";
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  return new Intl.NumberFormat("id-ID").format(Number(digits));
+};
+
 export default function RecordsPage() {
   const { language, t } = useLanguage();
   const { getAuthHeaders } = useAuth();
@@ -81,6 +88,7 @@ export default function RecordsPage() {
   const [isPph21DetailLoading, setIsPph21DetailLoading] = useState(false);
   const [isPph21EditorOpen, setIsPph21EditorOpen] = useState(false);
   const [isPph21Saving, setIsPph21Saving] = useState(false);
+  const [isPph21XmlDownloading, setIsPph21XmlDownloading] = useState(false);
   const [pph21WithholdingDate, setPph21WithholdingDate] = useState("");
   const [pph21Lines, setPph21Lines] = useState<Pph21Line[]>([{ nik: "", name: "", taxObjectCode: "21-402-02", gross: "" }]);
   const [updateForm, setUpdateForm] = useState<{ docLink: string, notes: string, status: "COMPLETED" | "ISSUES" }>({ docLink: "", notes: "", status: "COMPLETED" });
@@ -417,6 +425,18 @@ export default function RecordsPage() {
     }, 0);
   }, [pph21Lines]);
 
+  const selectedPph21TaxTotal = useMemo(() => {
+    return selectedPph21Record?.pph21Batch?.withholdings?.reduce((sum, line) => sum + line.calculatedTax, 0) || 0;
+  }, [selectedPph21Record]);
+
+  const isPph21XmlReady = useMemo(() => {
+    if (!selectedRecord || selectedRecord.accountCode !== "411121") return false;
+    if (selectedPph21Record?.pph21Batch?.status === "ISSUES") return false;
+    if (!selectedPph21Record?.pph21Batch?.withholdingDate) return false;
+    if (!selectedPph21Record?.pph21Batch?.withholdings?.length) return false;
+    return selectedPph21TaxTotal === selectedRecord.deductionAmount;
+  }, [selectedPph21Record, selectedPph21TaxTotal, selectedRecord]);
+
   const choosePph21Recipient = (index: number, nik: string) => {
     const recipient = pph21Recipients.find((item) => item.nik === nik);
     setPph21Lines((current) => current.map((line, i) => i === index ? {
@@ -455,6 +475,47 @@ export default function RecordsPage() {
       console.error(error);
     } finally {
       setIsPph21Saving(false);
+    }
+  };
+
+  const downloadPph21XmlFromRecords = async () => {
+    if (!selectedRecord || selectedRecord.accountCode !== "411121" || !isPph21XmlReady) return;
+    setIsPph21XmlDownloading(true);
+    try {
+      const res = await fetch("/api/pph21/export", {
+        method: "POST",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ recordIds: [selectedRecord.id] }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Gagal mengunduh XML PPh 21");
+      }
+
+      const blob = await res.blob();
+      const fileName = res.headers.get("X-Export-Filename") || `Bupot_PPh21_${selectedRecord.spmNumber || selectedRecord.sp2dNumber || selectedRecord.id}.xml`;
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      const detailRes = await fetch(`/api/pph21?recordId=${selectedRecord.id}`, { headers: getAuthHeaders() });
+      if (detailRes.ok) {
+        setSelectedPph21Record(await detailRes.json());
+      }
+      fetchData();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsPph21XmlDownloading(false);
     }
   };
 
@@ -529,7 +590,7 @@ export default function RecordsPage() {
                           <div className="p-4 text-xs text-muted-foreground">Belum ada rincian PPh 21 untuk record ini. Silakan isi langsung di editor di bawah.</div>
                         )}
                       </div>
-                      <div className="flex items-center justify-between gap-3 pt-1">
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                         <button
                           type="button"
                           onClick={() => setIsPph21EditorOpen((current) => !current)}
@@ -537,6 +598,23 @@ export default function RecordsPage() {
                         >
                           {isPph21EditorOpen ? "Tutup editor" : "Edit rincian di sini"}
                         </button>
+                        <div className="flex flex-col items-end gap-1">
+                          <button
+                            type="button"
+                            onClick={downloadPph21XmlFromRecords}
+                            disabled={!isPph21XmlReady || isPph21XmlDownloading || isPph21Saving || isPph21DetailLoading}
+                            className="inline-flex items-center gap-2 rounded-xl border border-accent/20 bg-accent/10 px-3 py-2 text-xs font-bold text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                            title={isPph21XmlReady ? "Unduh XML PPh 21" : "Lengkapi rincian dulu sebelum mengunduh XML"}
+                          >
+                            {isPph21XmlDownloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                            Download XML
+                          </button>
+                          {!isPph21XmlReady && (
+                            <span className="text-[10px] text-muted-foreground text-right">
+                              Simpan rincian dulu agar XML bisa diunduh.
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {isPph21EditorOpen && (
                         <div className="rounded-2xl border border-border bg-background/70 p-4 flex flex-col gap-4">
@@ -616,9 +694,10 @@ export default function RecordsPage() {
                                       type="text"
                                       inputMode="numeric"
                                       pattern="[0-9]*"
-                                      value={line.gross}
+                                      value={formatGrossInput(line.gross)}
                                       onChange={(e) => setPph21Lines((current) => current.map((item, i) => i === index ? { ...item, gross: e.target.value.replace(/\D/g, "") } : item))}
                                       onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
+                                      placeholder="1.000.000"
                                       className="mt-1 w-full rounded-xl bg-muted px-3 py-2 text-sm outline-none"
                                     />
                                   </label>

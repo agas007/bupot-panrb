@@ -30,10 +30,26 @@ const codes = Object.keys(PPH21_TAX_OBJECTS) as Code[];
 const money = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 });
 const emptyLine = (): Line => ({ nik: "", name: "", taxObjectCode: "21-402-02", gross: "" });
 const isPlaceholderRecipientName = (name: string) => /^NIK\s+\d+$/i.test(name.trim());
+const getPph21ProcessStatus = (status?: string | null) => status || "PENDING";
 const pph21ProcessBadgeClass = (status?: string | null) => {
-  if (status === "COMPLETED" || status === "DATA_ENTERED") return "badge-completed";
-  if (status === "ISSUES") return "bg-rose-500/10! text-rose-600!";
+  const normalized = getPph21ProcessStatus(status);
+  if (normalized === "COMPLETED" || normalized === "DATA_ENTERED") return "badge-completed";
+  if (normalized === "ISSUES") return "bg-rose-500/10! text-rose-600!";
   return "badge-pending";
+};
+const pph21ProcessStatusLabel = (status: string) => {
+  switch (status) {
+    case "PENDING":
+      return "Pending";
+    case "DATA_ENTERED":
+      return "Data Entered";
+    case "COMPLETED":
+      return "Completed";
+    case "ISSUES":
+      return "Issues";
+    default:
+      return status;
+  }
 };
 
 export default function Pph21Page() {
@@ -43,6 +59,7 @@ export default function Pph21Page() {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [search, setSearch] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [pph21ProcessFilter, setPph21ProcessFilter] = useState<"all" | "PENDING" | "DATA_ENTERED" | "COMPLETED" | "ISSUES">("all");
   const [colleagues, setColleagues] = useState<ColleagueOption[]>([]);
   const [recipientTaxObjectFilter, setRecipientTaxObjectFilter] = useState<"all" | Code>("all");
   const [recipientNameFilter, setRecipientNameFilter] = useState<"all" | "placeholder" | "named">("all");
@@ -208,9 +225,10 @@ export default function Pph21Page() {
           : assigneeFilter === "unassigned"
             ? !record.assigneeId
             : String(record.assigneeId || "") === assigneeFilter;
-      return matchesSearch && matchesAssignee;
+      const matchesProcess = pph21ProcessFilter === "all" || getPph21ProcessStatus(record.pph21Batch?.status) === pph21ProcessFilter;
+      return matchesSearch && matchesAssignee && matchesProcess;
     }),
-    [assigneeFilter, records, search],
+    [assigneeFilter, pph21ProcessFilter, records, search],
   );
   const visibleRecipients = recipients.filter((recipient) => {
     const matchesSearch = `${recipient.name} ${recipient.nik}`.toLowerCase().includes(search.toLowerCase());
@@ -254,20 +272,36 @@ export default function Pph21Page() {
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama, NIK, SPM, atau SP2D" className="bg-muted rounded-xl pl-10 pr-4 py-2.5 outline-none min-w-[300px]"/>
         </div>
         {tab === "sp2d" && (
-          <div className="relative min-w-[220px]">
-            <select
-              value={assigneeFilter}
-              onChange={(e) => setAssigneeFilter(e.target.value)}
-              className="w-full bg-muted rounded-xl px-4 py-2.5 outline-none text-sm appearance-none pr-10"
-            >
-              <option value="all">Semua petugas</option>
-              <option value="unassigned">Belum di-assign</option>
-              {colleagues.map((colleague) => (
-                <option key={colleague.id} value={String(colleague.id)}>{colleague.name}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
-          </div>
+          <>
+            <div className="relative min-w-[220px]">
+              <select
+                value={assigneeFilter}
+                onChange={(e) => setAssigneeFilter(e.target.value)}
+                className="w-full bg-muted rounded-xl px-4 py-2.5 outline-none text-sm appearance-none pr-10"
+              >
+                <option value="all">Semua petugas</option>
+                <option value="unassigned">Belum di-assign</option>
+                {colleagues.map((colleague) => (
+                  <option key={colleague.id} value={String(colleague.id)}>{colleague.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
+            </div>
+            <div className="relative min-w-[220px]">
+              <select
+                value={pph21ProcessFilter}
+                onChange={(e) => setPph21ProcessFilter(e.target.value as typeof pph21ProcessFilter)}
+                className="w-full bg-muted rounded-xl px-4 py-2.5 outline-none text-sm appearance-none pr-10"
+                title="Filter status proses PPh 21"
+              >
+                <option value="all">Semua status proses</option>
+                {(["PENDING", "DATA_ENTERED", "COMPLETED", "ISSUES"] as const).map((status) => (
+                  <option key={status} value={status}>{pph21ProcessStatusLabel(status)}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
+            </div>
+          </>
         )}
         {tab === "recipients" && (
           <>
@@ -294,7 +328,7 @@ export default function Pph21Page() {
       </div>
     </div>
 
-    {tab === "sp2d" ? <div className="glass-card overflow-x-auto"><table className="premium-table"><thead><tr><th></th><th>SPM / SP2D</th><th>Tanggal SP2D</th><th>Potongan</th><th>Recipients</th><th>PPh 21 Process</th><th>Aksi</th></tr></thead><tbody>{isTableLoading ? <TableSkeletonRows columns={7} rows={7}/> : visibleRecords.map((record) => <tr key={record.id}><td><input type="checkbox" disabled={!record.canManage} checked={selected.has(record.id)} onChange={(e) => setSelected((current) => { const next = new Set(current); if (e.target.checked) next.add(record.id); else next.delete(record.id); return next; })}/></td><td><div className="font-bold">{record.spmNumber}</div><div className="text-xs text-muted-foreground">{record.sp2dNumber || "Belum terbit"}</div></td><td>{record.sp2dDate ? new Date(record.sp2dDate).toLocaleDateString("id-ID") : "—"}</td><td>Rp{money.format(record.deductionAmount)}</td><td>{record.pph21Batch?._count?.withholdings ?? record.pph21Batch?.withholdings?.length ?? 0}</td><td><span className={`badge ${pph21ProcessBadgeClass(record.pph21Batch?.status)}`}>{record.pph21Batch?.status || "PENDING"}</span>{record.pph21Batch?.issueNotes && <div className="text-xs text-amber-600 mt-1">{record.pph21Batch.issueNotes}</div>}</td><td><button disabled={!record.canManage || busy} onClick={() => void openEditor(record)} className="text-accent font-bold text-xs hover:underline disabled:opacity-30">Kelola rincian</button></td></tr>)}</tbody></table></div> :
+    {tab === "sp2d" ? <div className="glass-card overflow-x-auto"><table className="premium-table"><thead><tr><th></th><th>SPM / SP2D</th><th>Tanggal SP2D</th><th>Potongan</th><th>Recipients</th><th>PPh 21 Process</th><th>Aksi</th></tr></thead><tbody>{isTableLoading ? <TableSkeletonRows columns={7} rows={7}/> : visibleRecords.map((record) => <tr key={record.id}><td><input type="checkbox" disabled={!record.canManage} checked={selected.has(record.id)} onChange={(e) => setSelected((current) => { const next = new Set(current); if (e.target.checked) next.add(record.id); else next.delete(record.id); return next; })}/></td><td><div className="font-bold">{record.spmNumber}</div><div className="text-xs text-muted-foreground">{record.sp2dNumber || "Belum terbit"}</div></td><td>{record.sp2dDate ? new Date(record.sp2dDate).toLocaleDateString("id-ID") : "—"}</td><td>Rp{money.format(record.deductionAmount)}</td><td>{record.pph21Batch?._count?.withholdings ?? record.pph21Batch?.withholdings?.length ?? 0}</td><td><span className={`badge ${pph21ProcessBadgeClass(record.pph21Batch?.status)}`}>{pph21ProcessStatusLabel(getPph21ProcessStatus(record.pph21Batch?.status))}</span>{record.pph21Batch?.issueNotes && <div className="text-xs text-amber-600 mt-1">{record.pph21Batch.issueNotes}</div>}</td><td><button disabled={!record.canManage || busy} onClick={() => void openEditor(record)} className="text-accent font-bold text-xs hover:underline disabled:opacity-30">Kelola rincian</button></td></tr>)}</tbody></table></div> :
     isRecipientsLoading ? <RecipientCardSkeletons/> : <div className="grid gap-4">{visibleRecipients.map((recipient) => {
       const isPlaceholder = isPlaceholderRecipientName(recipient.name);
       return <section key={recipient.id} className="glass-card p-5"><div className="flex flex-col lg:flex-row justify-between gap-4"><div className="min-w-0 flex-1"><div className="flex items-center gap-2 min-w-0"><input disabled={!isAdmin || savingRecipientId === recipient.id} value={recipient.name} onChange={(e) => setRecipients((items) => items.map((item) => item.id === recipient.id ? { ...item, name: e.target.value } : item))} onBlur={() => { if (isAdmin) void updateRecipient(recipient, { silent: true }); }} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }} className="min-w-0 flex-1 font-black text-lg bg-transparent border-b border-transparent focus:border-accent outline-none disabled:opacity-100"/>{isPlaceholder && <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-rose-600 shrink-0">Perlu rename</span>}{savingRecipientId === recipient.id && <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground shrink-0"><Loader2 size={12} className="animate-spin" /> Menyimpan</span>}</div><div className="font-mono text-sm text-muted-foreground break-all">{recipient.nik}</div></div><div className="flex gap-2 items-center shrink-0"><select disabled={!isAdmin} value={recipient.defaultTaxObjectCode} onChange={(e) => setRecipients((items) => items.map((item) => item.id === recipient.id ? { ...item, defaultTaxObjectCode: e.target.value as Code } : item))} title={PPH21_TAX_OBJECT_LABELS[recipient.defaultTaxObjectCode]} className="bg-muted rounded-xl p-2 text-sm disabled:opacity-70 max-w-[360px] truncate">{codes.map((code) => <option key={code} value={code}>{code}</option>)}</select>{isAdmin && <button onClick={() => updateRecipient(recipient)} className="p-2 text-accent" title="Simpan default"><Save size={17}/></button>}<button onClick={() => setExpandedRecipient(expandedRecipient === recipient.id ? null : recipient.id)} className="px-3 py-2 rounded-xl bg-muted text-xs font-bold">{recipient.transactionCount} transaksi</button></div></div><div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4"><Stat label="Total Gross" value={recipient.totalGross}/><Stat label="Total Pajak" value={recipient.totalTax}/><Stat label="Gross Exported" value={recipient.exportedGross}/><Stat label="Pajak Exported" value={recipient.exportedTax}/></div>{expandedRecipient === recipient.id && <div className="mt-4 border-t border-border pt-4"><div className="flex gap-2 overflow-x-auto pb-3">{recipient.monthlySummary.map((month) => <div key={month.period} className="min-w-[180px] bg-muted/50 rounded-xl p-3"><div className="font-black text-sm">{month.period}</div><div className="text-xs text-muted-foreground mt-1">{month.count} transaksi · Pajak Rp{money.format(month.tax)}</div></div>)}</div><div className="overflow-x-auto"><table className="premium-table"><thead><tr><th>SP2D</th><th>Periode</th><th>Kode</th><th>Gross</th><th>Pajak</th><th>Status</th></tr></thead><tbody>{recipient.transactions.map((tx) => <tr key={tx.id}><td>{tx.sp2dNumber || tx.spmNumber}</td><td>{tx.sp2dDate ? new Date(tx.sp2dDate).toLocaleDateString("id-ID", { month: "long", year: "numeric" }) : "—"}</td><td><div className="font-bold">{tx.taxObjectCode}</div></td><td>Rp{money.format(tx.gross)}</td><td>Rp{money.format(tx.calculatedTax)}</td><td>{tx.status}</td></tr>)}</tbody></table></div></div>}</section>;
