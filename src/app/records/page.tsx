@@ -58,6 +58,12 @@ export default function RecordsPage() {
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
+  const getPph21BadgeClass = (status?: string | null) => {
+    if (status === "COMPLETED" || status === "DATA_ENTERED") return "badge-completed";
+    if (status === "ISSUES") return "bg-amber-500/10! text-amber-500! border-amber-500/20!";
+    return "badge-pending";
+  };
+
   const filteredAndSortedRecords = records;
   const paginatedRecords = records;
 
@@ -599,7 +605,7 @@ export default function RecordsPage() {
                       <td className="text-center">
                         {record.accountCode === "411121" ? (
                           <div className="flex flex-col items-center gap-2">
-                            <span className={`badge ${record.pph21Batch?.status === "COMPLETED" ? "badge-completed" : record.pph21Batch?.status === "ISSUES" ? "bg-amber-500/10! text-amber-500!" : "badge-pending"}`}>{record.pph21Batch?.status || "PENDING"}</span>
+                            <span className={`badge ${getPph21BadgeClass(record.pph21Batch?.status)}`}>{record.pph21Batch?.status || "PENDING"}</span>
                             <Link href={`/pph21?recordId=${record.id}`} className="text-[10px] font-black uppercase text-accent hover:underline">Kelola rincian</Link>
                           </div>
                         ) : <span className="text-muted-foreground">—</span>}
