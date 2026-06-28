@@ -200,6 +200,17 @@ export default function RecordsPage() {
   const openDetailModal = (record: SPMRecord) => {
     setSelectedRecord(record);
     setIsDetailModalOpen(true);
+    setSelectedPph21Record(null);
+    if (record.accountCode === "411121") {
+      setIsPph21DetailLoading(true);
+      void fetch(`/api/pph21?recordId=${record.id}`, { headers: getAuthHeaders() })
+        .then((res) => res.ok ? res.json() : null)
+        .then((data) => {
+          if (data) setSelectedPph21Record(data);
+        })
+        .catch(console.error)
+        .finally(() => setIsPph21DetailLoading(false));
+    }
   };
 
   const submitUpdate = async () => {
@@ -764,7 +775,7 @@ export default function RecordsPage() {
       {/* Detail Modal */}
       {isDetailModalOpen && selectedRecord && (
         <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-1000">
-          <div className="glass-card bg-white/95! dark:bg-card/70! p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-8 shadow-2xl animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
+          <div className="glass-card bg-white/95! dark:bg-card/70! p-8 rounded-3xl w-full max-w-4xl flex flex-col gap-8 shadow-2xl animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
              <div className="flex justify-between items-center bg-muted/10 p-2 rounded-2xl">
                <div className="flex items-center gap-4">
                  <div className="p-3 bg-accent/10 rounded-2xl text-accent"><Hash size={24} /></div>
@@ -808,6 +819,78 @@ export default function RecordsPage() {
                  {selectedRecord.docLink && (<a href={selectedRecord.docLink} target="_blank" rel="noopener noreferrer" className="premium-button text-xs py-3 flex items-center justify-center gap-2 bg-emerald-600"><ExternalLink size={14} /> {language === "ID" ? "Buka Link Bukti Potong" : "Open Tax Receipt Link"}</a>)}
                </div>
              </div>
+             {selectedRecord.accountCode === "411121" && (
+               <div className="rounded-2xl border border-accent/10 bg-accent/5 p-5 flex flex-col gap-4">
+                 <div className="flex flex-wrap items-center justify-between gap-3">
+                   <div>
+                     <h3 className="text-sm font-black uppercase tracking-widest text-accent">Data Pendukung PPh 21</h3>
+                     <p className="text-xs text-muted-foreground mt-1">Recipient yang sudah tersimpan di batch PPh 21 record ini.</p>
+                   </div>
+                   <button
+                     type="button"
+                     onClick={downloadPph21XmlFromRecords}
+                     disabled={
+                       isPph21DetailLoading ||
+                       isPph21Saving ||
+                       isPph21XmlDownloading ||
+                       !selectedPph21Record?.pph21Batch?.withholdings?.length ||
+                       !isPph21XmlReady
+                     }
+                     className="inline-flex items-center gap-2 rounded-xl border border-accent/20 bg-accent/10 px-4 py-2 text-xs font-bold text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                     title={isPph21XmlReady ? "Unduh XML PPh 21" : "Lengkapi rincian dulu sebelum mengunduh XML"}
+                   >
+                     {isPph21XmlDownloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                     Download XML
+                   </button>
+                 </div>
+                 {isPph21DetailLoading ? (
+                   <div className="text-xs text-muted-foreground">Memuat detail PPh 21...</div>
+                 ) : selectedPph21Record?.pph21Batch?.withholdings?.length ? (
+                   <div className="grid gap-3">
+                     <div className="grid grid-cols-2 gap-3 text-xs">
+                       <div className="bg-background/80 rounded-xl p-3">
+                         <div className="text-[10px] uppercase font-bold text-muted-foreground">Withholding Date</div>
+                         <div className="font-black mt-1">
+                           {selectedPph21Record.pph21Batch.withholdingDate
+                             ? new Date(selectedPph21Record.pph21Batch.withholdingDate).toLocaleDateString("id-ID")
+                             : "-"}
+                         </div>
+                       </div>
+                       <div className="bg-background/80 rounded-xl p-3">
+                         <div className="text-[10px] uppercase font-bold text-muted-foreground">Recipient</div>
+                         <div className="font-black mt-1">{selectedPph21Record.pph21Batch.withholdings.length} orang</div>
+                       </div>
+                     </div>
+                     <div className="max-h-64 overflow-y-auto rounded-xl border border-border bg-background/70">
+                       <table className="w-full text-xs">
+                         <thead className="sticky top-0 bg-background/90">
+                           <tr className="text-left">
+                             <th className="p-3">Nama</th>
+                             <th className="p-3">NIK</th>
+                             <th className="p-3">Tax Object</th>
+                             <th className="p-3">Gross</th>
+                             <th className="p-3">Pajak</th>
+                           </tr>
+                         </thead>
+                         <tbody>
+                           {selectedPph21Record.pph21Batch.withholdings.map((item) => (
+                             <tr key={item.id} className="border-t border-border/60">
+                               <td className="p-3 font-bold">{item.recipientName}</td>
+                               <td className="p-3 font-mono text-[11px] text-muted-foreground">{item.recipient?.nik || "-"}</td>
+                               <td className="p-3">{item.taxObjectCode}</td>
+                               <td className="p-3">IDR {item.gross.toLocaleString("id-ID")}</td>
+                               <td className="p-3">IDR {item.calculatedTax.toLocaleString("id-ID")}</td>
+                             </tr>
+                           ))}
+                         </tbody>
+                       </table>
+                     </div>
+                   </div>
+                 ) : (
+                   <div className="text-sm text-muted-foreground">Belum ada recipient PPh 21 di record ini.</div>
+                 )}
+               </div>
+             )}
           </div>
         </div>
       )}
