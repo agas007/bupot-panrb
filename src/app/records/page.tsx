@@ -27,7 +27,7 @@ type SortConfig = {
 } | null;
 
 type Pph21TaxCode = keyof typeof PPH21_TAX_OBJECTS;
-type Pph21Line = { nik: string; name: string; taxObjectCode: Pph21TaxCode; gross: string };
+type Pph21Line = { clientId: string; nik: string; name: string; taxObjectCode: Pph21TaxCode; gross: string };
 type Pph21RecipientOption = { id: number; nik: string; name: string; defaultTaxObjectCode: Pph21TaxCode };
 
 type Pph21ModalRecord = SPMRecord & {
@@ -53,6 +53,14 @@ const formatGrossInput = (value: string) => {
   if (!digits) return "";
   return new Intl.NumberFormat("id-ID").format(Number(digits));
 };
+
+const createPph21Line = (): Pph21Line => ({
+  clientId: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
+  nik: "",
+  name: "",
+  taxObjectCode: "21-402-02",
+  gross: "",
+});
 
 export default function RecordsPage() {
   const { language, t } = useLanguage();
@@ -92,7 +100,7 @@ export default function RecordsPage() {
   const [isPph21XmlDownloading, setIsPph21XmlDownloading] = useState(false);
   const [isPph21XmlExporting, setIsPph21XmlExporting] = useState(false);
   const [pph21WithholdingDate, setPph21WithholdingDate] = useState("");
-  const [pph21Lines, setPph21Lines] = useState<Pph21Line[]>([{ nik: "", name: "", taxObjectCode: "21-402-02", gross: "" }]);
+  const [pph21Lines, setPph21Lines] = useState<Pph21Line[]>([createPph21Line()]);
   const [updateForm, setUpdateForm] = useState<{ docLink: string, notes: string, status: "COMPLETED" | "ISSUES" }>({ docLink: "", notes: "", status: "COMPLETED" });
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -198,12 +206,13 @@ export default function RecordsPage() {
         setPph21Lines(
           data.pph21Batch?.withholdings?.length
             ? data.pph21Batch.withholdings.map((item: { recipient: { nik: string } | null; recipientName: string; taxObjectCode: Pph21TaxCode; gross: number }) => ({
+                clientId: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
                 nik: item.recipient?.nik || "",
                 name: item.recipientName,
                 taxObjectCode: item.taxObjectCode,
                 gross: String(item.gross),
               }))
-            : [{ nik: "", name: "", taxObjectCode: "21-402-02", gross: "" }],
+            : [createPph21Line()],
         );
         setIsPph21EditorOpen(true);
       }
@@ -470,12 +479,18 @@ export default function RecordsPage() {
     return selectedPph21TaxTotal === selectedRecord.deductionAmount;
   }, [selectedPph21Record, selectedPph21TaxTotal, selectedRecord]);
 
-  const choosePph21Recipient = (index: number, nik: string) => {
-    const recipient = pph21Recipients.find((item) => item.nik === nik);
+  const normalizeRecipientQuery = (value: string) => value.trim().toLowerCase().replace(/\s+/g, " ");
+
+  const choosePph21Recipient = (index: number, value: string, field: "nik" | "name") => {
+    const normalized = normalizeRecipientQuery(value);
+    const recipient =
+      field === "nik"
+        ? pph21Recipients.find((item) => normalizeRecipientQuery(item.nik) === normalized)
+        : pph21Recipients.find((item) => normalizeRecipientQuery(item.name) === normalized);
     setPph21Lines((current) => current.map((line, i) => i === index ? {
       ...line,
-      nik,
-      name: recipient?.name || line.name,
+      nik: recipient ? recipient.nik : (field === "nik" ? value : line.nik),
+      name: recipient ? recipient.name : (field === "nik" ? "" : value),
       taxObjectCode: recipient?.defaultTaxObjectCode || line.taxObjectCode,
     } : line));
   };
@@ -711,16 +726,21 @@ export default function RecordsPage() {
                             <div className="flex items-end">
                               <button
                                 type="button"
-                                onClick={() => setPph21Lines((current) => [...current, { nik: "", name: "", taxObjectCode: "21-402-02", gross: "" }])}
+                                onClick={() => setPph21Lines((current) => [...current, createPph21Line()])}
                                 className="inline-flex items-center gap-2 rounded-xl border border-accent/20 bg-accent/10 px-3 py-2 text-xs font-bold text-accent"
                               >
                                 <Plus size={14} /> Tambah recipient
                               </button>
                             </div>
                           </div>
-                          <datalist id="records-pph21-recipients">
+                          <datalist id="records-pph21-nik-recipients">
                             {pph21Recipients.map((recipient) => (
                               <option key={recipient.id} value={recipient.nik}>{recipient.name}</option>
+                            ))}
+                          </datalist>
+                          <datalist id="records-pph21-name-recipients">
+                            {pph21Recipients.map((recipient) => (
+                              <option key={`${recipient.id}-name`} value={recipient.name}>{recipient.nik}</option>
                             ))}
                           </datalist>
                           <div className="grid gap-3">
@@ -728,21 +748,22 @@ export default function RecordsPage() {
                               const rule = PPH21_TAX_OBJECTS[line.taxObjectCode];
                               const calculatedTax = Math.floor((Number(line.gross) || 0) * rule.deemed / 100 * rule.rate / 100);
                               return (
-                                <div key={`${index}-${line.nik}`} className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-background/50 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.55fr)_minmax(0,1fr)_auto] md:items-end md:gap-2">
+                                <div key={line.clientId} className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-background/50 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.55fr)_minmax(0,1fr)_auto] md:items-end md:gap-2">
                                   <label className="min-w-0 text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                     NIK
                                     <input
-                                      list="records-pph21-recipients"
+                                      list="records-pph21-nik-recipients"
                                       value={line.nik}
-                                      onChange={(e) => choosePph21Recipient(index, e.target.value)}
+                                      onChange={(e) => choosePph21Recipient(index, e.target.value.replace(/\s+/g, ""), "nik")}
                                       className="mt-1 w-full rounded-xl bg-muted px-3 py-2 text-sm outline-none"
                                     />
                                   </label>
                                   <label className="min-w-0 text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                     Nama
                                     <input
+                                      list="records-pph21-name-recipients"
                                       value={line.name}
-                                      onChange={(e) => setPph21Lines((current) => current.map((item, i) => i === index ? { ...item, name: e.target.value } : item))}
+                                      onChange={(e) => choosePph21Recipient(index, e.target.value, "name")}
                                       className="mt-1 w-full rounded-xl bg-muted px-3 py-2 text-sm outline-none"
                                     />
                                   </label>
@@ -774,7 +795,7 @@ export default function RecordsPage() {
                                   </label>
                                   <button
                                     type="button"
-                                    onClick={() => setPph21Lines((current) => current.length > 1 ? current.filter((_, i) => i !== index) : [{ nik: "", name: "", taxObjectCode: "21-402-02", gross: "" }])}
+                                    onClick={() => setPph21Lines((current) => current.length > 1 ? current.filter((_, i) => i !== index) : [createPph21Line()])}
                                     className="inline-flex items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-rose-600"
                                     title="Hapus recipient"
                                   >
