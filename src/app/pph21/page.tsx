@@ -16,6 +16,7 @@ type RecordRow = {
   sp2dDate: string | null;
   deductionAmount: number;
   totalValue?: number | null;
+  description?: string | null;
   recipient?: string | null;
   canManage: boolean;
   assigneeId?: number | null;
