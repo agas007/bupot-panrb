@@ -488,8 +488,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className={`flex-1 p-4 pt-24 lg:pt-12 transition-all duration-500 ${isSidebarCollapsed ? "lg:ml-20" : "lg:ml-64"}`}>
-        <div className="container max-w-full">{children}</div>
+      <main className={`min-w-0 flex-1 p-4 pt-24 lg:pt-12 transition-all duration-500 ${isSidebarCollapsed ? "lg:ml-20" : "lg:ml-64"}`}>
+        <div className="container min-w-0 max-w-full">{children}</div>
       </main>
 
       {/* Modern Announcement Modal v1.2.0 */}

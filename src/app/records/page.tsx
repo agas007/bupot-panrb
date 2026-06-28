@@ -401,7 +401,7 @@ export default function RecordsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-8 pb-10">
+    <div className="flex min-w-0 max-w-full flex-col gap-8 pb-10">
       {/* Update/Completion Modal */}
       {isUpdateModalOpen && (
         <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-1000">
@@ -607,9 +607,9 @@ export default function RecordsPage() {
         )}
       </header>
 
-      <div className="glass-card overflow-hidden transition-all duration-500 shadow-xl border-white/5">
-        <div className="overflow-x-auto">
-          <table className="premium-table">
+      <div className="glass-card min-w-0 max-w-full overflow-hidden transition-all duration-500 shadow-xl border-white/5">
+        <div className="max-w-full overflow-x-auto overscroll-x-contain">
+          <table className="premium-table min-w-[1500px]">
             <thead>
               <tr>
                 <th className="p-4 text-center">
