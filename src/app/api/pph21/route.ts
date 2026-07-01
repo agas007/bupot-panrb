@@ -71,21 +71,58 @@ export async function POST(req: NextRequest) {
       }
       const recipients = await tx.pph21Recipient.findMany({ where: { nik: { in: uniqueNik } } });
       const recipientsByNik = new Map(recipients.map((recipient) => [recipient.nik, recipient]));
+      const withholdingData = [] as Array<{
+        batchId: number;
+        recipientId: number;
+        recipientName: string;
+        taxObjectCode: string;
+        gross: number;
+        deemed: number;
+        rate: number;
+        calculatedTax: number;
+      }>;
+
+      for (const [index, line] of lines.entries()) {
+        let recipient = line.nik ? recipientsByNik.get(line.nik) ?? null : null;
+
+        if (!recipient) {
+          const trimmedName = line.name.trim();
+          const exactMatches = await tx.pph21Recipient.findMany({
+            where: {
+              name: { equals: trimmedName, mode: "insensitive" },
+              defaultTaxObjectCode: line.taxObjectCode,
+            },
+          });
+          if (exactMatches.length === 1) {
+            recipient = exactMatches[0];
+          } else if (exactMatches.length === 0) {
+            const nameMatches = await tx.pph21Recipient.findMany({
+              where: { name: { equals: trimmedName, mode: "insensitive" } },
+            });
+            if (nameMatches.length === 1) {
+              recipient = nameMatches[0];
+            }
+          }
+        }
+
+        if (!recipient) {
+          throw new Error(`Penerima baris ${index + 1} tidak ditemukan di master data. Isi NIK atau cocokkan nama penerima.`);
+        }
+
+        withholdingData.push({
+          batchId: savedBatch.id,
+          recipientId: recipient.id,
+          recipientName: line.name,
+          taxObjectCode: line.taxObjectCode,
+          gross: line.gross,
+          deemed: line.deemed,
+          rate: line.rate,
+          calculatedTax: line.calculatedTax,
+        });
+      }
+
       await tx.pph21Withholding.createMany({
-        data: lines.map((line) => {
-          const recipient = recipientsByNik.get(line.nik);
-          if (!recipient) throw new Error(`Penerima ${line.nik} gagal disimpan.`);
-          return {
-            batchId: savedBatch.id,
-            recipientId: recipient.id,
-            recipientName: line.name,
-            taxObjectCode: line.taxObjectCode,
-            gross: line.gross,
-            deemed: line.deemed,
-            rate: line.rate,
-            calculatedTax: line.calculatedTax,
-          };
-        }),
+        data: withholdingData,
       });
       await tx.auditLog.create({ data: { userName: user.name, action: "Saved PPh 21 Details", target: record.sp2dNumber || record.spmNumber, category: "DATA", type: "success" } });
       return savedBatch.id;

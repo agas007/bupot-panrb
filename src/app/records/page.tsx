@@ -107,9 +107,24 @@ export default function RecordsPage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const getPph21BadgeClass = (status?: string | null) => {
-    if (status === "COMPLETED" || status === "DATA_ENTERED") return "badge-completed";
+    if (status === "COMPLETED") return "badge-completed";
+    if (status === "DATA_ENTERED") return "bg-amber-500/10! text-amber-500! border-amber-500/20!";
     if (status === "ISSUES") return "bg-amber-500/10! text-amber-500! border-amber-500/20!";
     return "badge-pending";
+  };
+  const getPph21StatusLabel = (status?: string | null) => {
+    switch (status || "PENDING") {
+      case "PENDING":
+        return "Pending";
+      case "DATA_ENTERED":
+        return "Draft";
+      case "COMPLETED":
+        return "Completed";
+      case "ISSUES":
+        return "Issues";
+      default:
+        return status || "PENDING";
+    }
   };
   const getPph21ProcessLabel = (status?: string | null) => {
     switch (status || "PENDING") {
@@ -1179,7 +1194,7 @@ export default function RecordsPage() {
                       <td className="text-center">
                         {record.accountCode === "411121" ? (
                           <div className="flex flex-col items-center gap-2">
-                            <span className={`badge ${getPph21BadgeClass(record.pph21Batch?.status)}`}>{record.pph21Batch?.status || "PENDING"}</span>
+                            <span className={`badge ${getPph21BadgeClass(record.pph21Batch?.status)}`}>{getPph21StatusLabel(record.pph21Batch?.status)}</span>
                             <Link href={`/master-penerima-pph21?recordId=${record.id}`} className="text-[10px] font-black uppercase text-accent hover:underline">Kelola rincian</Link>
                           </div>
                         ) : <span className="text-muted-foreground">—</span>}

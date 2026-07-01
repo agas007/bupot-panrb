@@ -45,7 +45,7 @@ export function normalizePph21Lines(lines: Pph21LineInput[]) {
     const nik = normalizeNik(line.nik);
     const name = String(line.name || "").trim();
     const gross = Number(line.gross);
-    if (!/^\d{16}$/.test(nik)) throw new Error(`NIK baris ${index + 1} harus 16 digit.`);
+    if (nik && !/^\d{16}$/.test(nik)) throw new Error(`NIK baris ${index + 1} harus 16 digit.`);
     if (!name) throw new Error(`Nama penerima baris ${index + 1} wajib diisi.`);
     if (!isPph21TaxObjectCode(line.taxObjectCode)) throw new Error(`Kode objek pajak baris ${index + 1} tidak didukung.`);
     if (!Number.isInteger(gross) || gross < 0) throw new Error(`Gross baris ${index + 1} harus berupa rupiah bulat non-negatif.`);
