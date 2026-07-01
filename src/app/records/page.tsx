@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { 
   Search, Filter, ChevronDown, Calendar, 
@@ -105,6 +105,7 @@ export default function RecordsPage() {
   const [updateForm, setUpdateForm] = useState<{ docLink: string, notes: string, status: "COMPLETED" | "ISSUES" }>({ docLink: "", notes: "", status: "COMPLETED" });
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const pph21RowRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const getPph21BadgeClass = (status?: string | null) => {
     if (status === "COMPLETED") return "badge-completed";
@@ -495,6 +496,13 @@ export default function RecordsPage() {
     return Number.isInteger(value) && value > 0 ? value : null;
   }, [pph21SaveError]);
 
+  useEffect(() => {
+    if (!isPph21EditorOpen || !pph21ErrorRow) return;
+    const row = pph21RowRefs.current[pph21ErrorRow - 1];
+    if (!row) return;
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [isPph21EditorOpen, pph21ErrorRow]);
+
   const isPph21XmlReady = useMemo(() => {
     if (!selectedRecord || selectedRecord.accountCode !== "411121") return false;
     if (selectedPph21Record?.pph21Batch?.status === "ISSUES") return false;
@@ -780,6 +788,9 @@ export default function RecordsPage() {
                               return (
                                 <div
                                   key={line.clientId}
+                                  ref={(node) => {
+                                    pph21RowRefs.current[index] = node;
+                                  }}
                                   className={`grid grid-cols-1 gap-3 rounded-2xl border p-3 md:grid-cols-[4rem_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.55fr)_minmax(0,1fr)_auto] md:items-end md:gap-2 ${
                                     pph21ErrorRow === index + 1
                                       ? "border-rose-500/40 bg-rose-500/5 ring-1 ring-rose-500/20"
