@@ -554,6 +554,11 @@ export default function RecordsPage() {
     return payrollImportRecords.find((record) => record.id === selectedPayrollRecordId) || null;
   }, [payrollImportRecords, selectedPayrollRecordId]);
 
+  const payrollAutoMatchedRecord = useMemo(() => {
+    if (!payrollImportSummary) return null;
+    return payrollImportRecords.find((record) => record.deductionAmount === payrollImportSummary.totalTax) || null;
+  }, [payrollImportRecords, payrollImportSummary]);
+
   const payrollImportComparison = useMemo(() => {
     if (!payrollImportSummary || !selectedPayrollRecord) return null;
     const difference = payrollImportSummary.totalTax - selectedPayrollRecord.deductionAmount;
@@ -569,6 +574,15 @@ export default function RecordsPage() {
     if (!row) return;
     row.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [isPph21EditorOpen, pph21ErrorRow]);
+
+  useEffect(() => {
+    if (!isPayrollImportOpen || !payrollImportSummary || !payrollImportRecords.length) return;
+    if (payrollAutoMatchedRecord) {
+      setSelectedPayrollRecordId(payrollAutoMatchedRecord.id);
+      return;
+    }
+    setSelectedPayrollRecordId((current) => (current && payrollImportRecords.some((record) => record.id === current) ? current : null));
+  }, [isPayrollImportOpen, payrollAutoMatchedRecord, payrollImportRecords, payrollImportSummary]);
 
   const isPph21XmlReady = useMemo(() => {
     if (!selectedRecord || selectedRecord.accountCode !== "411121") return false;
@@ -656,7 +670,6 @@ export default function RecordsPage() {
       const res = await fetch(`/api/records?${params}`);
       const data = await res.json();
       setPayrollImportRecords(Array.isArray(data.records) ? data.records : []);
-      setSelectedPayrollRecordId((current) => current ?? (Array.isArray(data.records) && data.records.length ? data.records[0].id : null));
     } catch (error) {
       console.error(error);
       setPayrollImportRecords([]);
@@ -1424,6 +1437,17 @@ export default function RecordsPage() {
 
                   {payrollImportSummary ? (
                     <>
+                      <div
+                        className={`rounded-2xl border px-4 py-3 text-sm font-medium ${
+                          payrollAutoMatchedRecord
+                            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700"
+                            : "border-amber-500/20 bg-amber-500/10 text-amber-700"
+                        }`}
+                      >
+                        {payrollAutoMatchedRecord
+                          ? `Record otomatis cocok ditemukan: ${payrollAutoMatchedRecord.spmNumber} · ${payrollAutoMatchedRecord.sp2dNumber || "SP2D belum terbit"}`
+                          : "Tidak ada record yang cocok otomatis. Silakan pilih SPM/SP2D secara manual."}
+                      </div>
                       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                         <div className="rounded-xl bg-background p-4 border border-border">
                           <div className="text-[10px] uppercase font-bold text-muted-foreground">File</div>

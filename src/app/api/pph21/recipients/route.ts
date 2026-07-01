@@ -69,12 +69,26 @@ export async function PATCH(req: NextRequest) {
     if (user.role !== "ADMIN") return NextResponse.json({ error: "Hanya admin yang dapat mengubah master penerima" }, { status: 403 });
     const body = await req.json();
     const recipientId = Number(body.id);
-    const name = String(body.name || "").trim();
-    const code = String(body.defaultTaxObjectCode || "");
-    if (!name || !isPph21TaxObjectCode(code)) return NextResponse.json({ error: "Nama dan kode objek pajak wajib valid" }, { status: 400 });
+    const name = body.name !== undefined ? String(body.name || "").trim() : undefined;
+    const nik = body.nik !== undefined ? String(body.nik || "").replace(/\D/g, "") : undefined;
+    const code = body.defaultTaxObjectCode !== undefined ? String(body.defaultTaxObjectCode || "") : undefined;
+    if (name !== undefined && !name) return NextResponse.json({ error: "Nama wajib valid" }, { status: 400 });
+    if (nik !== undefined && !/^\d{16}$/.test(nik)) return NextResponse.json({ error: "NIK wajib 16 digit" }, { status: 400 });
+    if (code !== undefined && !isPph21TaxObjectCode(code)) return NextResponse.json({ error: "Kode objek pajak wajib valid" }, { status: 400 });
     const existing = await prisma.pph21Recipient.findUnique({ where: { id: recipientId } });
     if (!existing) return NextResponse.json({ error: "Penerima tidak ditemukan" }, { status: 404 });
-    const recipient = await prisma.pph21Recipient.update({ where: { id: recipientId }, data: { name, defaultTaxObjectCode: code } });
+    if (nik !== undefined && nik !== existing.nik) {
+      const duplicate = await prisma.pph21Recipient.findUnique({ where: { nik } });
+      if (duplicate && duplicate.id !== recipientId) return NextResponse.json({ error: "NIK sudah dipakai penerima lain" }, { status: 400 });
+    }
+    const recipient = await prisma.pph21Recipient.update({
+      where: { id: recipientId },
+      data: {
+        ...(name !== undefined ? { name } : {}),
+        ...(nik !== undefined ? { nik } : {}),
+        ...(code !== undefined ? { defaultTaxObjectCode: code } : {}),
+      },
+    });
     await prisma.auditLog.create({ data: { userName: user.name, action: "Updated PPh 21 Recipient", target: `${recipient.nik} - ${recipient.name}`, category: "DATA", type: "success" } });
     return NextResponse.json(recipient);
   } catch (error: unknown) {
