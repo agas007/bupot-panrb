@@ -8,7 +8,7 @@ import {
   ExternalLink, X, ClipboardCheck,
   ChevronsLeft, ChevronsRight,
   User, CheckCircle2, FileText, Hash,
-  Landmark, Download, FileJson, Table, FileType,
+  Landmark, Download, FileJson, Table, FileType, Upload,
   CalendarRange, AlertCircle, RefreshCw, Loader2, Plus, Trash2, Save
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -45,6 +45,25 @@ type Pph21ModalRecord = SPMRecord & {
       recipient?: { nik: string; name: string } | null;
     }>;
   } | null;
+};
+type ImportReport = {
+  fileName: string;
+  totalRows: number;
+  totalDocuments: number;
+  importedCount: number;
+  matchCount: number;
+  mismatchCount: number;
+  notFoundCount: number;
+  groups: Array<{
+    documentNumber: string;
+    spmNumber: string | null;
+    recipientCount: number;
+    xmlGross: number;
+    xmlTax: number;
+    sp2dDeduction: number | null;
+    difference: number | null;
+    status: "IMPORTED" | "MISMATCH" | "NOT_FOUND" | "ALREADY_FILLED" | "FORBIDDEN" | "INVALID_DATES";
+  }>;
 };
 
 const formatGrossInput = (value: string) => {
@@ -99,6 +118,7 @@ export default function RecordsPage() {
   const [isPph21Saving, setIsPph21Saving] = useState(false);
   const [isPph21XmlDownloading, setIsPph21XmlDownloading] = useState(false);
   const [isPph21XmlExporting, setIsPph21XmlExporting] = useState(false);
+  const [isImportingXml, setIsImportingXml] = useState(false);
   const [pph21SaveError, setPph21SaveError] = useState("");
   const [pph21WithholdingDate, setPph21WithholdingDate] = useState("");
   const [pph21Lines, setPph21Lines] = useState<Pph21Line[]>([createPph21Line()]);
@@ -106,6 +126,9 @@ export default function RecordsPage() {
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const pph21RowRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const pph21ImportInputRef = useRef<HTMLInputElement | null>(null);
+  const [importReport, setImportReport] = useState<ImportReport | null>(null);
+  const [importError, setImportError] = useState("");
 
   const getPph21BadgeClass = (status?: string | null) => {
     if (status === "COMPLETED") return "badge-completed";
@@ -557,6 +580,29 @@ export default function RecordsPage() {
       setPph21SaveError(error instanceof Error ? error.message : "Gagal menyimpan rincian PPh 21");
     } finally {
       setIsPph21Saving(false);
+    }
+  };
+
+  const checkImportedXml = async (file: File) => {
+    setIsImportingXml(true);
+    setImportError("");
+    setImportReport(null);
+    try {
+      const formData = new FormData();
+      formData.append("xml", file);
+      const res = await fetch("/api/pph21/import", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal memeriksa XML");
+      setImportReport(data);
+      fetchData();
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "Gagal memeriksa XML");
+    } finally {
+      setIsImportingXml(false);
     }
   };
 
@@ -1087,6 +1133,27 @@ export default function RecordsPage() {
           </div>
           
           <div className="flex items-center gap-3">
+             <button
+               type="button"
+               onClick={() => pph21ImportInputRef.current?.click()}
+               disabled={isImportingXml}
+               className="glass-card px-5 py-2.5 flex items-center gap-3 text-sm font-bold transition-all shadow-lg border-emerald-500/20 text-emerald-500 hover:bg-white/10 active:scale-95 disabled:opacity-60"
+             >
+                {isImportingXml ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                {isImportingXml ? "Importing..." : "Import XML"}
+             </button>
+             <input
+               ref={pph21ImportInputRef}
+               type="file"
+               accept=".xml,application/xml,text/xml"
+               className="hidden"
+               disabled={isImportingXml}
+               onChange={(event) => {
+                 const file = event.target.files?.[0];
+                 if (file) void checkImportedXml(file);
+                 event.target.value = "";
+               }}
+             />
              <button 
                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                className={`glass-card px-5 py-2.5 flex items-center gap-3 text-sm font-bold transition-all shadow-lg border-accent/20 group active:scale-95 ${showAdvancedFilters ? "bg-accent text-white" : "hover:bg-white/10 text-accent"}`}
@@ -1123,6 +1190,77 @@ export default function RecordsPage() {
              </div>
           </div>
         </div>
+
+        {importError && (
+          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-600">
+            {importError}
+          </div>
+        )}
+
+        {importReport && (
+          <section className="glass-card p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-black text-lg">Hasil import dan pengecekan XML</h2>
+                <p className="text-sm text-muted-foreground">
+                  {importReport.fileName} · {importReport.totalRows} recipient dalam {importReport.totalDocuments} SP2D
+                </p>
+              </div>
+              <button type="button" onClick={() => setImportReport(null)} className="p-1 text-muted-foreground hover:text-foreground">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+              <div className="rounded-xl bg-emerald-500/10 text-emerald-600 p-3">
+                <div className="text-xs font-bold uppercase">Berhasil diisi</div>
+                <div className="text-2xl font-black">{importReport.importedCount}</div>
+              </div>
+              <div className="rounded-xl bg-amber-500/10 text-amber-600 p-3">
+                <div className="text-xs font-bold uppercase">Selisih</div>
+                <div className="text-2xl font-black">{importReport.mismatchCount}</div>
+              </div>
+              <div className="rounded-xl bg-rose-500/10 text-rose-600 p-3">
+                <div className="text-xs font-bold uppercase">Tidak ditemukan</div>
+                <div className="text-2xl font-black">{importReport.notFoundCount}</div>
+              </div>
+            </div>
+            <div className="overflow-x-auto mt-4">
+              <table className="premium-table min-w-[850px]">
+                <thead>
+                  <tr>
+                    <th>Document / SP2D</th>
+                    <th>Recipient</th>
+                    <th>Gross XML</th>
+                    <th>Pajak XML</th>
+                    <th>Potongan SP2D</th>
+                    <th>Selisih</th>
+                    <th>Hasil</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importReport.groups.map((group) => (
+                    <tr key={group.documentNumber}>
+                      <td>
+                        <div className="font-bold">{group.documentNumber}</div>
+                        <div className="text-xs text-muted-foreground">{group.spmNumber || "SP2D tidak ditemukan"}</div>
+                      </td>
+                      <td>{group.recipientCount}</td>
+                      <td>Rp{new Intl.NumberFormat("id-ID").format(group.xmlGross)}</td>
+                      <td>Rp{new Intl.NumberFormat("id-ID").format(group.xmlTax)}</td>
+                      <td>{group.sp2dDeduction === null ? "—" : `Rp${new Intl.NumberFormat("id-ID").format(group.sp2dDeduction)}`}</td>
+                      <td>{group.difference === null ? "—" : `Rp${new Intl.NumberFormat("id-ID").format(group.difference)}`}</td>
+                      <td>
+                        <span className={`badge ${group.status === "IMPORTED" || group.status === "ALREADY_FILLED" ? "badge-completed" : "bg-amber-500/10! text-amber-600!"}`}>
+                          {group.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* Search & Basic Filters */}
         <div className="flex flex-wrap items-center gap-3">
