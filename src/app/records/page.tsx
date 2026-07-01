@@ -65,6 +65,16 @@ type ImportReport = {
     status: "IMPORTED" | "MISMATCH" | "NOT_FOUND" | "ALREADY_FILLED" | "FORBIDDEN" | "INVALID_DATES";
   }>;
 };
+type PayrollImportSummary = {
+  fileName: string;
+  totalRows: number;
+  uniqueRecipients: number;
+  totalGross: number;
+  totalTax: number;
+  taxPeriodMonth: number | null;
+  taxPeriodYear: number | null;
+  withholdingDate: string | null;
+};
 
 const formatGrossInput = (value: string) => {
   if (!value) return "";
@@ -119,6 +129,8 @@ export default function RecordsPage() {
   const [isPph21XmlDownloading, setIsPph21XmlDownloading] = useState(false);
   const [isPph21XmlExporting, setIsPph21XmlExporting] = useState(false);
   const [isImportingXml, setIsImportingXml] = useState(false);
+  const [isPayrollImportOpen, setIsPayrollImportOpen] = useState(false);
+  const [isPayrollXmlImporting, setIsPayrollXmlImporting] = useState(false);
   const [pph21SaveError, setPph21SaveError] = useState("");
   const [pph21WithholdingDate, setPph21WithholdingDate] = useState("");
   const [pph21Lines, setPph21Lines] = useState<Pph21Line[]>([createPph21Line()]);
@@ -127,8 +139,14 @@ export default function RecordsPage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const pph21RowRefs = useRef<(HTMLDivElement | null)[]>([]);
   const pph21ImportInputRef = useRef<HTMLInputElement | null>(null);
+  const payrollImportInputRef = useRef<HTMLInputElement | null>(null);
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
   const [importError, setImportError] = useState("");
+  const [payrollImportSummary, setPayrollImportSummary] = useState<PayrollImportSummary | null>(null);
+  const [payrollImportError, setPayrollImportError] = useState("");
+  const [payrollImportRecords, setPayrollImportRecords] = useState<SPMRecord[]>([]);
+  const [payrollRecordQuery, setPayrollRecordQuery] = useState("");
+  const [selectedPayrollRecordId, setSelectedPayrollRecordId] = useState<number | null>(null);
 
   const getPph21BadgeClass = (status?: string | null) => {
     if (status === "COMPLETED") return "badge-completed";
@@ -401,7 +419,7 @@ export default function RecordsPage() {
     return { label: `Target: ${targetDate.toLocaleDateString(language === "ID" ? "id-ID" : "en-US", { day: 'numeric', month: 'long', year: 'numeric' })}`, type: "ok", status: "ok", date: targetDate };
   };
 
-  const uniqueAccounts = ["411121", "411122", "411124"];
+  const uniqueAccounts = ["411121", "411122", "411124", "811147"];
 
   useEffect(() => {
     setCurrentPage(1);
@@ -519,6 +537,32 @@ export default function RecordsPage() {
     return Number.isInteger(value) && value > 0 ? value : null;
   }, [pph21SaveError]);
 
+  const filteredPayrollImportRecords = useMemo(() => {
+    const query = payrollRecordQuery.trim().toLowerCase();
+    if (!query) return payrollImportRecords;
+    return payrollImportRecords.filter((record) => {
+      return [
+        record.spmNumber,
+        record.sp2dNumber,
+        record.recipient,
+        record.description,
+      ].some((value) => String(value || "").toLowerCase().includes(query));
+    });
+  }, [payrollImportRecords, payrollRecordQuery]);
+
+  const selectedPayrollRecord = useMemo(() => {
+    return payrollImportRecords.find((record) => record.id === selectedPayrollRecordId) || null;
+  }, [payrollImportRecords, selectedPayrollRecordId]);
+
+  const payrollImportComparison = useMemo(() => {
+    if (!payrollImportSummary || !selectedPayrollRecord) return null;
+    const difference = payrollImportSummary.totalTax - selectedPayrollRecord.deductionAmount;
+    return {
+      difference,
+      isMatch: difference === 0,
+    };
+  }, [payrollImportSummary, selectedPayrollRecord]);
+
   useEffect(() => {
     if (!isPph21EditorOpen || !pph21ErrorRow) return;
     const row = pph21RowRefs.current[pph21ErrorRow - 1];
@@ -603,6 +647,59 @@ export default function RecordsPage() {
       setImportError(error instanceof Error ? error.message : "Gagal memeriksa XML");
     } finally {
       setIsImportingXml(false);
+    }
+  };
+
+  const loadPayrollImportRecords = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({ page: "1", pageSize: "max", accountCode: "811147", sortKey: "sp2d", sortDirection: "desc" });
+      const res = await fetch(`/api/records?${params}`);
+      const data = await res.json();
+      setPayrollImportRecords(Array.isArray(data.records) ? data.records : []);
+      setSelectedPayrollRecordId((current) => current ?? (Array.isArray(data.records) && data.records.length ? data.records[0].id : null));
+    } catch (error) {
+      console.error(error);
+      setPayrollImportRecords([]);
+    }
+  }, []);
+
+  const openPayrollImport = async () => {
+    setIsPayrollImportOpen(true);
+    setPayrollImportError("");
+    setPayrollImportSummary(null);
+    setPayrollRecordQuery("");
+    setSelectedPayrollRecordId(null);
+    await loadPayrollImportRecords();
+  };
+
+  const closePayrollImport = () => {
+    setIsPayrollImportOpen(false);
+    setPayrollImportSummary(null);
+    setPayrollImportError("");
+    setPayrollImportRecords([]);
+    setPayrollRecordQuery("");
+    setSelectedPayrollRecordId(null);
+  };
+
+  const checkPayrollXml = async (file: File) => {
+    setIsPayrollXmlImporting(true);
+    setPayrollImportError("");
+    setPayrollImportSummary(null);
+    try {
+      const formData = new FormData();
+      formData.append("xml", file);
+      const res = await fetch("/api/pph21/import/payroll", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal memeriksa XML PPPK");
+      setPayrollImportSummary(data);
+    } catch (error) {
+      setPayrollImportError(error instanceof Error ? error.message : "Gagal memeriksa XML PPPK");
+    } finally {
+      setIsPayrollXmlImporting(false);
     }
   };
 
@@ -1135,12 +1232,21 @@ export default function RecordsPage() {
           <div className="flex items-center gap-3">
              <button
                type="button"
+               onClick={() => void openPayrollImport()}
+               disabled={isPayrollXmlImporting}
+               className="glass-card px-5 py-2.5 flex items-center gap-3 text-sm font-bold transition-all shadow-lg border-cyan-500/20 text-cyan-500 hover:bg-white/10 active:scale-95 disabled:opacity-60"
+             >
+                <Upload size={18} />
+                Import XML PPPK
+             </button>
+             <button
+               type="button"
                onClick={() => pph21ImportInputRef.current?.click()}
                disabled={isImportingXml}
                className="glass-card px-5 py-2.5 flex items-center gap-3 text-sm font-bold transition-all shadow-lg border-emerald-500/20 text-emerald-500 hover:bg-white/10 active:scale-95 disabled:opacity-60"
              >
                 {isImportingXml ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                {isImportingXml ? "Importing..." : "Import XML"}
+                {isImportingXml ? "Importing..." : "Import XML PPh21"}
              </button>
              <input
                ref={pph21ImportInputRef}
@@ -1260,6 +1366,189 @@ export default function RecordsPage() {
               </table>
             </div>
           </section>
+        )}
+
+        {isPayrollImportOpen && (
+          <div className="fixed inset-0 z-[1200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-background border border-border rounded-3xl shadow-2xl w-full max-w-6xl max-h-[92vh] overflow-y-auto p-6 md:p-8">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black">Import XML PPPK</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Upload file XML PPPK, pilih manual nomor SPM/SP2D yang terkait, lalu bandingkan total pajaknya.</p>
+                </div>
+                <button type="button" onClick={closePayrollImport} className="p-2 rounded-xl hover:bg-muted transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="mt-5 grid gap-4 lg:grid-cols-[1.15fr_1fr]">
+                <div className="rounded-2xl border border-border bg-muted/20 p-4 flex flex-col gap-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => payrollImportInputRef.current?.click()}
+                      disabled={isPayrollXmlImporting}
+                      className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-600 disabled:opacity-60"
+                    >
+                      {isPayrollXmlImporting ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                      {isPayrollXmlImporting ? "Memeriksa..." : "Pilih XML PPPK"}
+                    </button>
+                    <input
+                      ref={payrollImportInputRef}
+                      type="file"
+                      accept=".xml,application/xml,text/xml"
+                      className="hidden"
+                      disabled={isPayrollXmlImporting}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) void checkPayrollXml(file);
+                        event.target.value = "";
+                      }}
+                    />
+                    {payrollImportSummary && (
+                      <button
+                        type="button"
+                        onClick={() => setPayrollImportSummary(null)}
+                        className="text-xs font-bold uppercase text-muted-foreground hover:text-foreground"
+                      >
+                        Reset file
+                      </button>
+                    )}
+                  </div>
+
+                  {payrollImportError && (
+                    <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-600">
+                      {payrollImportError}
+                    </div>
+                  )}
+
+                  {payrollImportSummary ? (
+                    <>
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-xl bg-background p-4 border border-border">
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">File</div>
+                          <div className="font-black mt-1 break-all">{payrollImportSummary.fileName}</div>
+                        </div>
+                        <div className="rounded-xl bg-background p-4 border border-border">
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Rows</div>
+                          <div className="font-black mt-1">{payrollImportSummary.totalRows}</div>
+                        </div>
+                        <div className="rounded-xl bg-background p-4 border border-border">
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Gross XML</div>
+                          <div className="font-black mt-1">Rp{new Intl.NumberFormat("id-ID").format(payrollImportSummary.totalGross)}</div>
+                        </div>
+                        <div className="rounded-xl bg-background p-4 border border-border">
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Pajak XML</div>
+                          <div className="font-black mt-1">Rp{new Intl.NumberFormat("id-ID").format(payrollImportSummary.totalTax)}</div>
+                        </div>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="rounded-xl bg-background p-4 border border-border">
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Periode</div>
+                          <div className="font-black mt-1">
+                            {payrollImportSummary.taxPeriodMonth && payrollImportSummary.taxPeriodYear
+                              ? `${String(payrollImportSummary.taxPeriodMonth).padStart(2, "0")}/${payrollImportSummary.taxPeriodYear}`
+                              : "-"}
+                          </div>
+                        </div>
+                        <div className="rounded-xl bg-background p-4 border border-border">
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Withholding Date</div>
+                          <div className="font-black mt-1">
+                            {payrollImportSummary.withholdingDate ? new Date(payrollImportSummary.withholdingDate).toLocaleDateString("id-ID") : "-"}
+                          </div>
+                        </div>
+                        <div className="rounded-xl bg-background p-4 border border-border md:col-span-2">
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Recipient unik</div>
+                          <div className="font-black mt-1">{payrollImportSummary.uniqueRecipients}</div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-border bg-background/50 p-6 text-sm text-muted-foreground">
+                      Upload file XML PPPK dulu untuk membaca ringkasannya.
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-border bg-muted/20 p-4 flex flex-col gap-4">
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-widest text-muted-foreground">Pilih record manual</div>
+                    <div className="text-sm text-muted-foreground mt-1">Cari nomor SPM atau SP2D yang berkaitan dengan file XML ini.</div>
+                  </div>
+                  <input
+                    type="text"
+                    value={payrollRecordQuery}
+                    onChange={(e) => setPayrollRecordQuery(e.target.value)}
+                    placeholder="Cari SPM / SP2D / recipient"
+                    className="w-full rounded-xl bg-background px-4 py-3 text-sm outline-none border border-border focus:ring-2 focus:ring-cyan-500/20"
+                  />
+                  <div className="max-h-[26rem] overflow-y-auto rounded-2xl border border-border bg-background">
+                    {filteredPayrollImportRecords.length ? (
+                      <div className="divide-y divide-border">
+                        {filteredPayrollImportRecords.map((record) => {
+                          const selected = record.id === selectedPayrollRecordId;
+                          return (
+                            <button
+                              key={record.id}
+                              type="button"
+                              onClick={() => setSelectedPayrollRecordId(record.id)}
+                              className={`w-full text-left p-4 transition-colors ${selected ? "bg-cyan-500/10" : "hover:bg-muted/60"}`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="font-black truncate">{record.spmNumber}</div>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {record.sp2dNumber || "SP2D belum terbit"} · {record.recipient || "-"}
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Potongan</div>
+                                  <div className="font-black">Rp{new Intl.NumberFormat("id-ID").format(record.deductionAmount)}</div>
+                                </div>
+                              </div>
+                              <div className="text-[10px] text-muted-foreground mt-2">
+                                {record.sp2dDate ? new Date(record.sp2dDate).toLocaleDateString("id-ID") : "-"} · {getTaxAccountLabel(record.accountCode)}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="p-4 text-sm text-muted-foreground">Tidak ada record yang cocok.</div>
+                    )}
+                  </div>
+
+                  {selectedPayrollRecord && payrollImportSummary && payrollImportComparison && (
+                    <div className={`rounded-2xl border p-4 ${payrollImportComparison.isMatch ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700" : "border-amber-500/20 bg-amber-500/10 text-amber-700"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-[10px] font-black uppercase tracking-widest">Hasil pencocokan</div>
+                          <div className="font-black mt-1">{selectedPayrollRecord.spmNumber} · {selectedPayrollRecord.sp2dNumber || "SP2D belum terbit"}</div>
+                        </div>
+                        <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-background/60">
+                          {payrollImportComparison.isMatch ? "Sesuai" : "Tidak sesuai"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4 text-sm">
+                        <div className="rounded-xl bg-background/70 p-3 border border-border">
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Total pajak XML</div>
+                          <div className="font-black mt-1">Rp{new Intl.NumberFormat("id-ID").format(payrollImportSummary.totalTax)}</div>
+                        </div>
+                        <div className="rounded-xl bg-background/70 p-3 border border-border">
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Potongan record</div>
+                          <div className="font-black mt-1">Rp{new Intl.NumberFormat("id-ID").format(selectedPayrollRecord.deductionAmount)}</div>
+                        </div>
+                        <div className="rounded-xl bg-background/70 p-3 border border-border">
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Selisih</div>
+                          <div className="font-black mt-1">Rp{new Intl.NumberFormat("id-ID").format(payrollImportComparison.difference)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Search & Basic Filters */}

@@ -182,3 +182,59 @@ export function parsePph21Xml(xml: string): ImportedPph21Line[] {
     return { documentNumber, documentDate, withholdingDate, counterpartTin, taxObjectCode, gross, deemed, rate, calculatedTax: calculatePph21Tax(gross, deemed, rate), taxPeriodMonth, taxPeriodYear };
   });
 }
+
+export type ImportedMmPayrollLine = {
+  counterpartTin: string;
+  statusTaxExemption: string;
+  position: string;
+  taxObjectCode: string;
+  gross: number;
+  rate: number;
+  withholdingDate: string;
+  taxPeriodMonth: number;
+  taxPeriodYear: number;
+  calculatedTax: number;
+};
+
+export function calculateMmPayrollTax(gross: number, rate: number) {
+  return Math.floor(gross * (rate / 100));
+}
+
+export function parseMmPayrollXml(xml: string): ImportedMmPayrollLine[] {
+  if (!xml.trim()) throw new Error("File XML kosong.");
+  if (/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new Error("DOCTYPE dan ENTITY tidak diperbolehkan.");
+  if (!/<MmPayrollBulk\b/i.test(xml)) throw new Error("Root MmPayrollBulk tidak ditemukan.");
+  const blocks = Array.from(xml.matchAll(/<MmPayroll\b[^>]*>([\s\S]*?)<\/MmPayroll>/gi), (match) => match[1]);
+  if (blocks.length === 0) throw new Error("XML tidak memiliki data MmPayroll.");
+
+  return blocks.map((block, index) => {
+    const counterpartTin = normalizeNik(readXmlTag(block, "CounterpartTin"));
+    const statusTaxExemption = readXmlTag(block, "StatusTaxExemption");
+    const position = readXmlTag(block, "Position");
+    const taxObjectCode = readXmlTag(block, "TaxObjectCode");
+    const gross = Number(readXmlTag(block, "Gross"));
+    const rate = Number(readXmlTag(block, "Rate"));
+    const withholdingDate = readXmlTag(block, "WithholdingDate");
+    const taxPeriodMonth = Number(readXmlTag(block, "TaxPeriodMonth"));
+    const taxPeriodYear = Number(readXmlTag(block, "TaxPeriodYear"));
+    if (!/^\d{16}$/.test(counterpartTin)) throw new Error(`CounterpartTin baris ${index + 1} harus 16 digit.`);
+    if (!statusTaxExemption) throw new Error(`StatusTaxExemption baris ${index + 1} wajib diisi.`);
+    if (!position) throw new Error(`Position baris ${index + 1} wajib diisi.`);
+    if (!taxObjectCode) throw new Error(`TaxObjectCode baris ${index + 1} wajib diisi.`);
+    if (![gross, rate].every(Number.isFinite) || gross < 0 || rate < 0) throw new Error(`Nilai gross/rate baris ${index + 1} tidak valid.`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(withholdingDate) || Number.isNaN(new Date(withholdingDate).getTime())) throw new Error(`WithholdingDate baris ${index + 1} tidak valid.`);
+    if (!Number.isInteger(taxPeriodMonth) || taxPeriodMonth < 1 || taxPeriodMonth > 12 || !Number.isInteger(taxPeriodYear)) throw new Error(`Periode pajak baris ${index + 1} tidak valid.`);
+    return {
+      counterpartTin,
+      statusTaxExemption,
+      position,
+      taxObjectCode,
+      gross,
+      rate,
+      withholdingDate,
+      taxPeriodMonth,
+      taxPeriodYear,
+      calculatedTax: calculateMmPayrollTax(gross, rate),
+    };
+  });
+}

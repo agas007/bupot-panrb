@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRequestSessionUser } from "@/lib/session-cookie";
 
-const VALID_ACCOUNTS = ["411121", "411122", "411124"];
+const VALID_ACCOUNTS = ["411121", "411122", "411124", "811147"];
 
 export const runtime = 'nodejs';
 
@@ -11,7 +12,7 @@ export const runtime = 'nodejs';
  */
 async function notifyUser(userId: number, title: string, message: string, type: string = "INFO") {
   try {
-    await (prisma as any).notification.create({
+    await prisma.notification.create({
       data: {
         userId,
         title,
@@ -19,7 +20,7 @@ async function notifyUser(userId: number, title: string, message: string, type: 
         type
       }
     });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("Failed to create notification:", err);
   }
 }
@@ -90,8 +91,8 @@ export async function GET(req: NextRequest) {
     ]);
 
     return NextResponse.json({ records, total, page, pageSize });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memuat records" }, { status: 500 });
   }
 }
 
@@ -100,7 +101,7 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const { id, ids, status, docLink, notes, assigneeId } = body;
 
-    const updateData: any = {};
+    const updateData: Prisma.SPMRecordUpdateInput = {};
     let action = "Updated Record";
     let type = "user";
     
@@ -120,7 +121,7 @@ export async function PATCH(req: NextRequest) {
     
     // Assignment Logic with Notifications
     if (assigneeId !== undefined) {
-      const user = reqUsername ? await (prisma.colleague as any).findFirst({ where: { username: reqUsername } }) : null;
+      const user = reqUsername ? await prisma.colleague.findFirst({ where: { username: reqUsername } }) : null;
       if (!user) {
         return NextResponse.json({ error: "Access Denied: Authentication required for assignment" }, { status: 403 });
       }
@@ -130,7 +131,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const userName = adminName;
-    let target = id ? `Record ID: ${id}` : `${ids?.length} Records`;
+    const target = id ? `Record ID: ${id}` : `${ids?.length} Records`;
 
     if (ids && Array.isArray(ids)) {
       const targetIds = ids.map(Number);
@@ -180,7 +181,7 @@ export async function PATCH(req: NextRequest) {
     });
 
     return NextResponse.json(record);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memperbarui record" }, { status: 500 });
   }
 }

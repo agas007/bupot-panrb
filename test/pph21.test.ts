@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPph21Xml, calculatePph21Tax, normalizePph21Lines, parsePph21Xml } from "../src/lib/pph21.ts";
+import { buildPph21Xml, calculateMmPayrollTax, calculatePph21Tax, normalizePph21Lines, parseMmPayrollXml, parsePph21Xml } from "../src/lib/pph21.ts";
 
 test("maps supported tax objects and floors each calculated tax", () => {
   const lines = normalizePph21Lines([
@@ -41,4 +41,33 @@ test("builds a Coretax-compatible XML row for every recipient", () => {
 test("rejects unsafe or malformed imported XML", () => {
   assert.throws(() => parsePph21Xml('<!DOCTYPE x [<!ENTITY test "x">]><Bp21Bulk/>'), /DOCTYPE/);
   assert.throws(() => parsePph21Xml("<root />"), /Bp21Bulk/);
+});
+
+test("parses MmPayroll XML and calculates payroll tax from gross and rate", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MmPayrollBulk xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <TIN>0001861061012000</TIN>
+  <ListOfMmPayroll>
+    <MmPayroll>
+      <TaxPeriodMonth>6</TaxPeriodMonth>
+      <TaxPeriodYear>2026</TaxPeriodYear>
+      <CounterpartOpt>Resident</CounterpartOpt>
+      <CounterpartPassport xsi:nil="true"/>
+      <CounterpartTin>3275090906680014</CounterpartTin>
+      <StatusTaxExemption>TK/0</StatusTaxExemption>
+      <Position>STAFF</Position>
+      <TaxCertificate>N/A</TaxCertificate>
+      <TaxObjectCode>21-100-01</TaxObjectCode>
+      <Gross>10265834</Gross>
+      <Rate>2.25</Rate>
+      <IDPlaceOfBusinessActivity>0001861061012000000000</IDPlaceOfBusinessActivity>
+      <WithholdingDate>2026-06-04</WithholdingDate>
+    </MmPayroll>
+  </ListOfMmPayroll>
+</MmPayrollBulk>`;
+
+  const imported = parseMmPayrollXml(xml);
+  assert.equal(imported.length, 1);
+  assert.equal(imported[0].counterpartTin, "3275090906680014");
+  assert.equal(imported[0].calculatedTax, calculateMmPayrollTax(10265834, 2.25));
 });
