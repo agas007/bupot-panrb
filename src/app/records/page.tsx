@@ -488,6 +488,13 @@ export default function RecordsPage() {
     return selectedPph21Record?.pph21Batch?.withholdings?.reduce((sum, line) => sum + line.calculatedTax, 0) || 0;
   }, [selectedPph21Record]);
 
+  const pph21ErrorRow = useMemo(() => {
+    const match = pph21SaveError.match(/baris\s+(\d+)/i);
+    if (!match) return null;
+    const value = Number(match[1]);
+    return Number.isInteger(value) && value > 0 ? value : null;
+  }, [pph21SaveError]);
+
   const isPph21XmlReady = useMemo(() => {
     if (!selectedRecord || selectedRecord.accountCode !== "411121") return false;
     if (selectedPph21Record?.pph21Batch?.status === "ISSUES") return false;
@@ -771,7 +778,14 @@ export default function RecordsPage() {
                               const rule = PPH21_TAX_OBJECTS[line.taxObjectCode];
                               const calculatedTax = Math.floor((Number(line.gross) || 0) * rule.deemed / 100 * rule.rate / 100);
                               return (
-                                <div key={line.clientId} className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-background/50 p-3 md:grid-cols-[4rem_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.55fr)_minmax(0,1fr)_auto] md:items-end md:gap-2">
+                                <div
+                                  key={line.clientId}
+                                  className={`grid grid-cols-1 gap-3 rounded-2xl border p-3 md:grid-cols-[4rem_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.55fr)_minmax(0,1fr)_auto] md:items-end md:gap-2 ${
+                                    pph21ErrorRow === index + 1
+                                      ? "border-rose-500/40 bg-rose-500/5 ring-1 ring-rose-500/20"
+                                      : "border-border bg-background/50"
+                                  }`}
+                                >
                                   <div className="min-w-0 text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                     <span className="inline-flex h-9 items-center justify-center rounded-xl border border-border bg-muted px-3 text-[11px] font-black tabular-nums text-foreground/80">
                                       {index + 1}
