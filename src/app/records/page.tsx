@@ -99,6 +99,7 @@ export default function RecordsPage() {
   const [isPph21Saving, setIsPph21Saving] = useState(false);
   const [isPph21XmlDownloading, setIsPph21XmlDownloading] = useState(false);
   const [isPph21XmlExporting, setIsPph21XmlExporting] = useState(false);
+  const [pph21SaveError, setPph21SaveError] = useState("");
   const [pph21WithholdingDate, setPph21WithholdingDate] = useState("");
   const [pph21Lines, setPph21Lines] = useState<Pph21Line[]>([createPph21Line()]);
   const [updateForm, setUpdateForm] = useState<{ docLink: string, notes: string, status: "COMPLETED" | "ISSUES" }>({ docLink: "", notes: "", status: "COMPLETED" });
@@ -192,6 +193,7 @@ export default function RecordsPage() {
   const openUpdateModal = async (record: SPMRecord) => {
     setSelectedRecord(record);
     setSelectedPph21Record(null);
+    setPph21SaveError("");
     setIsPph21EditorOpen(record.accountCode === "411121");
     setUpdateForm({ docLink: record.docLink || "", notes: record.notes || "", status: record.status === "ISSUES" ? "ISSUES" : "COMPLETED" });
     setIsUpdateModalOpen(true);
@@ -498,6 +500,7 @@ export default function RecordsPage() {
   const savePph21FromRecords = async () => {
     if (!selectedRecord || selectedRecord.accountCode !== "411121") return;
     setIsPph21Saving(true);
+    setPph21SaveError("");
     try {
       const res = await fetch("/api/pph21", {
         method: "POST",
@@ -521,6 +524,7 @@ export default function RecordsPage() {
       fetchData();
     } catch (error) {
       console.error(error);
+      setPph21SaveError(error instanceof Error ? error.message : "Gagal menyimpan rincian PPh 21");
     } finally {
       setIsPph21Saving(false);
     }
@@ -826,6 +830,14 @@ export default function RecordsPage() {
                               Simpan rincian
                             </button>
                           </div>
+                          {pph21SaveError && (
+                            <div
+                              role="alert"
+                              className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-600"
+                            >
+                              {pph21SaveError}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
