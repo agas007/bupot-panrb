@@ -756,7 +756,12 @@ export default function RecordsPage() {
                               const rule = PPH21_TAX_OBJECTS[line.taxObjectCode];
                               const calculatedTax = Math.floor((Number(line.gross) || 0) * rule.deemed / 100 * rule.rate / 100);
                               return (
-                                <div key={line.clientId} className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-background/50 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.55fr)_minmax(0,1fr)_auto] md:items-end md:gap-2">
+                                <div key={line.clientId} className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-background/50 p-3 md:grid-cols-[4rem_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.55fr)_minmax(0,1fr)_auto] md:items-end md:gap-2">
+                                  <div className="min-w-0 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                    <span className="inline-flex h-9 items-center justify-center rounded-xl border border-border bg-muted px-3 text-[11px] font-black tabular-nums text-foreground/80">
+                                      {index + 1}
+                                    </span>
+                                  </div>
                                   <label className="min-w-0 text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                     NIK
                                     <input
@@ -809,7 +814,7 @@ export default function RecordsPage() {
                                   >
                                     <Trash2 size={16} />
                                   </button>
-                                  <div className="md:col-span-5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                  <div className="md:col-span-6 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                                     Pajak terhitung: Rp {calculatedTax.toLocaleString("id-ID")}
                                   </div>
                                 </div>
