@@ -1519,13 +1519,13 @@ export default function RecordsPage() {
                 <div className="rounded-2xl border border-border bg-muted/20 p-4 flex flex-col gap-4">
                   <div>
                     <div className="text-xs font-black uppercase tracking-widest text-muted-foreground">Pilih record manual</div>
-                    <div className="text-sm text-muted-foreground mt-1">Cari semua record yang belum completed dan pilih SPM/SP2D yang paling sesuai dengan file XML ini.</div>
+                    <div className="text-sm text-muted-foreground mt-1">Cari semua record yang belum completed. Bisa pakai SPM/SP2D, recipient, gross, atau potongan untuk cari record yang paling sesuai.</div>
                   </div>
                   <input
                     type="text"
                     value={payrollRecordQuery}
                     onChange={(e) => setPayrollRecordQuery(e.target.value)}
-                    placeholder="Cari SPM / SP2D / recipient"
+                    placeholder="Cari SPM / SP2D / recipient / gross / potongan"
                     className="w-full rounded-xl bg-background px-4 py-3 text-sm outline-none border border-border focus:ring-2 focus:ring-cyan-500/20"
                   />
                   <div className="max-h-[26rem] overflow-y-auto rounded-2xl border border-border bg-background">
