@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
   const pageSize = Math.min(1000, Math.max(5, requestedSize));
   const sortKey = searchParams.get("sortKey");
   const sortDirection: Prisma.SortOrder = searchParams.get("sortDirection") === "asc" ? "asc" : "desc";
+  const compact = searchParams.get("compact") === "1";
   const numericQuery = Number(q.replace(/\./g, "").replace(",", "."));
   const insensitiveMode: Prisma.QueryMode = "insensitive";
 
@@ -74,20 +75,38 @@ export async function GET(req: NextRequest) {
       : sortKey === "recipient" ? { recipient: sortDirection }
       : sortKey === "assignee" ? { assignee: { name: sortDirection } }
       : { sp2dDate: sortDirection };
+    const recordsQuery = compact
+      ? prisma.sPMRecord.findMany({
+          where,
+          select: {
+            id: true,
+            spmNumber: true,
+            sp2dNumber: true,
+            sp2dDate: true,
+            description: true,
+            recipient: true,
+            accountCode: true,
+            deductionAmount: true,
+          },
+          orderBy,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        })
+      : prisma.sPMRecord.findMany({
+          where,
+          select: {
+            id: true, uniqueKey: true, spmNumber: true, spmDate: true, accountCode: true, deductionAmount: true,
+            sp2dNumber: true, sp2dDate: true, description: true, recipient: true, totalValue: true, status: true,
+            assigneeId: true, completionDate: true, docLink: true, notes: true, importDate: true, updatedAt: true,
+            assignee: { select: { id: true, username: true, name: true, role: true, createdAt: true } },
+            pph21Batch: { select: { id: true, status: true, issueNotes: true } },
+          },
+          orderBy,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        });
     const [records, total] = await Promise.all([
-      prisma.sPMRecord.findMany({
-        where,
-        select: {
-          id: true, uniqueKey: true, spmNumber: true, spmDate: true, accountCode: true, deductionAmount: true,
-          sp2dNumber: true, sp2dDate: true, description: true, recipient: true, totalValue: true, status: true,
-          assigneeId: true, completionDate: true, docLink: true, notes: true, importDate: true, updatedAt: true,
-          assignee: { select: { id: true, username: true, name: true, role: true, createdAt: true } },
-          pph21Batch: { select: { id: true, status: true, issueNotes: true } },
-        },
-        orderBy,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
+      recordsQuery,
       prisma.sPMRecord.count({ where }),
     ]);
 

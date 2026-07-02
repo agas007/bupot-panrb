@@ -75,6 +75,7 @@ type PayrollImportSummary = {
   taxPeriodYear: number | null;
   withholdingDate: string | null;
 };
+type PayrollImportRecord = Pick<SPMRecord, "id" | "spmNumber" | "sp2dNumber" | "sp2dDate" | "recipient" | "description" | "deductionAmount" | "accountCode">;
 
 const formatGrossInput = (value: string) => {
   if (!value) return "";
@@ -144,7 +145,7 @@ export default function RecordsPage() {
   const [importError, setImportError] = useState("");
   const [payrollImportSummary, setPayrollImportSummary] = useState<PayrollImportSummary | null>(null);
   const [payrollImportError, setPayrollImportError] = useState("");
-  const [payrollImportRecords, setPayrollImportRecords] = useState<SPMRecord[]>([]);
+  const [payrollImportRecords, setPayrollImportRecords] = useState<PayrollImportRecord[]>([]);
   const [payrollRecordQuery, setPayrollRecordQuery] = useState("");
   const [selectedPayrollRecordId, setSelectedPayrollRecordId] = useState<number | null>(null);
 
@@ -666,7 +667,7 @@ export default function RecordsPage() {
 
   const loadPayrollImportRecords = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ page: "1", pageSize: "max", accountCode: "811147", sortKey: "sp2d", sortDirection: "desc" });
+      const params = new URLSearchParams({ page: "1", pageSize: "max", accountCode: "811147", sortKey: "sp2d", sortDirection: "desc", compact: "1" });
       const res = await fetch(`/api/records?${params}`);
       const data = await res.json();
       setPayrollImportRecords(Array.isArray(data.records) ? data.records : []);
