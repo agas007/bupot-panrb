@@ -73,7 +73,7 @@ export default function LoginPage() {
               </div>
               <div className="flex flex-col gap-1">
                  <h1 className="text-3xl font-black uppercase tracking-tight text-white/90 leading-none">Bupot PANRB</h1>
-                 <p className="text-[10px] font-bold text-accent uppercase tracking-[0.3em] opacity-80 italic">Internal Management</p>
+              <p className="text-[10px] font-bold text-accent uppercase tracking-[0.3em] opacity-80 italic">Biro Umum dan Keuangan</p>
               </div>
            </div>
 
@@ -148,7 +148,7 @@ export default function LoginPage() {
 
            <div className="flex flex-col items-center gap-1 opacity-20 hover:opacity-100 transition-opacity">
               <span className="text-[9px] font-bold text-white uppercase tracking-widest italic">Digital Security Layer v2.1</span>
-              <p className="text-[8px] text-center text-white/60">Sistem ini hanya ditujukan untuk penggunaan internal Biro Umum dan Pengadaan PANRB.</p>
+              <p className="text-[8px] text-center text-white/60">Sistem ini hanya ditujukan untuk penggunaan internal Biro Umum dan Keuangan PANRB.</p>
            </div>
         </div>
       </div>
