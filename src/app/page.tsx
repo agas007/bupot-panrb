@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { 
   BarChart, 
   Bar, 
@@ -47,6 +47,7 @@ export default function Dashboard() {
   const { language, t } = useLanguage();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
@@ -62,24 +63,40 @@ export default function Dashboard() {
     return years;
   }, []);
 
-  useEffect(() => {
-    setIsMounted(true);
-    fetchData();
-  }, [selectedYear, selectedMonth]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/dashboard?year=${selectedYear}&month=${selectedMonth}`);
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Gagal memuat dashboard");
+      }
       setStats(data);
     } catch (err) {
       console.error(err);
+      setStats(null);
+      setError(err instanceof Error ? err.message : "Gagal memuat dashboard");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedYear, selectedMonth]);
 
+  useEffect(() => {
+    setIsMounted(true);
+    void fetchData();
+  }, [fetchData]);
+
+  if (error) {
+    return (
+      <div className="p-8">
+        <div className="rounded-3xl border border-rose-500/20 bg-rose-500/10 p-6 text-rose-600">
+          <div className="font-black text-lg">{language === "ID" ? "Dashboard gagal dimuat" : "Dashboard failed to load"}</div>
+          <div className="mt-2 text-sm font-medium">{error}</div>
+        </div>
+      </div>
+    );
+  }
   if (isLoading || !stats) return <div className="p-8 opacity-50">{language === "ID" ? "Memuat beranda..." : "Initializing dashboard..."}</div>;
 
   const COLORS = ["#00BFA5", "#FFAB00", "#FF5252", "#7C4DFF"];
@@ -177,7 +194,7 @@ export default function Dashboard() {
             <span className="metric-label">{language === "ID" ? "Dalam Kendala" : "Flagged Issues"}</span>
             <AlertCircle className="text-muted-foreground group-hover:text-amber-500 transition-colors" size={20} />
           </div>
-          <span className="metric-value text-amber-500 tracking-tighter">{(stats as any).issues.toLocaleString()}</span>
+          <span className="metric-value text-amber-500 tracking-tighter">{stats.issues.toLocaleString()}</span>
           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-2 opacity-60 italic">{language === "ID" ? "Memerlukan tindak lanjut" : "Requires follow-up"}</span>
         </div>
 
