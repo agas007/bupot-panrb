@@ -75,7 +75,7 @@ type PayrollImportSummary = {
   taxPeriodYear: number | null;
   withholdingDate: string | null;
 };
-type PayrollImportRecord = Pick<SPMRecord, "id" | "spmNumber" | "sp2dNumber" | "sp2dDate" | "recipient" | "description" | "deductionAmount" | "accountCode" | "status">;
+type PayrollImportRecord = Pick<SPMRecord, "id" | "spmNumber" | "sp2dNumber" | "sp2dDate" | "recipient" | "description" | "deductionAmount" | "accountCode" | "status" | "totalValue">;
 
 const formatGrossInput = (value: string) => {
   if (!value) return "";
@@ -541,13 +541,34 @@ export default function RecordsPage() {
   const filteredPayrollImportRecords = useMemo(() => {
     const query = payrollRecordQuery.trim().toLowerCase();
     if (!query) return payrollImportRecords;
+    const normalizedQuery = query.replace(/\D/g, "");
     return payrollImportRecords.filter((record) => {
-      return [
+      const searchableValues = [
         record.spmNumber,
         record.sp2dNumber,
         record.recipient,
         record.description,
-      ].some((value) => String(value || "").toLowerCase().includes(query));
+        record.accountCode,
+        record.status,
+        record.totalValue != null ? new Intl.NumberFormat("id-ID").format(record.totalValue) : "",
+        record.deductionAmount != null ? new Intl.NumberFormat("id-ID").format(record.deductionAmount) : "",
+      ]
+        .map((value) => String(value || "").toLowerCase())
+        .join(" ");
+
+      if (searchableValues.includes(query)) return true;
+      if (normalizedQuery) {
+        const numericValues = [
+          record.totalValue,
+          record.deductionAmount,
+        ]
+          .filter((value): value is number => typeof value === "number" && Number.isFinite(value))
+          .map((value) => String(Math.round(value)).replace(/\D/g, ""));
+
+        return numericValues.some((value) => value.includes(normalizedQuery));
+      }
+
+      return searchableValues.includes(query);
     });
   }, [payrollImportRecords, payrollRecordQuery]);
 
