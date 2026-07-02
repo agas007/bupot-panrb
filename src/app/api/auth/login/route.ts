@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     if (isPrismaConnectionError(error)) {
       return NextResponse.json(
-        { error: "Database tidak terhubung. Cek DATABASE_URL / Neon server dulu." },
+        { error: "Database tidak terhubung. Cek DATABASE_URL dan koneksi ke server DB dulu." },
         { status: 503 },
       );
     }

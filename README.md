@@ -10,12 +10,12 @@ Bupot PANRB adalah aplikasi internal untuk mendata, memonitor, dan menata bukti 
 - **Task Management**: Penugasan bukti potong ke kolega/staff tertentu.
 - **Monitoring Real-time**: Dashboard pemantauan status penyelesaian dokumen (Pending/Completed).
 - **Analytics Dashboard**: Visualisasi data menggunakan grafik interaktif untuk melihat beban kerja dan progress.
-- **Data Persistence**: Menggunakan database PostgreSQL (Neon) dengan Prisma ORM.
+- **Data Persistence**: Menggunakan database PostgreSQL dengan Prisma ORM.
 
 ## 🛠️ Tech Stack
 
 - **Frontend**: [Next.js 15+](https://nextjs.org/) (App Router), React 19
-- **Database**: PostgreSQL via [Neon](https://neon.tech/)
+- **Database**: PostgreSQL self-hosted atau managed
 - **ORM**: [Prisma](https://www.prisma.io/)
 - **Styling**: Tailwind CSS & Lucide Icons
 - **Charts**: Recharts
@@ -37,7 +37,7 @@ Bupot PANRB adalah aplikasi internal untuk mendata, memonitor, dan menata bukti 
 3. **Setup Environment**:
    Buat file `.env` di root directory:
    ```env
-   DATABASE_URL="postgres://user:password@hostname/neondb?sslmode=require"
+   DATABASE_URL="postgresql://user:password@hostname:5432/neondb"
    ```
 
 4. **Migrasi Database**:
@@ -58,6 +58,7 @@ Aplikasi ini dirancang untuk dideploy ke **Vercel**:
 2. Hubungkan repo ke Vercel Dashboard.
 3. Masukkan `DATABASE_URL` di Environment Variables.
 4. Vercel akan otomatis melakukan build dan deploy.
+5. Pastikan database bisa diakses publik dari Vercel, atau gunakan managed database yang memang terbuka dari internet.
 
 ---
 Dikembangkan oleh Tim Developer Kemenpan.

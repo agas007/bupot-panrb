@@ -16,7 +16,7 @@ export default async function ApiDocsPage() {
            </div>
         </div>
         <p className="text-muted-foreground text-lg max-w-3xl leading-relaxed">
-          Explorer teknis untuk layanan backend Bupot PANRB. Dokumentasi ini terintegrasi langsung dengan skema database Neon dan sistem Audit Log.
+          Explorer teknis untuk layanan backend Bupot PANRB. Dokumentasi ini terintegrasi langsung dengan skema database PostgreSQL dan sistem Audit Log.
         </p>
       </header>
 

@@ -87,6 +87,7 @@ export async function GET(req: NextRequest) {
             recipient: true,
             accountCode: true,
             deductionAmount: true,
+            status: true,
           },
           orderBy,
           skip: (page - 1) * pageSize,

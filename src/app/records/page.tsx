@@ -75,7 +75,7 @@ type PayrollImportSummary = {
   taxPeriodYear: number | null;
   withholdingDate: string | null;
 };
-type PayrollImportRecord = Pick<SPMRecord, "id" | "spmNumber" | "sp2dNumber" | "sp2dDate" | "recipient" | "description" | "deductionAmount" | "accountCode">;
+type PayrollImportRecord = Pick<SPMRecord, "id" | "spmNumber" | "sp2dNumber" | "sp2dDate" | "recipient" | "description" | "deductionAmount" | "accountCode" | "status">;
 
 const formatGrossInput = (value: string) => {
   if (!value) return "";
@@ -667,10 +667,10 @@ export default function RecordsPage() {
 
   const loadPayrollImportRecords = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ page: "1", pageSize: "max", accountCode: "811147", sortKey: "sp2d", sortDirection: "desc", compact: "1" });
+      const params = new URLSearchParams({ page: "1", pageSize: "max", sortKey: "sp2d", sortDirection: "desc", compact: "1" });
       const res = await fetch(`/api/records?${params}`);
       const data = await res.json();
-      setPayrollImportRecords(Array.isArray(data.records) ? data.records : []);
+      setPayrollImportRecords(Array.isArray(data.records) ? data.records.filter((record: PayrollImportRecord) => record.status !== "COMPLETED") : []);
     } catch (error) {
       console.error(error);
       setPayrollImportRecords([]);
@@ -1498,7 +1498,7 @@ export default function RecordsPage() {
                 <div className="rounded-2xl border border-border bg-muted/20 p-4 flex flex-col gap-4">
                   <div>
                     <div className="text-xs font-black uppercase tracking-widest text-muted-foreground">Pilih record manual</div>
-                    <div className="text-sm text-muted-foreground mt-1">Cari nomor SPM atau SP2D yang berkaitan dengan file XML ini.</div>
+                    <div className="text-sm text-muted-foreground mt-1">Cari semua record yang belum completed dan pilih SPM/SP2D yang paling sesuai dengan file XML ini.</div>
                   </div>
                   <input
                     type="text"
@@ -1524,6 +1524,11 @@ export default function RecordsPage() {
                                   <div className="font-black truncate">{record.spmNumber}</div>
                                   <div className="text-xs text-muted-foreground mt-1">
                                     {record.sp2dNumber || "SP2D belum terbit"} · {record.recipient || "-"}
+                                  </div>
+                                  <div className="mt-2">
+                                    <span className={`badge ${record.status === "ISSUES" ? "bg-amber-500/10! text-amber-500! border-amber-500/20!" : "badge-pending"}`}>
+                                      {record.status}
+                                    </span>
                                   </div>
                                 </div>
                                 <div className="text-right shrink-0">
