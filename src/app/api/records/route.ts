@@ -38,11 +38,12 @@ export async function GET(req: NextRequest) {
   const requestedSize = searchParams.get("pageSize") === "max" ? 1000 : Number(searchParams.get("pageSize")) || 25;
   const pageSize = Math.min(1000, Math.max(5, requestedSize));
   const sortKey = searchParams.get("sortKey");
-  const sortDirection = searchParams.get("sortDirection") === "asc" ? "asc" : "desc";
+  const sortDirection: Prisma.SortOrder = searchParams.get("sortDirection") === "asc" ? "asc" : "desc";
   const numericQuery = Number(q.replace(/\./g, "").replace(",", "."));
+  const insensitiveMode: Prisma.QueryMode = "insensitive";
 
   try {
-    const where = {
+    const where: Prisma.SPMRecordWhereInput = {
       accountCode: accountCode && VALID_ACCOUNTS.includes(accountCode) ? accountCode : { in: VALID_ACCOUNTS },
       ...(assigneeId === "unassigned" ? { assigneeId: null } : assigneeId ? { assigneeId: Number(assigneeId) } : {}),
       ...(status ? { status } : {}),
@@ -58,15 +59,15 @@ export async function GET(req: NextRequest) {
         : {}),
       ...(startDate || endDate ? { sp2dDate: { ...(startDate ? { gte: new Date(`${startDate}T00:00:00.000Z`) } : {}), ...(endDate ? { lt: new Date(new Date(`${endDate}T00:00:00.000Z`).getTime() + 86_400_000) } : {}) } } : {}),
       ...(q ? { OR: [
-        { spmNumber: { contains: q, mode: "insensitive" } },
-        { sp2dNumber: { contains: q, mode: "insensitive" } },
-        { recipient: { contains: q, mode: "insensitive" } },
-        { description: { contains: q, mode: "insensitive" } },
+        { spmNumber: { contains: q, mode: insensitiveMode } },
+        { sp2dNumber: { contains: q, mode: insensitiveMode } },
+        { recipient: { contains: q, mode: insensitiveMode } },
+        { description: { contains: q, mode: insensitiveMode } },
         { accountCode: { contains: q } },
         ...(Number.isFinite(numericQuery) ? [{ deductionAmount: numericQuery }, { totalValue: numericQuery }] : []),
       ] } : {}),
     };
-    const orderBy = sortKey === "spm" ? { spmNumber: sortDirection }
+    const orderBy: Prisma.SPMRecordOrderByWithRelationInput = sortKey === "spm" ? { spmNumber: sortDirection }
       : sortKey === "description" ? { description: sortDirection }
       : sortKey === "sp2d" ? { sp2dNumber: sortDirection }
       : sortKey === "akun" ? { accountCode: sortDirection }

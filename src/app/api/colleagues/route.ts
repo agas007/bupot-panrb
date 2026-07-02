@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { getRequestSessionUser } from "@/lib/session-cookie";
@@ -12,11 +13,10 @@ async function isAdmin(req: NextRequest) {
   const sessionUser = getRequestSessionUser(req);
   const username = sessionUser?.username ?? req.headers.get("x-simulated-username");
   if (!username) return false;
-  // Use findFirst with cast to bypass Prisma's lagging types
-  const user = await (prisma.colleague as any).findFirst({
+  const user = await prisma.colleague.findFirst({
     where: { username }
   });
-  return user && user.role === "ADMIN";
+  return user?.role === "ADMIN";
 }
 
 export async function GET() {
@@ -30,8 +30,8 @@ export async function GET() {
       orderBy: { name: 'asc' }
     });
     return NextResponse.json(colleagues);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memuat colleagues" }, { status: 500 });
   }
 }
 
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     // 🔥 NEW: Password Hashing
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
-    const colleague = await (prisma.colleague as any).create({
+    const colleague = await prisma.colleague.create({
       data: { 
         name, 
         username: finalUsername,
@@ -73,8 +73,8 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(colleague);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal menambah colleague" }, { status: 500 });
   }
 }
 
@@ -83,9 +83,12 @@ export async function PATCH(req: NextRequest) {
     const { id, name, username, password, role } = await req.json();
     const targetId = Number(id);
     const reqUsername = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
+    if (!reqUsername) {
+      return NextResponse.json({ error: "Invalid Session" }, { status: 401 });
+    }
 
     // 1. Get Requester Info
-    const requester = await (prisma.colleague as any).findFirst({
+    const requester = await prisma.colleague.findFirst({
       where: { username: reqUsername }
     });
 
@@ -102,7 +105,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // 3. Prepare Update Data
-    const updateData: any = {};
+    const updateData: Prisma.ColleagueUpdateInput = {};
     if (name) updateData.name = name;
     if (username && isTargetAdmin) updateData.username = username; // Only admin can change username
     if (role && isTargetAdmin) updateData.role = role; // Only admin can change role
@@ -129,8 +132,8 @@ export async function PATCH(req: NextRequest) {
     });
 
     return NextResponse.json(colleague);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memperbarui colleague" }, { status: 500 });
   }
 }
 
@@ -146,6 +149,9 @@ export async function DELETE(req: NextRequest) {
 
     // 2. Prevent Self-Deletion
     const reqUsername = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
+    if (!reqUsername) {
+      return NextResponse.json({ error: "Invalid Session" }, { status: 401 });
+    }
     const reqUser = await prisma.colleague.findFirst({ where: { username: reqUsername } });
     
     if (reqUser && reqUser.id === targetId) {
@@ -169,7 +175,7 @@ export async function DELETE(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal menghapus colleague" }, { status: 500 });
   }
 }

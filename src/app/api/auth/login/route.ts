@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         id: user.id,
         name: user.name,
         username: user.username,
-        role: user.role,
+        role: user.role === "ADMIN" ? "ADMIN" : "USER",
       }),
       httpOnly: true,
       sameSite: "lax",
