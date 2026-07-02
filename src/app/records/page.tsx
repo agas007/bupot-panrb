@@ -1450,39 +1450,39 @@ export default function RecordsPage() {
                           : "Tidak ada record yang cocok otomatis. Silakan pilih SPM/SP2D secara manual."}
                       </div>
                       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                        <div className="rounded-xl bg-background p-4 border border-border">
+                        <div className="min-w-0 overflow-hidden rounded-xl bg-background p-4 border border-border">
                           <div className="text-[10px] uppercase font-bold text-muted-foreground">File</div>
-                          <div className="font-black mt-1 break-all">{payrollImportSummary.fileName}</div>
+                          <div className="font-black mt-1 break-all leading-tight">{payrollImportSummary.fileName}</div>
                         </div>
-                        <div className="rounded-xl bg-background p-4 border border-border">
+                        <div className="min-w-0 overflow-hidden rounded-xl bg-background p-4 border border-border">
                           <div className="text-[10px] uppercase font-bold text-muted-foreground">Rows</div>
                           <div className="font-black mt-1">{payrollImportSummary.totalRows}</div>
                         </div>
-                        <div className="rounded-xl bg-background p-4 border border-border">
+                        <div className="min-w-0 overflow-hidden rounded-xl bg-background p-4 border border-border">
                           <div className="text-[10px] uppercase font-bold text-muted-foreground">Gross XML</div>
-                          <div className="font-black mt-1">Rp{new Intl.NumberFormat("id-ID").format(payrollImportSummary.totalGross)}</div>
+                          <div className="font-black mt-1 break-all leading-tight text-[clamp(1rem,1.2vw,1.35rem)]">Rp{new Intl.NumberFormat("id-ID").format(payrollImportSummary.totalGross)}</div>
                         </div>
-                        <div className="rounded-xl bg-background p-4 border border-border">
+                        <div className="min-w-0 overflow-hidden rounded-xl bg-background p-4 border border-border">
                           <div className="text-[10px] uppercase font-bold text-muted-foreground">Pajak XML</div>
-                          <div className="font-black mt-1">Rp{new Intl.NumberFormat("id-ID").format(payrollImportSummary.totalTax)}</div>
+                          <div className="font-black mt-1 break-all leading-tight text-[clamp(1rem,1.2vw,1.35rem)]">Rp{new Intl.NumberFormat("id-ID").format(payrollImportSummary.totalTax)}</div>
                         </div>
                       </div>
                       <div className="grid gap-3 md:grid-cols-2">
-                        <div className="rounded-xl bg-background p-4 border border-border">
+                        <div className="min-w-0 overflow-hidden rounded-xl bg-background p-4 border border-border">
                           <div className="text-[10px] uppercase font-bold text-muted-foreground">Periode</div>
-                          <div className="font-black mt-1">
+                          <div className="font-black mt-1 break-all leading-tight">
                             {payrollImportSummary.taxPeriodMonth && payrollImportSummary.taxPeriodYear
                               ? `${String(payrollImportSummary.taxPeriodMonth).padStart(2, "0")}/${payrollImportSummary.taxPeriodYear}`
                               : "-"}
                           </div>
                         </div>
-                        <div className="rounded-xl bg-background p-4 border border-border">
+                        <div className="min-w-0 overflow-hidden rounded-xl bg-background p-4 border border-border">
                           <div className="text-[10px] uppercase font-bold text-muted-foreground">Withholding Date</div>
-                          <div className="font-black mt-1">
+                          <div className="font-black mt-1 break-all leading-tight">
                             {payrollImportSummary.withholdingDate ? new Date(payrollImportSummary.withholdingDate).toLocaleDateString("id-ID") : "-"}
                           </div>
                         </div>
-                        <div className="rounded-xl bg-background p-4 border border-border md:col-span-2">
+                        <div className="min-w-0 overflow-hidden rounded-xl bg-background p-4 border border-border md:col-span-2">
                           <div className="text-[10px] uppercase font-bold text-muted-foreground">Recipient unik</div>
                           <div className="font-black mt-1">{payrollImportSummary.uniqueRecipients}</div>
                         </div>
@@ -1509,7 +1509,7 @@ export default function RecordsPage() {
                   />
                   <div className="max-h-[26rem] overflow-y-auto rounded-2xl border border-border bg-background">
                     {filteredPayrollImportRecords.length ? (
-                      <div className="divide-y divide-border">
+                      <div className="divide-y divide-border overflow-hidden">
                         {filteredPayrollImportRecords.map((record) => {
                           const selected = record.id === selectedPayrollRecordId;
                           return (
@@ -1517,12 +1517,12 @@ export default function RecordsPage() {
                               key={record.id}
                               type="button"
                               onClick={() => setSelectedPayrollRecordId(record.id)}
-                              className={`w-full text-left p-4 transition-colors ${selected ? "bg-cyan-500/10" : "hover:bg-muted/60"}`}
+                              className={`w-full text-left p-4 transition-colors overflow-hidden ${selected ? "bg-cyan-500/10" : "hover:bg-muted/60"}`}
                             >
-                              <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start justify-between gap-3 min-w-0">
                                 <div className="min-w-0">
-                                  <div className="font-black truncate">{record.spmNumber}</div>
-                                  <div className="text-xs text-muted-foreground mt-1">
+                                  <div className="font-black break-words leading-tight">{record.spmNumber}</div>
+                                  <div className="text-xs text-muted-foreground mt-1 break-words leading-relaxed">
                                     {record.sp2dNumber || "SP2D belum terbit"} · {record.recipient || "-"}
                                   </div>
                                   <div className="mt-2">
@@ -1531,12 +1531,12 @@ export default function RecordsPage() {
                                     </span>
                                   </div>
                                 </div>
-                                <div className="text-right shrink-0">
+                                <div className="text-right shrink-0 max-w-[42%]">
                                   <div className="text-[10px] uppercase font-bold text-muted-foreground">Potongan</div>
-                                  <div className="font-black">Rp{new Intl.NumberFormat("id-ID").format(record.deductionAmount)}</div>
+                                  <div className="font-black break-words">Rp{new Intl.NumberFormat("id-ID").format(record.deductionAmount)}</div>
                                 </div>
                               </div>
-                              <div className="text-[10px] text-muted-foreground mt-2">
+                              <div className="text-[10px] text-muted-foreground mt-2 break-words">
                                 {record.sp2dDate ? new Date(record.sp2dDate).toLocaleDateString("id-ID") : "-"} · {getTaxAccountLabel(record.accountCode)}
                               </div>
                             </button>
@@ -1549,13 +1549,13 @@ export default function RecordsPage() {
                   </div>
 
                   {selectedPayrollRecord && payrollImportSummary && payrollImportComparison && (
-                    <div className={`rounded-2xl border p-4 ${payrollImportComparison.isMatch ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700" : "border-amber-500/20 bg-amber-500/10 text-amber-700"}`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
+                    <div className={`rounded-2xl border p-4 overflow-hidden ${payrollImportComparison.isMatch ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700" : "border-amber-500/20 bg-amber-500/10 text-amber-700"}`}>
+                      <div className="flex items-start justify-between gap-3 min-w-0">
+                        <div className="min-w-0 flex-1">
                           <div className="text-[10px] font-black uppercase tracking-widest">Hasil pencocokan</div>
-                          <div className="font-black mt-1">{selectedPayrollRecord.spmNumber} · {selectedPayrollRecord.sp2dNumber || "SP2D belum terbit"}</div>
+                          <div className="font-black mt-1 break-words leading-tight">{selectedPayrollRecord.spmNumber} · {selectedPayrollRecord.sp2dNumber || "SP2D belum terbit"}</div>
                         </div>
-                        <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-background/60">
+                        <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-background/60 shrink-0">
                           {payrollImportComparison.isMatch ? "Sesuai" : "Tidak sesuai"}
                         </span>
                       </div>
