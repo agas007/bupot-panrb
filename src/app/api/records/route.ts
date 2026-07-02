@@ -101,7 +101,7 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const { id, ids, status, docLink, notes, assigneeId } = body;
 
-    const updateData: Prisma.SPMRecordUpdateInput = {};
+    const updateData: Prisma.SPMRecordUncheckedUpdateInput = {};
     let action = "Updated Record";
     let type = "user";
     

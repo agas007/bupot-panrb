@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { isPrismaConnectionError, prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { createCookieSessionValue, SESSION_COOKIE_MAX_AGE_SECONDS, SESSION_COOKIE_NAME } from "@/lib/session-cookie";
 
@@ -73,6 +73,12 @@ export async function POST(req: NextRequest) {
 
     return response;
   } catch (error) {
+    if (isPrismaConnectionError(error)) {
+      return NextResponse.json(
+        { error: "Database tidak terhubung. Cek DATABASE_URL / Neon server dulu." },
+        { status: 503 },
+      );
+    }
     const message = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
