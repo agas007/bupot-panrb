@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://bupot-panrb.dendengbakar.dpdns.org/$1",
+      "permanent": true
+    }
+  ]
+}
