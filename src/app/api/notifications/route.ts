@@ -12,21 +12,21 @@ export async function GET(req: NextRequest) {
     const username = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
     if (!username) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const user = await (prisma.colleague as any).findFirst({
+    const user = await prisma.colleague.findFirst({
       where: { username }
     });
 
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    const notifications = await (prisma as any).notification.findMany({
+    const notifications = await prisma.notification.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       take: 50
     });
 
     return NextResponse.json(notifications);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memuat notifikasi" }, { status: 500 });
   }
 }
 
@@ -40,26 +40,26 @@ export async function PATCH(req: NextRequest) {
 
     const { id, all } = await req.json();
     
-    const user = await (prisma.colleague as any).findFirst({
+    const user = await prisma.colleague.findFirst({
       where: { username }
     });
 
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     if (all) {
-      await (prisma as any).notification.updateMany({
+      await prisma.notification.updateMany({
         where: { userId: user.id },
         data: { isRead: true }
       });
     } else if (id) {
-      await (prisma as any).notification.update({
+      await prisma.notification.updateMany({
         where: { id: Number(id), userId: user.id },
         data: { isRead: true }
       });
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memperbarui notifikasi" }, { status: 500 });
   }
 }

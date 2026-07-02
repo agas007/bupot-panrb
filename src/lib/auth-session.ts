@@ -2,6 +2,7 @@ import type { AuthSession } from "@/types";
 
 export const SESSION_STORAGE_KEY = "sim_user";
 export const SESSION_MAX_AGE_MS = 30 * 60 * 1000;
+let sessionRequestPromise: Promise<AuthSession | null> | null = null;
 
 export interface StoredAuthSession {
   user: AuthSession;
@@ -70,6 +71,32 @@ export const readSession = (): StoredAuthSession | null => {
 };
 
 export const readSessionUser = (): AuthSession | null => readSession()?.user ?? null;
+
+export const getSessionUser = async (): Promise<AuthSession | null> => {
+  const savedUser = readSessionUser();
+  if (savedUser) return savedUser;
+  if (typeof window === "undefined") return null;
+
+  if (!sessionRequestPromise) {
+    sessionRequestPromise = fetch("/api/auth/session", { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) return null;
+        const sessionUser = await res.json() as AuthSession;
+        saveSession(sessionUser);
+        return sessionUser;
+      })
+      .catch(() => null)
+      .finally(() => {
+        sessionRequestPromise = null;
+      });
+  }
+
+  return sessionRequestPromise;
+};
+
+export const clearSessionRequestCache = () => {
+  sessionRequestPromise = null;
+};
 
 export const touchSession = (): StoredAuthSession | null => {
   const session = readSession();

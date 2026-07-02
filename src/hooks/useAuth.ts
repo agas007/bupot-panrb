@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AuthSession } from "@/types";
-import { clearSession, readSessionUser, saveSession } from "@/lib/auth-session";
+import { clearSession, readSessionUser, getSessionUser } from "@/lib/auth-session";
 
 export function useAuth() {
   const [user, setUser] = useState<AuthSession | null>(null);
@@ -19,22 +19,11 @@ export function useAuth() {
       return;
     }
 
-    void fetch("/api/auth/session")
-      .then(async (res) => {
-        if (!res.ok) {
-          setUser(null);
-          setIsLoading(false);
-          return null;
-        }
-
-        const sessionUser = await res.json() as AuthSession;
-        saveSession(sessionUser);
+    void getSessionUser()
+      .then((sessionUser) => {
         setUser(sessionUser);
-        setIsLoading(false);
-        return sessionUser;
       })
-      .catch(() => {
-        setUser(null);
+      .finally(() => {
         setIsLoading(false);
       });
   }, []);

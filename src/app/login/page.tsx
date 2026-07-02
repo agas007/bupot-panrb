@@ -6,7 +6,7 @@ import {
   User, ShieldAlert, CheckCircle2,
   ArrowRight, ShieldCheck, KeyRound, Loader2, Code
 } from "lucide-react";
-import { readSession, saveSession } from "@/lib/auth-session";
+import { readSession, saveSession, getSessionUser } from "@/lib/auth-session";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,11 +23,9 @@ export default function LoginPage() {
       return;
     }
 
-    void fetch("/api/auth/session")
-      .then((res) => {
-        if (res.ok) {
-          router.push("/");
-        }
+    void getSessionUser()
+      .then((sessionUser) => {
+        if (sessionUser) router.push("/");
       })
       .catch(() => undefined);
   }, [router]);

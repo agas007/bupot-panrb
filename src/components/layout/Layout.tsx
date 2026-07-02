@@ -32,7 +32,7 @@ import {
   ,ReceiptText
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
-import { clearSession, readSession, saveSession, touchSession, SESSION_MAX_AGE_MS } from "@/lib/auth-session";
+import { clearSession, readSession, touchSession, SESSION_MAX_AGE_MS, getSessionUser } from "@/lib/auth-session";
 
 interface Colleague {
   id: number;
@@ -141,19 +141,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      void fetch("/api/auth/session")
-        .then(async (res) => {
-          if (!res.ok) {
-            if (mounted && !isPublicRoute) {
-              setCurrentUser(null);
-              router.push("/login");
-            }
+      void getSessionUser()
+        .then((sessionUser) => {
+          if (sessionUser) {
+            setCurrentUser(sessionUser);
             return;
           }
 
-          const sessionUser = await res.json();
-          saveSession(sessionUser);
-          setCurrentUser(sessionUser);
+          if (mounted && !isPublicRoute) {
+            setCurrentUser(null);
+            router.push("/login");
+          }
         })
         .catch(() => {
           if (mounted && !isPublicRoute) {
@@ -171,8 +169,38 @@ export function Layout({ children }: { children: React.ReactNode }) {
     if (currentUser) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchNotifications();
-      const interval = setInterval(fetchNotifications, 60000); // 1 minute
-      return () => clearInterval(interval);
+      const intervalMs = 5 * 60 * 1000;
+      let interval: number | null = null;
+
+      const schedule = () => {
+        if (interval !== null) window.clearTimeout(interval);
+        if (document.visibilityState !== "visible") return;
+        interval = window.setTimeout(async () => {
+          await fetchNotifications();
+          schedule();
+        }, intervalMs);
+      };
+
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === "visible") {
+          void fetchNotifications();
+          schedule();
+          return;
+        }
+
+        if (interval !== null) {
+          window.clearTimeout(interval);
+          interval = null;
+        }
+      };
+
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      schedule();
+
+      return () => {
+        if (interval !== null) window.clearTimeout(interval);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      };
     }
   }, [currentUser, fetchNotifications]);
 
