@@ -12,7 +12,7 @@ export async function getPph21User(req: NextRequest) {
     });
   } catch (error) {
     if (isPrismaConnectionError(error)) {
-      console.error("[PPh21 Auth] Database unavailable while loading user session.");
+      console.error("[PPh21 Auth] Database unavailable while loading user session.", error);
       return null;
     }
     throw error;

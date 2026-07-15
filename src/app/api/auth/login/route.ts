@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isPrismaConnectionError, prisma } from "@/lib/prisma";
+import { getPrismaDatabaseErrorMessage, prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { createCookieSessionValue, SESSION_COOKIE_MAX_AGE_SECONDS, SESSION_COOKIE_NAME } from "@/lib/session-cookie";
 
@@ -73,9 +73,11 @@ export async function POST(req: NextRequest) {
 
     return response;
   } catch (error) {
-    if (isPrismaConnectionError(error)) {
+    console.error("[Auth Login] Prisma/route error:", error);
+    const databaseErrorMessage = getPrismaDatabaseErrorMessage(error);
+    if (databaseErrorMessage) {
       return NextResponse.json(
-        { error: "Database tidak terhubung. Cek DATABASE_URL dan koneksi ke server DB dulu." },
+        { error: databaseErrorMessage },
         { status: 503 },
       );
     }
