@@ -310,7 +310,7 @@ export default function ReconciliationPage() {
     if (!cortexFile) {
       setFeedback({
         type: "error",
-        message: language === "ID" ? "File Cortex belum dipilih." : "Cortex file has not been selected.",
+        message: language === "ID" ? "File Coretax belum dipilih." : "Coretax file has not been selected.",
       });
       return;
     }
@@ -360,11 +360,11 @@ export default function ReconciliationPage() {
         type: "success",
         message:
           language === "ID"
-            ? "Perbandingan Cortex untuk periode terpilih sudah siap."
-            : "Cortex comparison for the selected period is ready.",
+            ? "Perbandingan Coretax untuk periode terpilih sudah siap."
+            : "Coretax comparison for the selected period is ready.",
       });
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to compare Cortex data.";
+      const message = error instanceof Error ? error.message : "Failed to compare Coretax data.";
       setFeedback({ type: "error", message });
       setCortexReport(null);
     } finally {
@@ -411,11 +411,11 @@ export default function ReconciliationPage() {
 
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "Perbandingan");
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(appSheetRows), "Aplikasi");
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(cortexSheetRows), "Cortex");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(cortexSheetRows), "Coretax");
 
     XLSX.writeFile(
       workbook,
-      `Rekonsiliasi_Cortex_${selectedYear}_${String(selectedMonth).padStart(2, "0")}.xlsx`
+      `Rekonsiliasi_Coretax_${selectedYear}_${String(selectedMonth).padStart(2, "0")}.xlsx`
     );
   };
 
@@ -902,18 +902,18 @@ export default function ReconciliationPage() {
         <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-1 text-left">
             <h2 className="text-xl font-black uppercase tracking-tight">
-              {language === "ID" ? "Perbandingan File Cortex" : "Cortex File Comparison"}
+              {language === "ID" ? "Perbandingan File Coretax" : "Coretax File Comparison"}
             </h2>
             <p className="text-xs text-muted-foreground uppercase tracking-[0.2em] font-black">
               {language === "ID"
-                ? "Upload Excel Cortex untuk periode terpilih, lalu bandingkan nama dan nominalnya dengan data aplikasi."
-                : "Upload a Cortex Excel file for the selected period, then compare names and amounts against application data."}
+                ? "Upload Excel Coretax untuk periode terpilih, lalu bandingkan nama dan nominalnya dengan data aplikasi."
+                : "Upload a Coretax Excel file for the selected period, then compare names and amounts against application data."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <label className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-muted/60 hover:bg-muted text-xs font-black uppercase tracking-widest cursor-pointer transition-all">
               <Upload size={16} />
-              <span>{cortexFile ? cortexFile.name : (language === "ID" ? "Pilih File Cortex" : "Choose Cortex File")}</span>
+              <span>{cortexFile ? cortexFile.name : (language === "ID" ? "Pilih File Coretax" : "Choose Coretax File")}</span>
               <input
                 type="file"
                 accept=".xlsx,.xls"
@@ -930,7 +930,7 @@ export default function ReconciliationPage() {
               className="premium-button px-4 py-3 text-xs font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-60"
             >
               {isComparingCortex ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-              {language === "ID" ? "Bandingkan Cortex" : "Compare Cortex"}
+              {language === "ID" ? "Bandingkan Coretax" : "Compare Coretax"}
             </button>
             <button
               onClick={handleDownloadCortexReport}
@@ -948,10 +948,10 @@ export default function ReconciliationPage() {
             {language === "ID" ? "Data aplikasi difilter per bulan terpilih" : "Application data filtered by selected month"}
           </span>
           <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
-            {language === "ID" ? "Cortex dibandingkan per nama" : "Cortex compared by name"}
+            {language === "ID" ? "Coretax dibandingkan per nama" : "Coretax compared by name"}
           </span>
           <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
-            {language === "ID" ? "Selisih = Cortex - Aplikasi" : "Difference = Cortex - App"}
+            {language === "ID" ? "Selisih = Coretax - Aplikasi" : "Difference = Coretax - App"}
           </span>
         </div>
 
@@ -966,7 +966,7 @@ export default function ReconciliationPage() {
               </div>
               <div className="glass-card p-5 border-violet-500/10">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  {language === "ID" ? "Total Cortex" : "Cortex Total"}
+                  {language === "ID" ? "Total Coretax" : "Coretax Total"}
                 </p>
                 <p className="text-2xl font-black text-violet-500 mt-2">IDR {numberFormatter.format(cortexReport.totals.cortexAmount)}</p>
               </div>
@@ -992,7 +992,7 @@ export default function ReconciliationPage() {
                 </p>
                 <p className="text-2xl font-black text-emerald-500 mt-2">{cortexReport.totals.matchedCount}</p>
                 <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-2">
-                  {cortexReport.totals.onlyInAppCount} {language === "ID" ? "hanya di aplikasi" : "only in app"} / {cortexReport.totals.onlyInCortexCount} {language === "ID" ? "hanya di Cortex" : "only in Cortex"}
+                  {cortexReport.totals.onlyInAppCount} {language === "ID" ? "hanya di aplikasi" : "only in app"} / {cortexReport.totals.onlyInCortexCount} {language === "ID" ? "hanya di Coretax" : "only in Coretax"}
                 </p>
               </div>
             </div>
@@ -1003,7 +1003,7 @@ export default function ReconciliationPage() {
                   <tr>
                     <th>{language === "ID" ? "Nama" : "Name"}</th>
                     <th>{language === "ID" ? "Aplikasi" : "App"}</th>
-                    <th>{language === "ID" ? "Cortex" : "Cortex"}</th>
+                    <th>{language === "ID" ? "Coretax" : "Coretax"}</th>
                     <th>{language === "ID" ? "Selisih" : "Difference"}</th>
                     <th>{language === "ID" ? "Status" : "Status"}</th>
                     <th>{language === "ID" ? "Referensi" : "References"}</th>
@@ -1017,7 +1017,7 @@ export default function ReconciliationPage() {
                           <div className="flex flex-col gap-1">
                             <span className="font-black text-sm">{row.name}</span>
                             <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-black">
-                              {row.appCount} {language === "ID" ? "baris aplikasi" : "app rows"} / {row.cortexCount} {language === "ID" ? "baris Cortex" : "Cortex rows"}
+                              {row.appCount} {language === "ID" ? "baris aplikasi" : "app rows"} / {row.cortexCount} {language === "ID" ? "baris Coretax" : "Coretax rows"}
                             </span>
                           </div>
                         </td>
@@ -1046,12 +1046,12 @@ export default function ReconciliationPage() {
                             {row.status === "MATCHED"
                               ? (language === "ID" ? "Sesuai" : "Matched")
                               : row.status === "OVER"
-                                ? (language === "ID" ? "Lebih di Cortex" : "Higher in Cortex")
+                                ? (language === "ID" ? "Lebih di Coretax" : "Higher in Coretax")
                                 : row.status === "UNDER"
                                   ? (language === "ID" ? "Lebih di Aplikasi" : "Higher in App")
                                   : row.status === "ONLY_IN_APP"
                                     ? (language === "ID" ? "Hanya di Aplikasi" : "Only in App")
-                                    : (language === "ID" ? "Hanya di Cortex" : "Only in Cortex")}
+                                    : (language === "ID" ? "Hanya di Coretax" : "Only in Coretax")}
                           </span>
                         </td>
                         <td>
@@ -1066,8 +1066,8 @@ export default function ReconciliationPage() {
                     <tr>
                       <td colSpan={6} className="p-10 text-center text-muted-foreground italic">
                         {language === "ID"
-                          ? "File Cortex belum menghasilkan perbandingan."
-                          : "The Cortex file has not produced a comparison yet."}
+                          ? "File Coretax belum menghasilkan perbandingan."
+                          : "The Coretax file has not produced a comparison yet."}
                       </td>
                     </tr>
                   )}
@@ -1087,8 +1087,8 @@ export default function ReconciliationPage() {
         ) : (
           <div className="rounded-3xl border border-dashed border-border/70 bg-muted/20 p-6 text-sm text-muted-foreground leading-relaxed">
             {language === "ID"
-              ? "Pilih file Excel Cortex untuk bulan yang sedang dicek. Sistem akan mencocokkan nama dan nominal per penerima dengan data aplikasi pada periode yang sama, lalu hasilnya bisa diunduh sebagai Excel."
-              : "Choose a Cortex Excel file for the month you are checking. The system will match names and amounts per recipient against the application data for the same period, then let you download the result as Excel."}
+              ? "Pilih file Excel Coretax untuk bulan yang sedang dicek. Sistem akan mencocokkan nama dan nominal per penerima dengan data aplikasi pada periode yang sama, lalu hasilnya bisa diunduh sebagai Excel."
+              : "Choose a Coretax Excel file for the month you are checking. The system will match names and amounts per recipient against the application data for the same period, then let you download the result as Excel."}
           </div>
         )}
       </section>

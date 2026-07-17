@@ -111,7 +111,7 @@ export const parseCortexExcel = (input: Buffer | ArrayBuffer) => {
   const workbook = XLSX.read(input, { type: isBuffer ? "buffer" : "array", raw: true, cellDates: true });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) {
-    throw new Error("File Cortex tidak memiliki sheet.");
+    throw new Error("File Coretax tidak memiliki sheet.");
   }
 
   const worksheet = workbook.Sheets[sheetName];
@@ -128,7 +128,7 @@ export const parseCortexExcel = (input: Buffer | ArrayBuffer) => {
   );
 
   if (headerIndex < 0) {
-    throw new Error("Header file Cortex tidak ditemukan. Pastikan ada kolom nama dan nominal.");
+    throw new Error("Header file Coretax tidak ditemukan. Pastikan ada kolom nama dan nominal.");
   }
 
   const headerRow = rows[headerIndex];
@@ -138,7 +138,7 @@ export const parseCortexExcel = (input: Buffer | ArrayBuffer) => {
   const periodColumn = findColumnIndex(headerRow, ["PERIODE", "BULAN", "MASA PAJAK", "MONTH"]);
 
   if (nameColumn < 0 || amountColumn < 0) {
-    throw new Error("Kolom Nama dan Nominal pada file Cortex wajib ada.");
+    throw new Error("Kolom Nama dan Nominal pada file Coretax wajib ada.");
   }
 
   const result: CortexExcelRow[] = [];
@@ -168,7 +168,7 @@ export const parseCortexExcel = (input: Buffer | ArrayBuffer) => {
   }
 
   if (result.length === 0) {
-    throw new Error("Tidak ada baris data Cortex yang bisa dibaca dari sheet pertama.");
+    throw new Error("Tidak ada baris data Coretax yang bisa dibaca dari sheet pertama.");
   }
 
   return result;

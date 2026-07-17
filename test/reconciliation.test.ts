@@ -30,7 +30,7 @@ test("aggregates monthly comparison rows by normalized name", () => {
   assert.equal(totals.onlyInCortexCount, 1);
 });
 
-test("parses a Cortex Excel sheet with name and nominal columns", () => {
+test("parses a Coretax Excel sheet with name and nominal columns", () => {
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet([
     ["Nama", "Nominal", "Referensi"],
