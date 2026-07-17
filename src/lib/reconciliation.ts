@@ -19,16 +19,23 @@ export interface ReconciliationTargetInput {
 }
 
 export interface MonthlyComparisonInput {
+  nik?: string | null;
   name: string;
   amount: number;
   reference?: string | null;
 }
 
 export type MonthlyComparisonStatus = "MATCHED" | "OVER" | "UNDER" | "ONLY_IN_APP" | "ONLY_IN_CORTEX";
+export type MonthlyComparisonMatchBy = "NIK" | "NAME";
 
 export interface MonthlyComparisonRow {
   key: string;
+  matchBy: MonthlyComparisonMatchBy;
   name: string;
+  appName: string;
+  cortexName: string;
+  appNik: string | null;
+  cortexNik: string | null;
   appAmount: number;
   cortexAmount: number;
   difference: number;
@@ -168,20 +175,45 @@ export function normalizeComparisonName(value: string) {
     .trim();
 }
 
+function normalizeComparisonNik(value: string | null | undefined) {
+  return String(value ?? "").replace(/\D/g, "").trim();
+}
+
+type AggregatedComparisonRow = {
+  key: string;
+  matchBy: MonthlyComparisonMatchBy;
+  name: string;
+  nik: string | null;
+  amount: number;
+  count: number;
+  references: string[];
+};
+
 function aggregateComparisonRows(rows: MonthlyComparisonInput[]) {
-  const aggregated = new Map<string, { name: string; amount: number; count: number; references: string[] }>();
+  const aggregated: AggregatedComparisonRow[] = [];
+  const aliasToIndex = new Map<string, number>();
 
   for (const row of rows) {
-    const key = normalizeComparisonName(row.name);
-    if (!key) continue;
+    const nik = normalizeComparisonNik(row.nik);
+    const nameKey = normalizeComparisonName(row.name);
+    const primaryKey = nik.length >= 10 ? `NIK:${nik}` : nameKey ? `NAME:${nameKey}` : "";
+    if (!primaryKey) continue;
 
-    const current = aggregated.get(key) || {
-      name: row.name.trim(),
-      amount: 0,
-      count: 0,
-      references: [],
-    };
+    const groupIndex = aliasToIndex.has(primaryKey) ? aliasToIndex.get(primaryKey)! : aggregated.length;
 
+    if (!aggregated[groupIndex]) {
+      aggregated[groupIndex] = {
+        key: primaryKey,
+        matchBy: nik.length >= 10 ? "NIK" : "NAME",
+        name: row.name.trim(),
+        nik: nik.length >= 10 ? nik : null,
+        amount: 0,
+        count: 0,
+        references: [],
+      };
+    }
+
+    const current = aggregated[groupIndex];
     current.amount += Number(row.amount) || 0;
     current.count += 1;
     if (row.reference) {
@@ -190,43 +222,55 @@ function aggregateComparisonRows(rows: MonthlyComparisonInput[]) {
         current.references.push(reference);
       }
     }
-    if (!current.name) {
-      current.name = row.name.trim();
-    }
-    aggregated.set(key, current);
+    if (!current.name) current.name = row.name.trim();
+    if (!current.nik && nik.length >= 10) current.nik = nik;
+    if (nik.length >= 10) current.matchBy = "NIK";
+
+    aliasToIndex.set(primaryKey, groupIndex);
   }
 
   return aggregated;
 }
 
-export function buildMonthlyComparisonRows(
-  appRows: MonthlyComparisonInput[],
-  cortexRows: MonthlyComparisonInput[],
+function mergeComparisonGroups(
+  appGroups: AggregatedComparisonRow[],
+  cortexGroups: AggregatedComparisonRow[],
 ) {
-  const appMap = aggregateComparisonRows(appRows);
-  const cortexMap = aggregateComparisonRows(cortexRows);
-  const keys = Array.from(new Set([...appMap.keys(), ...cortexMap.keys()])).sort((a, b) => a.localeCompare(b));
+  const rows: MonthlyComparisonRow[] = [];
+  const usedApp = new Set<number>();
+  const usedCortex = new Set<number>();
 
-  const rows = keys.map((key) => {
-    const appRow = appMap.get(key) || { name: key, amount: 0, count: 0, references: [] };
-    const cortexRow = cortexMap.get(key) || { name: key, amount: 0, count: 0, references: [] };
+  const cortexNikMap = new Map<string, number>();
+  const cortexNameMap = new Map<string, number>();
+  cortexGroups.forEach((group, index) => {
+    if (group.nik) cortexNikMap.set(group.nik, index);
+    const nameAlias = normalizeComparisonName(group.name);
+    if (nameAlias) cortexNameMap.set(nameAlias, index);
+  });
+
+  const appNikMap = new Map<string, number>();
+  const appNameMap = new Map<string, number>();
+  appGroups.forEach((group, index) => {
+    if (group.nik) appNikMap.set(group.nik, index);
+    const nameAlias = normalizeComparisonName(group.name);
+    if (nameAlias) appNameMap.set(nameAlias, index);
+  });
+
+  const pairGroups = (appIndex: number, cortexIndex: number, matchBy: MonthlyComparisonMatchBy) => {
+    const appRow = appGroups[appIndex];
+    const cortexRow = cortexGroups[cortexIndex];
+    usedApp.add(appIndex);
+    usedCortex.add(cortexIndex);
     const difference = cortexRow.amount - appRow.amount;
-    const appExists = appRow.count > 0;
-    const cortexExists = cortexRow.count > 0;
-
-    const status: MonthlyComparisonStatus = !appExists && cortexExists
-      ? "ONLY_IN_CORTEX"
-      : appExists && !cortexExists
-        ? "ONLY_IN_APP"
-        : difference === 0
-          ? "MATCHED"
-          : difference > 0
-            ? "OVER"
-            : "UNDER";
-
-    return {
-      key,
-      name: cortexRow.name || appRow.name || key,
+    const status: MonthlyComparisonStatus = difference === 0 ? "MATCHED" : difference > 0 ? "OVER" : "UNDER";
+    rows.push({
+      key: cortexRow.nik || appRow.nik || cortexRow.key || appRow.key,
+      matchBy,
+      name: cortexRow.name || appRow.name || cortexRow.key || appRow.key,
+      appName: appRow.name,
+      cortexName: cortexRow.name,
+      appNik: appRow.nik,
+      cortexNik: cortexRow.nik,
       appAmount: appRow.amount,
       cortexAmount: cortexRow.amount,
       difference,
@@ -235,8 +279,76 @@ export function buildMonthlyComparisonRows(
       appReferences: appRow.references,
       cortexReferences: cortexRow.references,
       status,
-    } satisfies MonthlyComparisonRow;
-  });
+    });
+  };
+
+  for (const [nik, appIndex] of appNikMap.entries()) {
+    const cortexIndex = cortexNikMap.get(nik);
+    if (cortexIndex === undefined) continue;
+    pairGroups(appIndex, cortexIndex, "NIK");
+  }
+
+  for (const [alias, appIndex] of appNameMap.entries()) {
+    if (usedApp.has(appIndex)) continue;
+    const cortexIndex = cortexNameMap.get(alias);
+    if (cortexIndex === undefined || usedCortex.has(cortexIndex)) continue;
+    pairGroups(appIndex, cortexIndex, "NAME");
+  }
+
+  for (let index = 0; index < appGroups.length; index += 1) {
+    if (usedApp.has(index)) continue;
+    const appRow = appGroups[index];
+    rows.push({
+      key: appRow.nik || appRow.key,
+      matchBy: appRow.nik ? "NIK" : "NAME",
+      name: appRow.name,
+      appName: appRow.name,
+      cortexName: "",
+      appNik: appRow.nik,
+      cortexNik: null,
+      appAmount: appRow.amount,
+      cortexAmount: 0,
+      difference: -appRow.amount,
+      appCount: appRow.count,
+      cortexCount: 0,
+      appReferences: appRow.references,
+      cortexReferences: [],
+      status: "ONLY_IN_APP",
+    });
+  }
+
+  for (let index = 0; index < cortexGroups.length; index += 1) {
+    if (usedCortex.has(index)) continue;
+    const cortexRow = cortexGroups[index];
+    rows.push({
+      key: cortexRow.nik || cortexRow.key,
+      matchBy: cortexRow.nik ? "NIK" : "NAME",
+      name: cortexRow.name,
+      appName: "",
+      cortexName: cortexRow.name,
+      appNik: null,
+      cortexNik: cortexRow.nik,
+      appAmount: 0,
+      cortexAmount: cortexRow.amount,
+      difference: cortexRow.amount,
+      appCount: 0,
+      cortexCount: cortexRow.count,
+      appReferences: [],
+      cortexReferences: cortexRow.references,
+      status: "ONLY_IN_CORTEX",
+    });
+  }
+
+  return rows.sort((a, b) => a.name.localeCompare(b.name) || a.key.localeCompare(b.key));
+}
+
+export function buildMonthlyComparisonRows(
+  appRows: MonthlyComparisonInput[],
+  cortexRows: MonthlyComparisonInput[],
+) {
+  const appGroups = aggregateComparisonRows(appRows);
+  const cortexGroups = aggregateComparisonRows(cortexRows);
+  const rows = mergeComparisonGroups(appGroups, cortexGroups);
 
   const totals = rows.reduce<MonthlyComparisonTotals>(
     (acc, row) => {

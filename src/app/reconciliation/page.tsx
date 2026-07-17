@@ -25,7 +25,7 @@ import {
   MonthlyComparisonTotals,
   ReconciliationSummaryRow,
 } from "@/lib/reconciliation";
-import { parseCortexExcel } from "@/lib/excel";
+import { parseCoretaxExcel } from "@/lib/excel";
 
 type SavedPeriod = {
   year: number;
@@ -74,6 +74,7 @@ type ReconciliationResponse = {
 };
 
 type RecipientTransaction = {
+  id?: number;
   spmNumber: string;
   sp2dNumber: string | null;
   sp2dDate: string | null;
@@ -82,6 +83,7 @@ type RecipientTransaction = {
 };
 
 type RecipientSummary = {
+  nik: string;
   name: string;
   transactions: RecipientTransaction[];
 };
@@ -89,6 +91,7 @@ type RecipientSummary = {
 type CortexComparisonReport = {
   fileName: string;
   periodLabel: string;
+  sourcePeriods: string[];
   rows: MonthlyComparisonRow[];
   totals: MonthlyComparisonTotals;
   appRows: Array<{ name: string; amount: number; reference: string }>;
@@ -239,6 +242,40 @@ export default function ReconciliationPage() {
       ? `${selectedYear}`
       : `${monthNames[Number(selectedMonth) - 1]} ${selectedYear}`;
 
+  const comparisonStatusLabel = (status: MonthlyComparisonRow["status"]) => {
+    switch (status) {
+      case "MATCHED":
+        return language === "ID" ? "Sesuai" : "Matched";
+      case "OVER":
+        return language === "ID" ? "Lebih di Coretax" : "Higher in Coretax";
+      case "UNDER":
+        return language === "ID" ? "Lebih di Kita" : "Higher in App";
+      case "ONLY_IN_APP":
+        return language === "ID" ? "Belum di Coretax" : "Only in App";
+      case "ONLY_IN_CORTEX":
+        return language === "ID" ? "Hanya di Coretax" : "Only in Coretax";
+      default:
+        return status;
+    }
+  };
+
+  const comparisonStatusHeadline = (status: MonthlyComparisonRow["status"]) => {
+    switch (status) {
+      case "MATCHED":
+        return language === "ID" ? "Sesuai" : "Matched";
+      case "OVER":
+        return language === "ID" ? "Lebih di Coretax" : "Coretax is higher";
+      case "UNDER":
+        return language === "ID" ? "Lebih di Kita" : "App is higher";
+      case "ONLY_IN_APP":
+        return language === "ID" ? "Belum di Coretax" : "Missing in Coretax";
+      case "ONLY_IN_CORTEX":
+        return language === "ID" ? "Hanya di Coretax" : "Only in Coretax";
+      default:
+        return status;
+    }
+  };
+
   const handleEditorChange = (id: string, field: "accountCode" | "coretaxAmount", value: string) => {
     setEditorRows((rows) =>
       rows.map((row) =>
@@ -332,15 +369,18 @@ export default function ReconciliationPage() {
 
       const recipients: RecipientSummary[] = await recipientRes.json();
       const appRows = recipients.flatMap((recipient) =>
-        recipient.transactions
-          .filter((transaction) => transaction.status === "COMPLETED")
-          .map((transaction) => ({
-            name: recipient.name,
-            amount: Number(transaction.calculatedTax) || 0,
-            reference: [transaction.sp2dNumber, transaction.spmNumber].filter(Boolean).join(" / "),
-          }))
+        recipient.transactions.map((transaction) => ({
+          nik: recipient.nik,
+          name: recipient.name,
+          amount: Number(transaction.calculatedTax) || 0,
+          reference: [transaction.sp2dNumber, transaction.spmNumber].filter(Boolean).join(" / "),
+        }))
       );
-      const cortexRows = parseCortexExcel(cortexBuffer).map((row) => ({
+
+      const coretaxRowsParsed = parseCoretaxExcel(cortexBuffer);
+      const filePeriods = Array.from(new Set(coretaxRowsParsed.map((row) => row.period).filter(Boolean)));
+      const cortexRows = coretaxRowsParsed.map((row) => ({
+        nik: row.nik,
         name: row.name,
         amount: Number(row.amount) || 0,
         reference: [row.reference, row.period].filter(Boolean).join(" / "),
@@ -350,6 +390,7 @@ export default function ReconciliationPage() {
       setCortexReport({
         fileName: cortexFile.name,
         periodLabel,
+        sourcePeriods: filePeriods,
         rows: comparison.rows,
         totals: comparison.totals,
         appRows,
@@ -376,42 +417,33 @@ export default function ReconciliationPage() {
     if (!cortexReport) return;
 
     const workbook = XLSX.utils.book_new();
-    const summaryRows = cortexReport.rows.map((row) => ({
+    const toExportRow = (row: MonthlyComparisonRow) => ({
+      NIK: row.appNik || row.cortexNik || "",
       Nama: row.name,
+      "Cocok via": row.matchBy,
       "Aplikasi (Bupot)": row.appAmount,
-      Cortex: row.cortexAmount,
-      "Selisih (Cortex - Aplikasi)": row.difference,
-      Status:
-        row.status === "MATCHED"
-          ? (language === "ID" ? "Sesuai" : "Matched")
-          : row.status === "OVER"
-            ? (language === "ID" ? "Lebih di Cortex" : "Higher in Cortex")
-            : row.status === "UNDER"
-              ? (language === "ID" ? "Lebih di Aplikasi" : "Higher in App")
-              : row.status === "ONLY_IN_APP"
-                ? (language === "ID" ? "Hanya di Aplikasi" : "Only in App")
-                : (language === "ID" ? "Hanya di Cortex" : "Only in Cortex"),
+      Coretax: row.cortexAmount,
+      "Selisih (Coretax - Aplikasi)": row.difference,
+      Status: comparisonStatusLabel(row.status),
       "Referensi Aplikasi": row.appReferences.join(", "),
-      "Referensi Cortex": row.cortexReferences.join(", "),
+      "Referensi Coretax": row.cortexReferences.join(", "),
       "Jumlah Aplikasi": row.appCount,
-      "Jumlah Cortex": row.cortexCount,
-    }));
+      "Jumlah Coretax": row.cortexCount,
+    });
 
-    const appSheetRows = cortexReport.appRows.map((row) => ({
-      Nama: row.name,
-      "Nominal Aplikasi": row.amount,
-      Referensi: row.reference,
-    }));
+    const summaryRows = cortexReport.rows.map(toExportRow);
+    const matchedRows = cortexReport.rows.filter((row) => row.status === "MATCHED").map(toExportRow);
+    const onlyInAppRows = cortexReport.rows.filter((row) => row.status === "ONLY_IN_APP").map(toExportRow);
+    const appHigherRows = cortexReport.rows.filter((row) => row.status === "UNDER").map(toExportRow);
+    const coretaxHigherRows = cortexReport.rows.filter((row) => row.status === "OVER").map(toExportRow);
+    const onlyInCoretaxRows = cortexReport.rows.filter((row) => row.status === "ONLY_IN_CORTEX").map(toExportRow);
 
-    const cortexSheetRows = cortexReport.cortexRows.map((row) => ({
-      Nama: row.name,
-      "Nominal Cortex": row.amount,
-      Referensi: row.reference,
-    }));
-
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "Perbandingan");
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(appSheetRows), "Aplikasi");
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(cortexSheetRows), "Coretax");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "Ringkasan");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(matchedRows), "Sesuai");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(onlyInAppRows), "Belum di Coretax");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(appHigherRows), "Lebih di Kita");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(coretaxHigherRows), "Lebih di Coretax");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(onlyInCoretaxRows), "Hanya di Coretax");
 
     XLSX.writeFile(
       workbook,
@@ -906,8 +938,8 @@ export default function ReconciliationPage() {
             </h2>
             <p className="text-xs text-muted-foreground uppercase tracking-[0.2em] font-black">
               {language === "ID"
-                ? "Upload Excel Coretax untuk periode terpilih, lalu bandingkan nama dan nominalnya dengan data aplikasi."
-                : "Upload a Coretax Excel file for the selected period, then compare names and amounts against application data."}
+                ? "Upload Excel Coretax untuk periode terpilih, lalu bandingkan NIK, nama, dan nominalnya dengan data aplikasi."
+                : "Upload a Coretax Excel file for the selected period, then compare NIK, names, and amounts against application data."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -948,7 +980,7 @@ export default function ReconciliationPage() {
             {language === "ID" ? "Data aplikasi difilter per bulan terpilih" : "Application data filtered by selected month"}
           </span>
           <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
-            {language === "ID" ? "Coretax dibandingkan per nama" : "Coretax compared by name"}
+            {language === "ID" ? "Coretax dibandingkan per NIK, fallback nama" : "Coretax compared by NIK with name fallback"}
           </span>
           <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
             {language === "ID" ? "Selisih = Coretax - Aplikasi" : "Difference = Coretax - App"}
@@ -992,7 +1024,7 @@ export default function ReconciliationPage() {
                 </p>
                 <p className="text-2xl font-black text-emerald-500 mt-2">{cortexReport.totals.matchedCount}</p>
                 <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-2">
-                  {cortexReport.totals.onlyInAppCount} {language === "ID" ? "hanya di aplikasi" : "only in app"} / {cortexReport.totals.onlyInCortexCount} {language === "ID" ? "hanya di Coretax" : "only in Coretax"}
+                  {cortexReport.totals.onlyInAppCount} {language === "ID" ? "belum di Coretax" : "missing in Coretax"} / {cortexReport.totals.onlyInCortexCount} {language === "ID" ? "hanya di Coretax" : "only in Coretax"}
                 </p>
               </div>
             </div>
@@ -1001,7 +1033,7 @@ export default function ReconciliationPage() {
               <table className="premium-table w-full">
                 <thead>
                   <tr>
-                    <th>{language === "ID" ? "Nama" : "Name"}</th>
+                    <th>{language === "ID" ? "Identitas" : "Identity"}</th>
                     <th>{language === "ID" ? "Aplikasi" : "App"}</th>
                     <th>{language === "ID" ? "Coretax" : "Coretax"}</th>
                     <th>{language === "ID" ? "Selisih" : "Difference"}</th>
@@ -1017,7 +1049,9 @@ export default function ReconciliationPage() {
                           <div className="flex flex-col gap-1">
                             <span className="font-black text-sm">{row.name}</span>
                             <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-black">
-                              {row.appCount} {language === "ID" ? "baris aplikasi" : "app rows"} / {row.cortexCount} {language === "ID" ? "baris Coretax" : "Coretax rows"}
+                              {row.matchBy === "NIK"
+                                ? `${row.appNik || row.cortexNik || "-"}`
+                                : (language === "ID" ? "Cocok via nama" : "Matched by name")}
                             </span>
                           </div>
                         </td>
@@ -1043,15 +1077,7 @@ export default function ReconciliationPage() {
                               comparisonColors[row.status]
                             }`}
                           >
-                            {row.status === "MATCHED"
-                              ? (language === "ID" ? "Sesuai" : "Matched")
-                              : row.status === "OVER"
-                                ? (language === "ID" ? "Lebih di Coretax" : "Higher in Coretax")
-                                : row.status === "UNDER"
-                                  ? (language === "ID" ? "Lebih di Aplikasi" : "Higher in App")
-                                  : row.status === "ONLY_IN_APP"
-                                    ? (language === "ID" ? "Hanya di Aplikasi" : "Only in App")
-                                    : (language === "ID" ? "Hanya di Coretax" : "Only in Coretax")}
+                            {comparisonStatusHeadline(row.status)}
                           </span>
                         </td>
                         <td>
@@ -1082,6 +1108,11 @@ export default function ReconciliationPage() {
               <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
                 {language === "ID" ? "Periode:" : "Period:"} {cortexReport.periodLabel}
               </span>
+              {cortexReport.sourcePeriods.length > 0 && (
+                <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
+                  {language === "ID" ? "Masa di file:" : "File period:"} {cortexReport.sourcePeriods.join(", ")}
+                </span>
+              )}
             </div>
           </>
         ) : (

@@ -18,12 +18,14 @@ export interface SPP_SPM_SP2D_Row {
   [key: string]: any;
 }
 
-export interface CortexExcelRow {
+export interface CoretaxExcelRow {
   rowNumber: number;
+  nik: string;
   name: string;
   amount: number;
   reference: string;
   period: string;
+  taxObjectCode: string;
 }
 
 export const parseExcel = (buffer: Buffer) => {
@@ -106,7 +108,11 @@ function findColumnIndex(headerRow: unknown[], aliases: string[]) {
   return -1;
 }
 
-export const parseCortexExcel = (input: Buffer | ArrayBuffer) => {
+function normalizeText(value: unknown) {
+  return String(value ?? "").trim().replace(/\s+/g, " ");
+}
+
+export const parseCoretaxExcel = (input: Buffer | ArrayBuffer) => {
   const isBuffer = typeof Buffer !== "undefined" && input instanceof Buffer;
   const workbook = XLSX.read(input, { type: isBuffer ? "buffer" : "array", raw: true, cellDates: true });
   const sheetName = workbook.SheetNames[0];
@@ -123,7 +129,7 @@ export const parseCortexExcel = (input: Buffer | ArrayBuffer) => {
     }) &&
     row.some((cell) => {
       const normalized = normalizeHeaderText(cell);
-      return normalized.includes("JUMLAH") || normalized.includes("POTONGAN") || normalized.includes("NOMINAL") || normalized.includes("NILAI");
+      return normalized.includes("PAJAK PENGHASILAN") || normalized.includes("PENGHASILAN") || normalized.includes("NOMINAL") || normalized.includes("NILAI") || normalized.includes("POTONGAN");
     })
   );
 
@@ -132,38 +138,44 @@ export const parseCortexExcel = (input: Buffer | ArrayBuffer) => {
   }
 
   const headerRow = rows[headerIndex];
+  const nikColumn = findColumnIndex(headerRow, ["NOMOR IDENTITAS WP", "NIK", "NPWP", "IDENTITAS", "NOMOR IDENTITAS"]);
   const nameColumn = findColumnIndex(headerRow, ["NAMA", "ATAS NAMA", "RECIPIENT", "NAMA PENERIMA", "PEGAWAI"]);
-  const amountColumn = findColumnIndex(headerRow, ["JUMLAH", "NOMINAL", "POTONGAN", "NILAI", "PAJAK", "PPH", "AMOUNT"]);
-  const referenceColumn = findColumnIndex(headerRow, ["SPM", "NO SPM", "NO.SPM", "SP2D", "NO SP2D", "NO.SP2D", "REFERENSI", "REFERENCE"]);
-  const periodColumn = findColumnIndex(headerRow, ["PERIODE", "BULAN", "MASA PAJAK", "MONTH"]);
+  const amountColumn = findColumnIndex(headerRow, ["PAJAK PENGHASILAN", "PENGHASILAN", "PPh", "PPH", "NOMINAL", "NILAI", "AMOUNT"]);
+  const referenceColumn = findColumnIndex(headerRow, ["NOMOR PEMOTONGAN", "SPM", "NO SPM", "NO.SPM", "SP2D", "NO SP2D", "NO.SP2D", "REFERENSI", "REFERENCE"]);
+  const periodColumn = findColumnIndex(headerRow, ["MASA PAJAK", "PERIODE", "BULAN", "MONTH"]);
+  const taxObjectCodeColumn = findColumnIndex(headerRow, ["KODE OBJEK PAJAK", "KODE OBJEK", "TAX OBJECT CODE"]);
 
   if (nameColumn < 0 || amountColumn < 0) {
-    throw new Error("Kolom Nama dan Nominal pada file Coretax wajib ada.");
+    throw new Error("Kolom Nama dan Pajak Penghasilan pada file Coretax wajib ada.");
   }
 
-  const result: CortexExcelRow[] = [];
+  const result: CoretaxExcelRow[] = [];
 
   for (let rowIndex = headerIndex + 1; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex];
-    const name = String(row[nameColumn] ?? "").trim();
+    const nik = nikColumn >= 0 ? normalizeText(row[nikColumn]).replace(/\D/g, "") : "";
+    const name = normalizeText(row[nameColumn]);
     const amount = safeIndoNum(row[amountColumn]);
     const reference = referenceColumn >= 0 ? String(row[referenceColumn] ?? "").trim() : "";
     const period = periodColumn >= 0 ? String(row[periodColumn] ?? "").trim() : "";
+    const taxObjectCode = taxObjectCodeColumn >= 0 ? normalizeText(row[taxObjectCodeColumn]) : "";
 
-    if (!name && !reference && amount === 0) {
+    if (!name && !nik && !reference && amount === 0) {
       continue;
     }
 
-    if (!name) {
+    if (!name && !nik) {
       continue;
     }
 
     result.push({
       rowNumber: rowIndex + 1,
+      nik,
       name,
       amount,
       reference,
       period,
+      taxObjectCode,
     });
   }
 
@@ -173,6 +185,10 @@ export const parseCortexExcel = (input: Buffer | ArrayBuffer) => {
 
   return result;
 };
+
+export const parseCortexExcel = parseCoretaxExcel;
+
+export type CortexExcelRow = CoretaxExcelRow;
 
 export const mergeExcelData = (
   potonganData: PotonganRow[],
@@ -202,7 +218,7 @@ export const mergeExcelData = (
       spmNumber: spmFull,
       accountCode: potongan["Akun"]?.toString() || "",
       deductionAmount: deductionAmount,
-      
+
       // Use Potongan file as primary source for dates and numbers
       spmDate: safeDateID(potongan["TGL.SPM"]) || new Date(),
       sp2dNumber: potongan["No.SP2D/NTPN"] || "",
