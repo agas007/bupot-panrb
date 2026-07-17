@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getPph21User } from "@/lib/pph21-auth";
 import { getPtkpTerCategory, isPph21TaxObjectCode } from "@/lib/pph21";
+import { ensurePph21RecipientPtkpTable, isMissingPtkpTableError } from "@/lib/pph21-ptkp";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,7 @@ export async function GET(req: NextRequest) {
   const user = await getPph21User(req);
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 403 });
   const q = String(req.nextUrl.searchParams.get("q") || "").trim();
+  await ensurePph21RecipientPtkpTable();
   const recipients = await prisma.pph21Recipient.findMany({
     where: q ? { OR: [{ nik: { contains: q } }, { name: { contains: q, mode: "insensitive" } }] } : undefined,
     include: {
@@ -23,10 +25,20 @@ export async function GET(req: NextRequest) {
     orderBy: { name: "asc" },
     take: 500,
   }) as RecipientWithHistory[];
-  const ptkpRows = await prisma.pph21RecipientPtkp.findMany({
-    where: recipients.length ? { nik: { in: recipients.map((recipient) => recipient.nik) } } : undefined,
-    orderBy: [{ nik: "asc" }, { taxYear: "desc" }],
-  });
+  let ptkpRows: Awaited<ReturnType<typeof prisma.pph21RecipientPtkp.findMany>> = [];
+  try {
+    ptkpRows = await prisma.pph21RecipientPtkp.findMany({
+      where: recipients.length ? { nik: { in: recipients.map((recipient) => recipient.nik) } } : undefined,
+      orderBy: [{ nik: "asc" }, { taxYear: "desc" }],
+    });
+  } catch (error) {
+    if (!isMissingPtkpTableError(error)) throw error;
+    await ensurePph21RecipientPtkpTable();
+    ptkpRows = await prisma.pph21RecipientPtkp.findMany({
+      where: recipients.length ? { nik: { in: recipients.map((recipient) => recipient.nik) } } : undefined,
+      orderBy: [{ nik: "asc" }, { taxYear: "desc" }],
+    });
+  }
 
   const ptkpByNik = new Map<string, typeof ptkpRows>();
   const latestByNik = new Map<string, typeof ptkpRows[number]>();

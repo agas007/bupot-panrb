@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getPph21User } from "@/lib/pph21-auth";
 import { normalizePtkpStatus, PPH21_PTKP_STATUSES } from "@/lib/pph21";
+import { ensurePph21RecipientPtkpTable } from "@/lib/pph21-ptkp";
 
 export const runtime = "nodejs";
 
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true }) as unknown[][];
     const parsedRows = parseTemplateRows(rows);
     if (parsedRows.length === 0) return NextResponse.json({ error: "Tidak ada baris data PTKP yang ditemukan" }, { status: 400 });
+    await ensurePph21RecipientPtkpTable();
 
     const seenKeys = new Set<string>();
     const validRows = parsedRows.map<RowResult>((row) => {
