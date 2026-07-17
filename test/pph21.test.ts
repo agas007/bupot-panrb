@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPph21Xml, calculateMmPayrollTax, calculatePph21Tax, normalizePph21Lines, parseMmPayrollXml, parsePph21Xml } from "../src/lib/pph21.ts";
+import { buildMmPayrollXml, buildPph21Xml, calculateMmPayrollTax, calculatePph21Tax, getPtkpTerCategory, normalizePph21Lines, normalizePtkpStatus, parseMmPayrollXml, parsePph21Xml } from "../src/lib/pph21.ts";
 
 test("maps supported tax objects and rounds each calculated tax", () => {
   const lines = normalizePph21Lines([
@@ -69,5 +69,42 @@ test("parses MmPayroll XML and calculates payroll tax from gross and rate", () =
   const imported = parseMmPayrollXml(xml);
   assert.equal(imported.length, 1);
   assert.equal(imported[0].counterpartTin, "3275090906680014");
+  assert.equal(imported[0].calculatedTax, calculateMmPayrollTax(10265834, 2.25));
+});
+
+test("maps PTKP statuses to TER categories and rejects HB", () => {
+  assert.equal(normalizePtkpStatus(" tk/0 "), "TK/0");
+  assert.equal(getPtkpTerCategory("TK/0"), "A");
+  assert.equal(getPtkpTerCategory("K/I/0"), "A");
+  assert.equal(getPtkpTerCategory("K/2"), "B");
+  assert.equal(getPtkpTerCategory("K/3"), "C");
+  assert.equal(getPtkpTerCategory("HB/0"), null);
+});
+
+test("builds MmPayroll XML with non-final defaults", () => {
+  const xml = buildMmPayrollXml([
+    {
+      taxPeriodMonth: 6,
+      taxPeriodYear: 2026,
+      counterpartTin: "3275090906680014",
+      statusTaxExemption: "TK/0",
+      gross: 10265834,
+      rate: 2.25,
+      withholdingDate: new Date("2026-06-04T00:00:00.000Z"),
+    },
+  ]);
+
+  assert.match(xml, /<MmPayrollBulk/);
+  assert.match(xml, /<CounterpartOpt>Resident<\/CounterpartOpt>/);
+  assert.match(xml, /<CounterpartTin>3275090906680014<\/CounterpartTin>/);
+  assert.match(xml, /<StatusTaxExemption>TK\/0<\/StatusTaxExemption>/);
+  assert.match(xml, /<Position>STAFF<\/Position>/);
+  assert.match(xml, /<TaxCertificate>N\/A<\/TaxCertificate>/);
+  assert.match(xml, /<TaxObjectCode>21-100-01<\/TaxObjectCode>/);
+  assert.match(xml, /<IDPlaceOfBusinessActivity>0001861061012000000000<\/IDPlaceOfBusinessActivity>/);
+  assert.match(xml, /<CounterpartPassport xsi:nil="true"\/>/);
+
+  const imported = parseMmPayrollXml(xml);
+  assert.equal(imported.length, 1);
   assert.equal(imported[0].calculatedTax, calculateMmPayrollTax(10265834, 2.25));
 });

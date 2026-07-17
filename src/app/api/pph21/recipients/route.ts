@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getPph21User } from "@/lib/pph21-auth";
-import { isPph21TaxObjectCode } from "@/lib/pph21";
+import { getPtkpTerCategory, isPph21TaxObjectCode } from "@/lib/pph21";
 
 export const runtime = "nodejs";
 
@@ -23,6 +23,19 @@ export async function GET(req: NextRequest) {
     orderBy: { name: "asc" },
     take: 500,
   }) as RecipientWithHistory[];
+  const ptkpRows = await prisma.pph21RecipientPtkp.findMany({
+    where: recipients.length ? { nik: { in: recipients.map((recipient) => recipient.nik) } } : undefined,
+    orderBy: [{ nik: "asc" }, { taxYear: "desc" }],
+  });
+
+  const ptkpByNik = new Map<string, typeof ptkpRows>();
+  const latestByNik = new Map<string, typeof ptkpRows[number]>();
+  ptkpRows.forEach((row) => {
+    const history = ptkpByNik.get(row.nik) || [];
+    history.push(row);
+    ptkpByNik.set(row.nik, history);
+    if (!latestByNik.has(row.nik)) latestByNik.set(row.nik, row);
+  });
 
   return NextResponse.json(recipients.map((recipient) => {
     const transactions = recipient.withholdings.map((line) => ({
@@ -58,6 +71,32 @@ export async function GET(req: NextRequest) {
       exportedTax: exported.reduce((sum, item) => sum + item.calculatedTax, 0),
       monthlySummary: Array.from(monthly.values()).sort((a, b) => b.period.localeCompare(a.period)),
       transactions,
+      ptkpLatest: latestByNik.has(recipient.nik)
+        ? (() => {
+            const latest = latestByNik.get(recipient.nik)!;
+            return {
+              nik: latest.nik,
+              name: latest.name,
+              taxYear: latest.taxYear,
+              statusPtkp: latest.statusPtkp,
+              terCategory: getPtkpTerCategory(latest.statusPtkp),
+              category: latest.category,
+              sourceData: latest.sourceData,
+              note: latest.note,
+            };
+          })()
+        : null,
+      ptkpHistory: (ptkpByNik.get(recipient.nik) || []).map((row) => ({
+        id: row.id,
+        nik: row.nik,
+        name: row.name,
+        taxYear: row.taxYear,
+        statusPtkp: row.statusPtkp,
+        terCategory: getPtkpTerCategory(row.statusPtkp),
+        category: row.category,
+        sourceData: row.sourceData,
+        note: row.note,
+      })),
     };
   }));
 }

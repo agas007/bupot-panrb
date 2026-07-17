@@ -32,6 +32,6 @@ export async function POST(req: NextRequest) {
       withholdingDate: first?.withholdingDate ?? null,
     });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memeriksa XML PPPK" }, { status: 400 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memeriksa XML Non-Final" }, { status: 400 });
   }
 }

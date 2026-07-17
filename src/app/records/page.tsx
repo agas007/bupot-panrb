@@ -729,10 +729,10 @@ export default function RecordsPage() {
         body: formData,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal memeriksa XML PPPK");
+      if (!res.ok) throw new Error(data.error || "Gagal memeriksa XML Non-Final");
       setPayrollImportSummary(data);
     } catch (error) {
-      setPayrollImportError(error instanceof Error ? error.message : "Gagal memeriksa XML PPPK");
+      setPayrollImportError(error instanceof Error ? error.message : "Gagal memeriksa XML Non-Final");
     } finally {
       setIsPayrollXmlImporting(false);
     }
@@ -1272,7 +1272,7 @@ export default function RecordsPage() {
                className="glass-card px-5 py-2.5 flex items-center gap-3 text-sm font-bold transition-all shadow-lg border-cyan-500/20 text-cyan-500 hover:bg-white/10 active:scale-95 disabled:opacity-60"
              >
                 <Upload size={18} />
-                Import XML PPPK/51
+                Import XML Non-Final
              </button>
              <button
                type="button"
@@ -1281,7 +1281,7 @@ export default function RecordsPage() {
                className="glass-card px-5 py-2.5 flex items-center gap-3 text-sm font-bold transition-all shadow-lg border-emerald-500/20 text-emerald-500 hover:bg-white/10 active:scale-95 disabled:opacity-60"
              >
                 {isImportingXml ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                {isImportingXml ? "Importing..." : "Import XML PPh21"}
+                {isImportingXml ? "Importing..." : "Import XML PPh21 Final"}
              </button>
              <input
                ref={pph21ImportInputRef}
@@ -1408,8 +1408,8 @@ export default function RecordsPage() {
             <div className="bg-background border border-border rounded-3xl shadow-2xl w-full max-w-6xl max-h-[92vh] overflow-y-auto p-6 md:p-8">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-black">Import XML PPPK/51</h2>
-                  <p className="text-sm text-muted-foreground mt-1">Upload file XML PPPK/51, pilih manual nomor SPM/SP2D yang terkait, lalu bandingkan total pajaknya.</p>
+                  <h2 className="text-xl font-black">Import XML Non-Final</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Upload file XML Non-Final, pilih manual nomor SPM/SP2D yang terkait, lalu bandingkan total pajaknya.</p>
                 </div>
                 <button type="button" onClick={closePayrollImport} className="p-2 rounded-xl hover:bg-muted transition-colors">
                   <X size={20} />
@@ -1426,7 +1426,7 @@ export default function RecordsPage() {
                       className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-600 disabled:opacity-60"
                     >
                       {isPayrollXmlImporting ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-                      {isPayrollXmlImporting ? "Memeriksa..." : "Pilih XML PPPK/51"}
+                      {isPayrollXmlImporting ? "Memeriksa..." : "Pilih XML Non-Final"}
                     </button>
                     <input
                       ref={payrollImportInputRef}
@@ -1511,7 +1511,7 @@ export default function RecordsPage() {
                     </>
                   ) : (
                     <div className="rounded-2xl border border-dashed border-border bg-background/50 p-6 text-sm text-muted-foreground">
-                      Upload file XML PPPK/51 dulu untuk membaca ringkasannya.
+                      Upload file XML Non-Final dulu untuk membaca ringkasannya.
                     </div>
                   )}
                 </div>

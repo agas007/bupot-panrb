@@ -82,6 +82,24 @@ model Pph21Recipient {
   @@index([name])
 }
 
+model Pph21RecipientPtkp {
+  id          Int      @id @default(autoincrement())
+  nik         String
+  name        String
+  taxYear     Int
+  statusPtkp  String
+  category    String?
+  sourceData  String?
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([nik, taxYear])
+  @@index([nik])
+  @@index([taxYear])
+  @@index([statusPtkp])
+}
+
 model Pph21Batch {
   id              Int                @id @default(autoincrement())
   recordId        Int                @unique

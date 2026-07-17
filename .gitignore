@@ -49,5 +49,7 @@ prisma/migrations/*
 !prisma/migrations/20260628170000_pph21_module/migration.sql
 !prisma/migrations/20260628190000_record_query_indexes/
 !prisma/migrations/20260628190000_record_query_indexes/migration.sql
+!prisma/migrations/20260717100000_ptkp_master/
+!prisma/migrations/20260717100000_ptkp_master/migration.sql
 # Added by code-review-graph
 .code-review-graph/
