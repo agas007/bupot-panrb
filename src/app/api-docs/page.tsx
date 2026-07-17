@@ -1,5 +1,6 @@
 import { getApiDocs } from "@/lib/swagger";
 import CustomApiDocs from "@/components/ApiDocumentationUI";
+import { Code } from "lucide-react";
 
 export default async function ApiDocsPage() {
   const spec = await getApiDocs();
@@ -16,7 +17,7 @@ export default async function ApiDocsPage() {
            </div>
         </div>
         <p className="text-muted-foreground text-lg max-w-3xl leading-relaxed">
-          Explorer teknis untuk layanan backend Bupot PANRB. Dokumentasi ini terintegrasi langsung dengan skema database PostgreSQL dan sistem Audit Log.
+          Complete endpoint inventory for Bupot PANRB backend integration, including request shapes, responses, and the auth model actually used by the app.
         </p>
       </header>
 
@@ -24,5 +25,3 @@ export default async function ApiDocsPage() {
     </div>
   );
 }
-
-import { Code } from "lucide-react";
