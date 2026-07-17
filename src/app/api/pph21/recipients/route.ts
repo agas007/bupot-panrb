@@ -9,10 +9,17 @@ export const runtime = "nodejs";
 
 type RecipientWithHistory = Prisma.Pph21RecipientGetPayload<{ include: { withholdings: { include: { batch: { include: { record: true } } } } } }>;
 
+function parsePeriodParam(value: string | null) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 export async function GET(req: NextRequest) {
   const user = await getPph21User(req);
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 403 });
   const q = String(req.nextUrl.searchParams.get("q") || "").trim();
+  const year = parsePeriodParam(req.nextUrl.searchParams.get("year"));
+  const month = parsePeriodParam(req.nextUrl.searchParams.get("month"));
   await ensurePph21RecipientPtkpTable();
   const recipients = await prisma.pph21Recipient.findMany({
     where: q ? { OR: [{ nik: { contains: q } }, { name: { contains: q, mode: "insensitive" } }] } : undefined,
@@ -50,17 +57,25 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json(recipients.map((recipient) => {
-    const transactions = recipient.withholdings.map((line) => ({
-      id: line.id,
-      batchId: line.batchId,
-      spmNumber: line.batch.record.spmNumber,
-      sp2dNumber: line.batch.record.sp2dNumber,
-      sp2dDate: line.batch.record.sp2dDate,
-      status: line.batch.status,
-      taxObjectCode: line.taxObjectCode,
-      gross: line.gross,
-      calculatedTax: line.calculatedTax,
-    }));
+    const transactions = recipient.withholdings
+      .map((line) => ({
+        id: line.id,
+        batchId: line.batchId,
+        spmNumber: line.batch.record.spmNumber,
+        sp2dNumber: line.batch.record.sp2dNumber,
+        sp2dDate: line.batch.record.sp2dDate,
+        status: line.batch.status,
+        taxObjectCode: line.taxObjectCode,
+        gross: line.gross,
+        calculatedTax: line.calculatedTax,
+      }))
+      .filter((item) => {
+        if (!year || !month) return true;
+        if (!item.sp2dDate) return false;
+        const itemYear = item.sp2dDate.getFullYear();
+        const itemMonth = item.sp2dDate.getMonth() + 1;
+        return itemYear === year && itemMonth === month;
+      });
     const exported = transactions.filter((item) => item.status === "COMPLETED");
     const monthly = new Map<string, { period: string; count: number; gross: number; tax: number }>();
     transactions.forEach((item) => {

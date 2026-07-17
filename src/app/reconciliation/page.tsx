@@ -1,13 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import {
   AlertCircle,
   Calendar,
   CheckCircle2,
   ChevronDown,
+  Download,
   Loader2,
   Plus,
+  Upload,
   RefreshCw,
   Save,
   Scale,
@@ -16,7 +19,13 @@ import {
 import { useLanguage } from "@/components/LanguageProvider";
 import { useAuth } from "@/hooks/useAuth";
 import { getTaxAccountLabel } from "@/lib/tax-codes";
-import { ReconciliationSummaryRow } from "@/lib/reconciliation";
+import {
+  buildMonthlyComparisonRows,
+  MonthlyComparisonRow,
+  MonthlyComparisonTotals,
+  ReconciliationSummaryRow,
+} from "@/lib/reconciliation";
+import { parseCortexExcel } from "@/lib/excel";
 
 type SavedPeriod = {
   year: number;
@@ -62,6 +71,28 @@ type ReconciliationResponse = {
     underCount: number;
   };
   savedPeriods: SavedPeriod[];
+};
+
+type RecipientTransaction = {
+  spmNumber: string;
+  sp2dNumber: string | null;
+  sp2dDate: string | null;
+  status: string;
+  calculatedTax: number;
+};
+
+type RecipientSummary = {
+  name: string;
+  transactions: RecipientTransaction[];
+};
+
+type CortexComparisonReport = {
+  fileName: string;
+  periodLabel: string;
+  rows: MonthlyComparisonRow[];
+  totals: MonthlyComparisonTotals;
+  appRows: Array<{ name: string; amount: number; reference: string }>;
+  cortexRows: Array<{ name: string; amount: number; reference: string }>;
 };
 
 type EditorRow = {
@@ -123,6 +154,9 @@ export default function ReconciliationPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [editorRows, setEditorRows] = useState<EditorRow[]>([createEmptyRow()]);
   const [selectedAccountCode, setSelectedAccountCode] = useState<string | null>(null);
+  const [cortexFile, setCortexFile] = useState<File | null>(null);
+  const [cortexReport, setCortexReport] = useState<CortexComparisonReport | null>(null);
+  const [isComparingCortex, setIsComparingCortex] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const monthNames = language === "ID" ? monthNamesID : monthNamesEN;
@@ -152,6 +186,10 @@ export default function ReconciliationPage() {
     if (isAuthLoading || !user) return;
     loadData();
   }, [isAuthLoading, loadData, user]);
+
+  useEffect(() => {
+    setCortexReport(null);
+  }, [selectedMonth, selectedYear]);
 
   useEffect(() => {
     if (!data) return;
@@ -268,10 +306,131 @@ export default function ReconciliationPage() {
     }
   };
 
+  const handleCompareCortex = async () => {
+    if (!cortexFile) {
+      setFeedback({
+        type: "error",
+        message: language === "ID" ? "File Cortex belum dipilih." : "Cortex file has not been selected.",
+      });
+      return;
+    }
+
+    setIsComparingCortex(true);
+    setFeedback(null);
+
+    try {
+      const [recipientRes, cortexBuffer] = await Promise.all([
+        fetch(`/api/pph21/recipients?year=${selectedYear}&month=${selectedMonth}`, {
+          headers: getAuthHeaders(),
+        }),
+        cortexFile.arrayBuffer(),
+      ]);
+
+      if (!recipientRes.ok) {
+        throw new Error(language === "ID" ? "Gagal memuat data aplikasi PPh 21." : "Failed to load PPh 21 application data.");
+      }
+
+      const recipients: RecipientSummary[] = await recipientRes.json();
+      const appRows = recipients.flatMap((recipient) =>
+        recipient.transactions
+          .filter((transaction) => transaction.status === "COMPLETED")
+          .map((transaction) => ({
+            name: recipient.name,
+            amount: Number(transaction.calculatedTax) || 0,
+            reference: [transaction.sp2dNumber, transaction.spmNumber].filter(Boolean).join(" / "),
+          }))
+      );
+      const cortexRows = parseCortexExcel(cortexBuffer).map((row) => ({
+        name: row.name,
+        amount: Number(row.amount) || 0,
+        reference: [row.reference, row.period].filter(Boolean).join(" / "),
+      }));
+      const comparison = buildMonthlyComparisonRows(appRows, cortexRows);
+
+      setCortexReport({
+        fileName: cortexFile.name,
+        periodLabel,
+        rows: comparison.rows,
+        totals: comparison.totals,
+        appRows,
+        cortexRows,
+      });
+
+      setFeedback({
+        type: "success",
+        message:
+          language === "ID"
+            ? "Perbandingan Cortex untuk periode terpilih sudah siap."
+            : "Cortex comparison for the selected period is ready.",
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to compare Cortex data.";
+      setFeedback({ type: "error", message });
+      setCortexReport(null);
+    } finally {
+      setIsComparingCortex(false);
+    }
+  };
+
+  const handleDownloadCortexReport = () => {
+    if (!cortexReport) return;
+
+    const workbook = XLSX.utils.book_new();
+    const summaryRows = cortexReport.rows.map((row) => ({
+      Nama: row.name,
+      "Aplikasi (Bupot)": row.appAmount,
+      Cortex: row.cortexAmount,
+      "Selisih (Cortex - Aplikasi)": row.difference,
+      Status:
+        row.status === "MATCHED"
+          ? (language === "ID" ? "Sesuai" : "Matched")
+          : row.status === "OVER"
+            ? (language === "ID" ? "Lebih di Cortex" : "Higher in Cortex")
+            : row.status === "UNDER"
+              ? (language === "ID" ? "Lebih di Aplikasi" : "Higher in App")
+              : row.status === "ONLY_IN_APP"
+                ? (language === "ID" ? "Hanya di Aplikasi" : "Only in App")
+                : (language === "ID" ? "Hanya di Cortex" : "Only in Cortex"),
+      "Referensi Aplikasi": row.appReferences.join(", "),
+      "Referensi Cortex": row.cortexReferences.join(", "),
+      "Jumlah Aplikasi": row.appCount,
+      "Jumlah Cortex": row.cortexCount,
+    }));
+
+    const appSheetRows = cortexReport.appRows.map((row) => ({
+      Nama: row.name,
+      "Nominal Aplikasi": row.amount,
+      Referensi: row.reference,
+    }));
+
+    const cortexSheetRows = cortexReport.cortexRows.map((row) => ({
+      Nama: row.name,
+      "Nominal Cortex": row.amount,
+      Referensi: row.reference,
+    }));
+
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "Perbandingan");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(appSheetRows), "Aplikasi");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(cortexSheetRows), "Cortex");
+
+    XLSX.writeFile(
+      workbook,
+      `Rekonsiliasi_Cortex_${selectedYear}_${String(selectedMonth).padStart(2, "0")}.xlsx`
+    );
+  };
+
   const summaryColors: Record<string, string> = {
     BALANCED: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
     OVER: "bg-amber-500/10 text-amber-500 border-amber-500/20",
     UNDER: "bg-rose-500/10 text-rose-500 border-rose-500/20",
+  };
+
+  const comparisonColors: Record<string, string> = {
+    MATCHED: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+    OVER: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+    UNDER: "bg-rose-500/10 text-rose-500 border-rose-500/20",
+    ONLY_IN_APP: "bg-sky-500/10 text-sky-500 border-sky-500/20",
+    ONLY_IN_CORTEX: "bg-violet-500/10 text-violet-500 border-violet-500/20",
   };
 
   const currentYear = new Date().getFullYear();
@@ -737,6 +896,201 @@ export default function ReconciliationPage() {
             )}
           </section>
         </div>
+      </section>
+
+      <section className="glass-card p-6 md:p-8 flex flex-col gap-6 shadow-xl">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-col gap-1 text-left">
+            <h2 className="text-xl font-black uppercase tracking-tight">
+              {language === "ID" ? "Perbandingan File Cortex" : "Cortex File Comparison"}
+            </h2>
+            <p className="text-xs text-muted-foreground uppercase tracking-[0.2em] font-black">
+              {language === "ID"
+                ? "Upload Excel Cortex untuk periode terpilih, lalu bandingkan nama dan nominalnya dengan data aplikasi."
+                : "Upload a Cortex Excel file for the selected period, then compare names and amounts against application data."}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-muted/60 hover:bg-muted text-xs font-black uppercase tracking-widest cursor-pointer transition-all">
+              <Upload size={16} />
+              <span>{cortexFile ? cortexFile.name : (language === "ID" ? "Pilih File Cortex" : "Choose Cortex File")}</span>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={(event) => {
+                  setCortexFile(event.target.files?.[0] || null);
+                  setCortexReport(null);
+                }}
+              />
+            </label>
+            <button
+              onClick={handleCompareCortex}
+              disabled={!cortexFile || isComparingCortex}
+              className="premium-button px-4 py-3 text-xs font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-60"
+            >
+              {isComparingCortex ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+              {language === "ID" ? "Bandingkan Cortex" : "Compare Cortex"}
+            </button>
+            <button
+              onClick={handleDownloadCortexReport}
+              disabled={!cortexReport}
+              className="px-4 py-3 rounded-2xl bg-muted/60 hover:bg-muted text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 disabled:opacity-60"
+            >
+              <Download size={14} />
+              {language === "ID" ? "Download Excel" : "Download Excel"}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+          <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
+            {language === "ID" ? "Data aplikasi difilter per bulan terpilih" : "Application data filtered by selected month"}
+          </span>
+          <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
+            {language === "ID" ? "Cortex dibandingkan per nama" : "Cortex compared by name"}
+          </span>
+          <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
+            {language === "ID" ? "Selisih = Cortex - Aplikasi" : "Difference = Cortex - App"}
+          </span>
+        </div>
+
+        {cortexReport ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="glass-card p-5 border-accent/10">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  {language === "ID" ? "Total Aplikasi" : "App Total"}
+                </p>
+                <p className="text-2xl font-black text-foreground mt-2">IDR {numberFormatter.format(cortexReport.totals.appAmount)}</p>
+              </div>
+              <div className="glass-card p-5 border-violet-500/10">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  {language === "ID" ? "Total Cortex" : "Cortex Total"}
+                </p>
+                <p className="text-2xl font-black text-violet-500 mt-2">IDR {numberFormatter.format(cortexReport.totals.cortexAmount)}</p>
+              </div>
+              <div className="glass-card p-5 border-amber-500/10">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  {language === "ID" ? "Selisih Total" : "Total Difference"}
+                </p>
+                <p
+                  className={`text-2xl font-black mt-2 ${
+                    cortexReport.totals.difference === 0
+                      ? "text-foreground"
+                      : cortexReport.totals.difference > 0
+                        ? "text-amber-500"
+                        : "text-rose-500"
+                  }`}
+                >
+                  IDR {numberFormatter.format(Math.abs(cortexReport.totals.difference))}
+                </p>
+              </div>
+              <div className="glass-card p-5 border-emerald-500/10">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  {language === "ID" ? "Baris Cocok" : "Matched Rows"}
+                </p>
+                <p className="text-2xl font-black text-emerald-500 mt-2">{cortexReport.totals.matchedCount}</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-2">
+                  {cortexReport.totals.onlyInAppCount} {language === "ID" ? "hanya di aplikasi" : "only in app"} / {cortexReport.totals.onlyInCortexCount} {language === "ID" ? "hanya di Cortex" : "only in Cortex"}
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-3xl border border-border/70">
+              <table className="premium-table w-full">
+                <thead>
+                  <tr>
+                    <th>{language === "ID" ? "Nama" : "Name"}</th>
+                    <th>{language === "ID" ? "Aplikasi" : "App"}</th>
+                    <th>{language === "ID" ? "Cortex" : "Cortex"}</th>
+                    <th>{language === "ID" ? "Selisih" : "Difference"}</th>
+                    <th>{language === "ID" ? "Status" : "Status"}</th>
+                    <th>{language === "ID" ? "Referensi" : "References"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cortexReport.rows.length ? (
+                    cortexReport.rows.map((row) => (
+                      <tr key={row.key}>
+                        <td>
+                          <div className="flex flex-col gap-1">
+                            <span className="font-black text-sm">{row.name}</span>
+                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-black">
+                              {row.appCount} {language === "ID" ? "baris aplikasi" : "app rows"} / {row.cortexCount} {language === "ID" ? "baris Cortex" : "Cortex rows"}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="font-mono">IDR {numberFormatter.format(row.appAmount)}</td>
+                        <td className="font-mono text-violet-500">IDR {numberFormatter.format(row.cortexAmount)}</td>
+                        <td
+                          className={`font-mono ${
+                            row.difference === 0
+                              ? "text-foreground"
+                              : row.difference > 0
+                                ? "text-amber-500"
+                                : "text-rose-500"
+                          }`}
+                        >
+                          IDR {numberFormatter.format(Math.abs(row.difference))}
+                          <span className="ml-1 text-[10px] font-black uppercase">
+                            {row.difference === 0 ? "" : row.difference > 0 ? "+" : "-"}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border ${
+                              comparisonColors[row.status]
+                            }`}
+                          >
+                            {row.status === "MATCHED"
+                              ? (language === "ID" ? "Sesuai" : "Matched")
+                              : row.status === "OVER"
+                                ? (language === "ID" ? "Lebih di Cortex" : "Higher in Cortex")
+                                : row.status === "UNDER"
+                                  ? (language === "ID" ? "Lebih di Aplikasi" : "Higher in App")
+                                  : row.status === "ONLY_IN_APP"
+                                    ? (language === "ID" ? "Hanya di Aplikasi" : "Only in App")
+                                    : (language === "ID" ? "Hanya di Cortex" : "Only in Cortex")}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                            <span className="line-clamp-1">{row.appReferences.join(", ") || "-"}</span>
+                            <span className="line-clamp-1">{row.cortexReferences.join(", ") || "-"}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="p-10 text-center text-muted-foreground italic">
+                        {language === "ID"
+                          ? "File Cortex belum menghasilkan perbandingan."
+                          : "The Cortex file has not produced a comparison yet."}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+              <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
+                {language === "ID" ? "File:" : "File:"} {cortexReport.fileName}
+              </span>
+              <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
+                {language === "ID" ? "Periode:" : "Period:"} {cortexReport.periodLabel}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="rounded-3xl border border-dashed border-border/70 bg-muted/20 p-6 text-sm text-muted-foreground leading-relaxed">
+            {language === "ID"
+              ? "Pilih file Excel Cortex untuk bulan yang sedang dicek. Sistem akan mencocokkan nama dan nominal per penerima dengan data aplikasi pada periode yang sama, lalu hasilnya bisa diunduh sebagai Excel."
+              : "Choose a Cortex Excel file for the month you are checking. The system will match names and amounts per recipient against the application data for the same period, then let you download the result as Excel."}
+          </div>
+        )}
       </section>
     </div>
   );

@@ -18,6 +18,14 @@ export interface SPP_SPM_SP2D_Row {
   [key: string]: any;
 }
 
+export interface CortexExcelRow {
+  rowNumber: number;
+  name: string;
+  amount: number;
+  reference: string;
+  period: string;
+}
+
 export const parseExcel = (buffer: Buffer) => {
   const workbook = XLSX.read(buffer, { type: "buffer" });
   const sheetName = workbook.SheetNames[0];
@@ -69,9 +77,101 @@ const safeIndoNum = (val: any) => {
   // Indonesian style: 1.000,50 
   // Step 1: Remove all dots (thousands separator)
   // Step 2: Replace comma with dot (decimal separator)
-  const clean = val.toString().replace(/\./g, "").replace(/,/g, ".");
+  const clean = val.toString().replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(/,/g, ".");
   const num = parseFloat(clean);
   return isNaN(num) ? 0 : num;
+};
+
+function normalizeHeaderText(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function findColumnIndex(headerRow: unknown[], aliases: string[]) {
+  for (let index = 0; index < headerRow.length; index += 1) {
+    const normalized = normalizeHeaderText(headerRow[index]);
+    if (!normalized) continue;
+    if (aliases.some((alias) => {
+      const normalizedAlias = normalizeHeaderText(alias);
+      return normalized === normalizedAlias || normalized.includes(normalizedAlias);
+    })) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+export const parseCortexExcel = (input: Buffer | ArrayBuffer) => {
+  const isBuffer = typeof Buffer !== "undefined" && input instanceof Buffer;
+  const workbook = XLSX.read(input, { type: isBuffer ? "buffer" : "array", raw: true, cellDates: true });
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) {
+    throw new Error("File Cortex tidak memiliki sheet.");
+  }
+
+  const worksheet = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true, defval: null }) as unknown[][];
+  const headerIndex = rows.findIndex((row) =>
+    row.some((cell) => {
+      const normalized = normalizeHeaderText(cell);
+      return normalized.includes("NAMA") || normalized.includes("RECIPIENT") || normalized.includes("ATAS NAMA");
+    }) &&
+    row.some((cell) => {
+      const normalized = normalizeHeaderText(cell);
+      return normalized.includes("JUMLAH") || normalized.includes("POTONGAN") || normalized.includes("NOMINAL") || normalized.includes("NILAI");
+    })
+  );
+
+  if (headerIndex < 0) {
+    throw new Error("Header file Cortex tidak ditemukan. Pastikan ada kolom nama dan nominal.");
+  }
+
+  const headerRow = rows[headerIndex];
+  const nameColumn = findColumnIndex(headerRow, ["NAMA", "ATAS NAMA", "RECIPIENT", "NAMA PENERIMA", "PEGAWAI"]);
+  const amountColumn = findColumnIndex(headerRow, ["JUMLAH", "NOMINAL", "POTONGAN", "NILAI", "PAJAK", "PPH", "AMOUNT"]);
+  const referenceColumn = findColumnIndex(headerRow, ["SPM", "NO SPM", "NO.SPM", "SP2D", "NO SP2D", "NO.SP2D", "REFERENSI", "REFERENCE"]);
+  const periodColumn = findColumnIndex(headerRow, ["PERIODE", "BULAN", "MASA PAJAK", "MONTH"]);
+
+  if (nameColumn < 0 || amountColumn < 0) {
+    throw new Error("Kolom Nama dan Nominal pada file Cortex wajib ada.");
+  }
+
+  const result: CortexExcelRow[] = [];
+
+  for (let rowIndex = headerIndex + 1; rowIndex < rows.length; rowIndex += 1) {
+    const row = rows[rowIndex];
+    const name = String(row[nameColumn] ?? "").trim();
+    const amount = safeIndoNum(row[amountColumn]);
+    const reference = referenceColumn >= 0 ? String(row[referenceColumn] ?? "").trim() : "";
+    const period = periodColumn >= 0 ? String(row[periodColumn] ?? "").trim() : "";
+
+    if (!name && !reference && amount === 0) {
+      continue;
+    }
+
+    if (!name) {
+      continue;
+    }
+
+    result.push({
+      rowNumber: rowIndex + 1,
+      name,
+      amount,
+      reference,
+      period,
+    });
+  }
+
+  if (result.length === 0) {
+    throw new Error("Tidak ada baris data Cortex yang bisa dibaca dari sheet pertama.");
+  }
+
+  return result;
 };
 
 export const mergeExcelData = (

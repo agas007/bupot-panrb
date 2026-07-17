@@ -1,4 +1,4 @@
-import { getTaxAccountLabel } from "@/lib/tax-codes";
+import { getTaxAccountLabel } from "./tax-codes.ts";
 
 export type ReconciliationStatus = "BALANCED" | "OVER" | "UNDER";
 
@@ -16,6 +16,38 @@ export interface ReconciliationRecordInput {
 export interface ReconciliationTargetInput {
   accountCode: string;
   coretaxAmount: number;
+}
+
+export interface MonthlyComparisonInput {
+  name: string;
+  amount: number;
+  reference?: string | null;
+}
+
+export type MonthlyComparisonStatus = "MATCHED" | "OVER" | "UNDER" | "ONLY_IN_APP" | "ONLY_IN_CORTEX";
+
+export interface MonthlyComparisonRow {
+  key: string;
+  name: string;
+  appAmount: number;
+  cortexAmount: number;
+  difference: number;
+  appCount: number;
+  cortexCount: number;
+  appReferences: string[];
+  cortexReferences: string[];
+  status: MonthlyComparisonStatus;
+}
+
+export interface MonthlyComparisonTotals {
+  appAmount: number;
+  cortexAmount: number;
+  difference: number;
+  matchedCount: number;
+  overCount: number;
+  underCount: number;
+  onlyInAppCount: number;
+  onlyInCortexCount: number;
 }
 
 export interface ReconciliationSummaryRow {
@@ -124,4 +156,111 @@ export function calculateReconciliationSummary(
   );
 
   return { summary, totals };
+}
+
+export function normalizeComparisonName(value: string) {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function aggregateComparisonRows(rows: MonthlyComparisonInput[]) {
+  const aggregated = new Map<string, { name: string; amount: number; count: number; references: string[] }>();
+
+  for (const row of rows) {
+    const key = normalizeComparisonName(row.name);
+    if (!key) continue;
+
+    const current = aggregated.get(key) || {
+      name: row.name.trim(),
+      amount: 0,
+      count: 0,
+      references: [],
+    };
+
+    current.amount += Number(row.amount) || 0;
+    current.count += 1;
+    if (row.reference) {
+      const reference = String(row.reference).trim();
+      if (reference && !current.references.includes(reference)) {
+        current.references.push(reference);
+      }
+    }
+    if (!current.name) {
+      current.name = row.name.trim();
+    }
+    aggregated.set(key, current);
+  }
+
+  return aggregated;
+}
+
+export function buildMonthlyComparisonRows(
+  appRows: MonthlyComparisonInput[],
+  cortexRows: MonthlyComparisonInput[],
+) {
+  const appMap = aggregateComparisonRows(appRows);
+  const cortexMap = aggregateComparisonRows(cortexRows);
+  const keys = Array.from(new Set([...appMap.keys(), ...cortexMap.keys()])).sort((a, b) => a.localeCompare(b));
+
+  const rows = keys.map((key) => {
+    const appRow = appMap.get(key) || { name: key, amount: 0, count: 0, references: [] };
+    const cortexRow = cortexMap.get(key) || { name: key, amount: 0, count: 0, references: [] };
+    const difference = cortexRow.amount - appRow.amount;
+    const appExists = appRow.count > 0;
+    const cortexExists = cortexRow.count > 0;
+
+    const status: MonthlyComparisonStatus = !appExists && cortexExists
+      ? "ONLY_IN_CORTEX"
+      : appExists && !cortexExists
+        ? "ONLY_IN_APP"
+        : difference === 0
+          ? "MATCHED"
+          : difference > 0
+            ? "OVER"
+            : "UNDER";
+
+    return {
+      key,
+      name: cortexRow.name || appRow.name || key,
+      appAmount: appRow.amount,
+      cortexAmount: cortexRow.amount,
+      difference,
+      appCount: appRow.count,
+      cortexCount: cortexRow.count,
+      appReferences: appRow.references,
+      cortexReferences: cortexRow.references,
+      status,
+    } satisfies MonthlyComparisonRow;
+  });
+
+  const totals = rows.reduce<MonthlyComparisonTotals>(
+    (acc, row) => {
+      acc.appAmount += row.appAmount;
+      acc.cortexAmount += row.cortexAmount;
+      acc.difference += row.difference;
+      if (row.status === "MATCHED") acc.matchedCount += 1;
+      if (row.status === "OVER") acc.overCount += 1;
+      if (row.status === "UNDER") acc.underCount += 1;
+      if (row.status === "ONLY_IN_APP") acc.onlyInAppCount += 1;
+      if (row.status === "ONLY_IN_CORTEX") acc.onlyInCortexCount += 1;
+      return acc;
+    },
+    {
+      appAmount: 0,
+      cortexAmount: 0,
+      difference: 0,
+      matchedCount: 0,
+      overCount: 0,
+      underCount: 0,
+      onlyInAppCount: 0,
+      onlyInCortexCount: 0,
+    }
+  );
+
+  return { rows, totals };
 }
