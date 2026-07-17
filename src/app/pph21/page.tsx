@@ -157,7 +157,7 @@ export default function Pph21Page() {
 
   const editorTax = useMemo(() => lines.reduce((sum, line) => {
     const rule = PPH21_TAX_OBJECTS[line.taxObjectCode];
-    return sum + Math.floor((Number(line.gross) || 0) * rule.deemed / 100 * rule.rate / 100);
+    return sum + Math.round((Number(line.gross) || 0) * rule.deemed / 100 * rule.rate / 100);
   }, 0), [lines]);
 
   async function saveDetails() {

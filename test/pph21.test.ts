@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildPph21Xml, calculateMmPayrollTax, calculatePph21Tax, normalizePph21Lines, parseMmPayrollXml, parsePph21Xml } from "../src/lib/pph21.ts";
 
-test("maps supported tax objects and floors each calculated tax", () => {
+test("maps supported tax objects and rounds each calculated tax", () => {
   const lines = normalizePph21Lines([
     { nik: "1277014308900003", name: "Penerima Satu", taxObjectCode: "21-100-07", gross: 101 },
     { nik: "3275020507890029", name: "Penerima Dua", taxObjectCode: "21-402-03", gross: 1000 },
   ]);
   assert.equal(lines[0].deemed, 50);
-  assert.equal(lines[0].calculatedTax, 2);
+  assert.equal(lines[0].calculatedTax, 3);
   assert.equal(lines[1].rate, 15);
   assert.equal(lines[1].calculatedTax, 150);
   assert.equal(calculatePph21Tax(272000, 100, 5), 13600);

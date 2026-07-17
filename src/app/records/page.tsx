@@ -519,7 +519,7 @@ export default function RecordsPage() {
   const pph21TaxTotal = useMemo(() => {
     return pph21Lines.reduce((sum, line) => {
       const rule = PPH21_TAX_OBJECTS[line.taxObjectCode];
-      return sum + Math.floor((Number(line.gross) || 0) * rule.deemed / 100 * rule.rate / 100);
+      return sum + Math.round((Number(line.gross) || 0) * rule.deemed / 100 * rule.rate / 100);
     }, 0);
   }, [pph21Lines]);
 
@@ -962,7 +962,7 @@ export default function RecordsPage() {
                           <div className="grid gap-3">
                             {pph21Lines.map((line, index) => {
                               const rule = PPH21_TAX_OBJECTS[line.taxObjectCode];
-                              const calculatedTax = Math.floor((Number(line.gross) || 0) * rule.deemed / 100 * rule.rate / 100);
+                              const calculatedTax = Math.round((Number(line.gross) || 0) * rule.deemed / 100 * rule.rate / 100);
                               return (
                                 <div
                                   key={line.clientId}

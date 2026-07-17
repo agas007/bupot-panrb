@@ -33,7 +33,7 @@ export function normalizeNik(value: unknown) {
 }
 
 export function calculatePph21Tax(gross: number, deemed: number, rate: number) {
-  return Math.floor(gross * (deemed / 100) * (rate / 100));
+  return Math.round(gross * (deemed / 100) * (rate / 100));
 }
 
 export function normalizePph21Lines(lines: Pph21LineInput[]) {
