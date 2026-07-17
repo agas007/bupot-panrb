@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, CheckCircle2, Loader2, Save, Search } from "lucide-react";
@@ -20,7 +20,7 @@ type Recipient = {
 const codes = Object.keys(PPH21_TAX_OBJECTS) as Code[];
 const isPlaceholderRecipientName = (name: string) => /^NIK\s+\d+$/i.test(name.trim());
 
-export default function MasterPenerimaPph21Page() {
+function MasterPenerimaPph21Content() {
   const { language } = useLanguage();
   const isID = language === "ID";
   const router = useRouter();
@@ -269,5 +269,13 @@ export default function MasterPenerimaPph21Page() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MasterPenerimaPph21Page() {
+  return (
+    <Suspense fallback={<div className="py-10 text-sm text-muted-foreground">Memuat master penerima PPh 21...</div>}>
+      <MasterPenerimaPph21Content />
+    </Suspense>
   );
 }
