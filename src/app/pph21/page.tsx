@@ -302,8 +302,8 @@ export default function Pph21Page() {
   return <div className="flex flex-col gap-6 pb-10 text-left">
     <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div>
-        <h1 className="text-3xl font-black flex items-center gap-3"><ReceiptText className="text-accent" /> {isID ? "Master Penerima PPh 21" : "PPh 21 Recipient Master"}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{isID ? "Master penerima, rincian SP2D, dan ekspor XML Coretax." : "Recipient master data, SP2D details, and Coretax XML export."}</p>
+        <h1 className="text-3xl font-black flex items-center gap-3"><ReceiptText className="text-accent" /> {isID ? "Workspace PPh 21" : "PPh 21 Workspace"}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{isID ? "Rincian SP2D, impor XML, ekspor XML, dan editor recipient PPh 21." : "SP2D details, XML import/export, and the PPh 21 recipient editor."}</p>
       </div>
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end lg:w-auto">
         {isAdmin && (

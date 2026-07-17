@@ -58,8 +58,8 @@ test("parses MmPayroll XML and calculates payroll tax from gross and rate", () =
       <Position>STAFF</Position>
       <TaxCertificate>N/A</TaxCertificate>
       <TaxObjectCode>21-100-01</TaxObjectCode>
-      <Gross>10265834</Gross>
-      <Rate>2.25</Rate>
+      <Gross>10405710</Gross>
+      <Rate>2.5</Rate>
       <IDPlaceOfBusinessActivity>0001861061012000000000</IDPlaceOfBusinessActivity>
       <WithholdingDate>2026-06-04</WithholdingDate>
     </MmPayroll>
@@ -69,7 +69,8 @@ test("parses MmPayroll XML and calculates payroll tax from gross and rate", () =
   const imported = parseMmPayrollXml(xml);
   assert.equal(imported.length, 1);
   assert.equal(imported[0].counterpartTin, "3275090906680014");
-  assert.equal(imported[0].calculatedTax, calculateMmPayrollTax(10265834, 2.25));
+  assert.equal(imported[0].calculatedTax, 260143);
+  assert.equal(imported[0].calculatedTax, calculateMmPayrollTax(10405710, 2.5));
 });
 
 test("maps PTKP statuses to TER categories and rejects HB", () => {
@@ -88,8 +89,8 @@ test("builds MmPayroll XML with non-final defaults", () => {
       taxPeriodYear: 2026,
       counterpartTin: "3275090906680014",
       statusTaxExemption: "TK/0",
-      gross: 10265834,
-      rate: 2.25,
+      gross: 10405710,
+      rate: 2.5,
       withholdingDate: new Date("2026-06-04T00:00:00.000Z"),
     },
   ]);
@@ -106,5 +107,6 @@ test("builds MmPayroll XML with non-final defaults", () => {
 
   const imported = parseMmPayrollXml(xml);
   assert.equal(imported.length, 1);
-  assert.equal(imported[0].calculatedTax, calculateMmPayrollTax(10265834, 2.25));
+  assert.equal(imported[0].calculatedTax, 260143);
+  assert.equal(imported[0].calculatedTax, calculateMmPayrollTax(10405710, 2.5));
 });

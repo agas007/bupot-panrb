@@ -3,7 +3,7 @@ export const translations = {
     nav: {
       beranda: "Beranda",
       lembar_kerja: "Lembar Kerja",
-      master_penerima_pph21: "Master Penerima PPh 21",
+      master_penerima_pph21: "Master Pegawai PPh 21",
       daftar_rekan: "Daftar Rekan",
       panel_admin: "Panel Admin",
       ganti_pengguna: "Ganti Pengguna",
@@ -127,7 +127,7 @@ export const translations = {
     nav: {
       beranda: "Dashboard",
       lembar_kerja: "Worksheet",
-      master_penerima_pph21: "PPh 21 Recipient Master",
+      master_penerima_pph21: "PPh 21 Employee Master",
       daftar_rekan: "Colleagues",
       panel_admin: "Admin Panel",
       ganti_pengguna: "Switch User",

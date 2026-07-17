@@ -76,6 +76,27 @@ type PayrollImportSummary = {
   withholdingDate: string | null;
 };
 type PayrollImportRecord = Pick<SPMRecord, "id" | "spmNumber" | "sp2dNumber" | "sp2dDate" | "recipient" | "description" | "deductionAmount" | "accountCode" | "status" | "totalValue">;
+type MonitoringImportRow = {
+  rowNumber: number;
+  noSp2d: string;
+  tanggalSp2d: string;
+  jenisSpm: string;
+  jumlah: number;
+  namaPenerima: string;
+  deskripsi: string;
+  isEligible: boolean;
+  excludeReason: string | null;
+  matchedRecipientName: string | null;
+};
+type MonitoringImportSummary = {
+  fileName: string;
+  totalRows: number;
+  eligibleRows: number;
+  excludedRows: number;
+  totalEligibleAmount: number;
+  uniqueRecipients: number;
+  rows: MonitoringImportRow[];
+};
 
 const formatGrossInput = (value: string) => {
   if (!value) return "";
@@ -130,19 +151,25 @@ export default function RecordsPage() {
   const [isPph21XmlDownloading, setIsPph21XmlDownloading] = useState(false);
   const [isPph21XmlExporting, setIsPph21XmlExporting] = useState(false);
   const [isImportingXml, setIsImportingXml] = useState(false);
+  const [isMonitoringImportOpen, setIsMonitoringImportOpen] = useState(false);
+  const [isMonitoringImporting, setIsMonitoringImporting] = useState(false);
   const [isPayrollImportOpen, setIsPayrollImportOpen] = useState(false);
   const [isPayrollXmlImporting, setIsPayrollXmlImporting] = useState(false);
   const [pph21SaveError, setPph21SaveError] = useState("");
   const [pph21WithholdingDate, setPph21WithholdingDate] = useState("");
   const [pph21Lines, setPph21Lines] = useState<Pph21Line[]>([createPph21Line()]);
   const [updateForm, setUpdateForm] = useState<{ docLink: string, notes: string, status: "COMPLETED" | "ISSUES" }>({ docLink: "", notes: "", status: "COMPLETED" });
+  const [showImportOptions, setShowImportOptions] = useState(false);
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const pph21RowRefs = useRef<(HTMLDivElement | null)[]>([]);
   const pph21ImportInputRef = useRef<HTMLInputElement | null>(null);
+  const monitoringImportInputRef = useRef<HTMLInputElement | null>(null);
   const payrollImportInputRef = useRef<HTMLInputElement | null>(null);
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
   const [importError, setImportError] = useState("");
+  const [monitoringImportSummary, setMonitoringImportSummary] = useState<MonitoringImportSummary | null>(null);
+  const [monitoringImportError, setMonitoringImportError] = useState("");
   const [payrollImportSummary, setPayrollImportSummary] = useState<PayrollImportSummary | null>(null);
   const [payrollImportError, setPayrollImportError] = useState("");
   const [payrollImportRecords, setPayrollImportRecords] = useState<PayrollImportRecord[]>([]);
@@ -523,6 +550,22 @@ export default function RecordsPage() {
     }, 0);
   }, [pph21Lines]);
 
+  const monitoringEligibleSet = useMemo(() => new Set([
+    "GAJI INDUK",
+    "GAJI LAINNYA",
+    "GAJI LAINNYA PPPK",
+    "GAJI PPPK INDUK",
+    "GAJI SUSULAN",
+    "KEKURANGAN GAJI",
+    "KEKURANGAN TUNJANGAN KINERJA",
+    "SPM GAJI 13 TUNKIN",
+    "SPM GAJI 13 PNS/TNI/POLRI",
+    "SPM GAJI 13 PPPK",
+    "SPM GAJI 13 PEJABAT NEGARA",
+    "TUNJANGAN KINERJA SUSULAN",
+    "PENGHASILAN PPNPN INDUK",
+  ]), []);
+
   const selectedPph21Ids = useMemo(() => {
     return Array.from(selectedIds).filter((id) => records.find((record) => record.id === id)?.accountCode === "411121");
   }, [records, selectedIds]);
@@ -683,6 +726,130 @@ export default function RecordsPage() {
       setImportError(error instanceof Error ? error.message : "Gagal memeriksa XML");
     } finally {
       setIsImportingXml(false);
+    }
+  };
+
+  const normalizeMonitoringHeader = (value: unknown) => String(value ?? "").trim().toUpperCase().replace(/\s+/g, " ");
+  const normalizeMonitoringText = (value: unknown) => String(value ?? "").trim();
+  const parseMonitoringAmount = (value: unknown) => {
+    if (typeof value === "number") return value;
+    const cleaned = String(value ?? "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(/,/g, ".");
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  const parseMonitoringDate = (value: unknown) => {
+    if (value instanceof Date) return value;
+    if (typeof value === "number") {
+      const parsed = XLSX.SSF.parse_date_code(value);
+      return parsed ? new Date(parsed.y, parsed.m - 1, parsed.d) : null;
+    }
+    const text = String(value ?? "").trim();
+    if (!text) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+      const parsed = new Date(text);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    const parts = text.split(/[\/.-]/).map((part) => Number(part));
+    if (parts.length === 3 && parts.every((part) => Number.isInteger(part))) {
+      const [day, month, year] = parts;
+      const parsed = new Date(year, month - 1, day);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    const parsed = new Date(text);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const classifyMonitoringRow = (jenisSpm: string, namaPenerima: string) => {
+    const normalizedJenis = normalizeMonitoringHeader(jenisSpm);
+    const normalizedNama = normalizeMonitoringHeader(namaPenerima);
+    if (!normalizedJenis) return { isEligible: false, excludeReason: "Jenis SPM kosong" };
+    if (normalizedJenis.includes("NON GAJI")) return { isEligible: false, excludeReason: "NON GAJI dikecualikan" };
+    if (normalizedJenis.includes("BPG")) return { isEligible: false, excludeReason: "BPG/bendahara dikecualikan" };
+    if (normalizedJenis.includes("KONTRAKTUAL")) return { isEligible: false, excludeReason: "Kontraktual dikecualikan" };
+    const eligible = Array.from(monitoringEligibleSet).some((keyword) => normalizedJenis.includes(keyword));
+    if (!eligible) return { isEligible: false, excludeReason: "Jenis SPM belum masuk allowlist non-final" };
+    if (normalizedNama.includes("BPG")) return { isEligible: false, excludeReason: "Penerima BPG/bendahara dikecualikan" };
+    return { isEligible: true, excludeReason: null };
+  };
+
+  const parseMonitoringWorkbook = async (file: File) => {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array", cellDates: true });
+    const sheet = workbook.Sheets.SPANExt || workbook.Sheets[workbook.SheetNames[0]];
+    if (!sheet) throw new Error("Sheet SPANExt tidak ditemukan");
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true }) as unknown[][];
+    const headerIndex = rows.findIndex((row) => row.some((cell) => normalizeMonitoringHeader(cell) === "NO SP2D") && row.some((cell) => normalizeMonitoringHeader(cell) === "TANGGAL SP2D"));
+    if (headerIndex < 0) throw new Error("Baris header monitoring SP2D tidak ditemukan");
+    const headerRow = rows[headerIndex];
+    const columnMap = new Map<string, number>();
+    headerRow.forEach((cell, index) => columnMap.set(normalizeMonitoringHeader(cell), index));
+    const get = (row: unknown[], key: string) => {
+      const idx = columnMap.get(key);
+      return idx === undefined ? "" : row[idx];
+    };
+    const parsedRows: MonitoringImportRow[] = [];
+    for (let i = headerIndex + 1; i < rows.length; i += 1) {
+      const row = rows[i];
+      const noSp2d = normalizeMonitoringText(get(row, "NO SP2D"));
+      const tanggal = parseMonitoringDate(get(row, "TANGGAL SP2D"));
+      const jenisSpm = normalizeMonitoringText(get(row, "JENIS SPM"));
+      const jumlah = parseMonitoringAmount(get(row, "JUMLAH"));
+      const namaPenerima = normalizeMonitoringText(get(row, "NAMA PENERIMA"));
+      const deskripsi = normalizeMonitoringText(get(row, "DESKRIPSI"));
+      if (!noSp2d && !jenisSpm && !namaPenerima && !jumlah) continue;
+      const classification = classifyMonitoringRow(jenisSpm, namaPenerima);
+      const matchedRecipient = pph21Recipients.find((recipient) =>
+        recipient.name.trim().toLowerCase() === namaPenerima.trim().toLowerCase() ||
+        recipient.name.trim().toLowerCase() === namaPenerima.replace(/^Penerima\s*:\s*/i, "").trim().toLowerCase()
+      ) || null;
+      parsedRows.push({
+        rowNumber: i + 1,
+        noSp2d,
+        tanggalSp2d: tanggal ? tanggal.toISOString().slice(0, 10) : "",
+        jenisSpm,
+        jumlah,
+        namaPenerima,
+        deskripsi,
+        isEligible: classification.isEligible,
+        excludeReason: classification.excludeReason,
+        matchedRecipientName: matchedRecipient?.name || null,
+      });
+    }
+    const eligibleRows = parsedRows.filter((row) => row.isEligible);
+    return {
+      fileName: file.name,
+      totalRows: parsedRows.length,
+      eligibleRows: eligibleRows.length,
+      excludedRows: parsedRows.length - eligibleRows.length,
+      totalEligibleAmount: eligibleRows.reduce((sum, row) => sum + row.jumlah, 0),
+      uniqueRecipients: new Set(eligibleRows.map((row) => row.matchedRecipientName || row.namaPenerima)).size,
+      rows: parsedRows,
+    } satisfies MonitoringImportSummary;
+  };
+
+  const openMonitoringImport = async () => {
+    setIsMonitoringImportOpen(true);
+    setMonitoringImportError("");
+    setMonitoringImportSummary(null);
+  };
+
+  const closeMonitoringImport = () => {
+    setIsMonitoringImportOpen(false);
+    setMonitoringImportError("");
+    setMonitoringImportSummary(null);
+  };
+
+  const checkMonitoringWorkbook = async (file: File) => {
+    setIsMonitoringImporting(true);
+    setMonitoringImportError("");
+    setMonitoringImportSummary(null);
+    try {
+      const summary = await parseMonitoringWorkbook(file);
+      setMonitoringImportSummary(summary);
+    } catch (error) {
+      setMonitoringImportError(error instanceof Error ? error.message : "Gagal memeriksa monitoring SP2D");
+    } finally {
+      setIsMonitoringImporting(false);
     }
   };
 
@@ -1265,24 +1432,68 @@ export default function RecordsPage() {
           </div>
           
           <div className="flex items-center gap-3">
-             <button
-               type="button"
-               onClick={() => void openPayrollImport()}
-               disabled={isPayrollXmlImporting}
-               className="glass-card px-5 py-2.5 flex items-center gap-3 text-sm font-bold transition-all shadow-lg border-cyan-500/20 text-cyan-500 hover:bg-white/10 active:scale-95 disabled:opacity-60"
-             >
-                <Upload size={18} />
-                Import XML Non-Final
-             </button>
-             <button
-               type="button"
-               onClick={() => pph21ImportInputRef.current?.click()}
-               disabled={isImportingXml}
-               className="glass-card px-5 py-2.5 flex items-center gap-3 text-sm font-bold transition-all shadow-lg border-emerald-500/20 text-emerald-500 hover:bg-white/10 active:scale-95 disabled:opacity-60"
-             >
-                {isImportingXml ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                {isImportingXml ? "Importing..." : "Import XML PPh21 Final"}
-             </button>
+             <div className="relative">
+               <button
+                 type="button"
+                 onClick={() => setShowImportOptions((current) => !current)}
+                 className={`glass-card px-5 py-2.5 flex items-center gap-3 text-sm font-bold transition-all shadow-lg border-accent/20 group active:scale-95 ${showImportOptions ? "bg-accent text-white" : "hover:bg-white/10 text-accent"}`}
+               >
+                  <Upload size={18} className="group-hover:translate-y-0.5 transition-transform" />
+                  Import
+                  <ChevronDown size={14} className={`transition-transform ${showImportOptions ? "rotate-180" : ""}`} />
+               </button>
+               {showImportOptions && (
+                 <div className="absolute right-0 top-full mt-2 w-72 glass-card p-2 z-100 shadow-2xl animate-in fade-in slide-in-from-top-2 flex flex-col gap-1 border-white/5">
+                   <button
+                     type="button"
+                     onClick={() => {
+                       setShowImportOptions(false);
+                       void openMonitoringImport();
+                     }}
+                     disabled={isMonitoringImporting}
+                     className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-violet-500/10 transition-colors text-left group disabled:opacity-60"
+                   >
+                     <div className="p-1.5 bg-violet-500/10 text-violet-500 rounded-lg group-hover:scale-110 transition-transform"><Upload size={16} /></div>
+                     <div className="min-w-0">
+                       <div className="text-xs font-bold">Import Monitoring SP2D Bank</div>
+                       <div className="text-[10px] text-muted-foreground">Preview transaksi non-final dari SPANExt</div>
+                     </div>
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => {
+                       setShowImportOptions(false);
+                       void openPayrollImport();
+                     }}
+                     disabled={isPayrollXmlImporting}
+                     className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-cyan-500/10 transition-colors text-left group disabled:opacity-60"
+                   >
+                     <div className="p-1.5 bg-cyan-500/10 text-cyan-500 rounded-lg group-hover:scale-110 transition-transform"><Upload size={16} /></div>
+                     <div className="min-w-0">
+                       <div className="text-xs font-bold">Import XML Non-Final</div>
+                       <div className="text-[10px] text-muted-foreground">Upload XML untuk cek/matching non-final</div>
+                     </div>
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => {
+                       setShowImportOptions(false);
+                       pph21ImportInputRef.current?.click();
+                     }}
+                     disabled={isImportingXml}
+                     className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-emerald-500/10 transition-colors text-left group disabled:opacity-60"
+                   >
+                     <div className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg group-hover:scale-110 transition-transform">
+                       {isImportingXml ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                     </div>
+                     <div className="min-w-0">
+                       <div className="text-xs font-bold">{isImportingXml ? "Importing..." : "Import XML PPh21 Final"}</div>
+                       <div className="text-[10px] text-muted-foreground">Flow final tetap dipisah</div>
+                     </div>
+                   </button>
+                 </div>
+               )}
+             </div>
              <input
                ref={pph21ImportInputRef}
                type="file"
@@ -1336,6 +1547,74 @@ export default function RecordsPage() {
           <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-600">
             {importError}
           </div>
+        )}
+
+        {monitoringImportSummary && (
+          <section className="glass-card p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-black text-lg">Hasil import Monitoring SP2D Bank</h2>
+                <p className="text-sm text-muted-foreground">
+                  {monitoringImportSummary.fileName} · {monitoringImportSummary.totalRows} baris terbaca · {monitoringImportSummary.eligibleRows} eligible non-final
+                </p>
+              </div>
+              <button type="button" onClick={() => setMonitoringImportSummary(null)} className="p-1 text-muted-foreground hover:text-foreground">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4">
+              <div className="rounded-xl bg-violet-500/10 text-violet-600 p-3">
+                <div className="text-xs font-bold uppercase">Baris</div>
+                <div className="text-2xl font-black">{monitoringImportSummary.totalRows}</div>
+              </div>
+              <div className="rounded-xl bg-emerald-500/10 text-emerald-600 p-3">
+                <div className="text-xs font-bold uppercase">Eligible</div>
+                <div className="text-2xl font-black">{monitoringImportSummary.eligibleRows}</div>
+              </div>
+              <div className="rounded-xl bg-amber-500/10 text-amber-600 p-3">
+                <div className="text-xs font-bold uppercase">Excluded</div>
+                <div className="text-2xl font-black">{monitoringImportSummary.excludedRows}</div>
+              </div>
+              <div className="rounded-xl bg-cyan-500/10 text-cyan-600 p-3">
+                <div className="text-xs font-bold uppercase">Total eligible</div>
+                <div className="text-2xl font-black">Rp{new Intl.NumberFormat("id-ID").format(monitoringImportSummary.totalEligibleAmount)}</div>
+              </div>
+            </div>
+            <div className="overflow-x-auto mt-4">
+              <table className="premium-table min-w-[1200px]">
+                <thead>
+                  <tr>
+                    <th>Baris</th>
+                    <th>No SP2D</th>
+                    <th>Tgl SP2D</th>
+                    <th>Jenis SPM</th>
+                    <th>Nama Penerima</th>
+                    <th>Match Master</th>
+                    <th>Jumlah</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monitoringImportSummary.rows.map((row) => (
+                    <tr key={`${row.rowNumber}-${row.noSp2d}`}>
+                      <td>{row.rowNumber}</td>
+                      <td className="font-bold">{row.noSp2d || "-"}</td>
+                      <td>{row.tanggalSp2d || "-"}</td>
+                      <td>{row.jenisSpm || "-"}</td>
+                      <td className="max-w-[240px] truncate">{row.namaPenerima || "-"}</td>
+                      <td>{row.matchedRecipientName || "-"}</td>
+                      <td>Rp{new Intl.NumberFormat("id-ID").format(row.jumlah)}</td>
+                      <td>
+                        <span className={`badge ${row.isEligible ? "badge-completed" : "bg-rose-500/10! text-rose-600!"}`}>
+                          {row.isEligible ? "ELIGIBLE" : `EXCLUDED${row.excludeReason ? ` · ${row.excludeReason}` : ""}`}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
         )}
 
         {importReport && (
@@ -1646,6 +1925,159 @@ export default function RecordsPage() {
         )}
       </header>
 
+      {isMonitoringImportOpen && (
+        <div className="fixed inset-0 z-[1200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-background border border-border rounded-3xl shadow-2xl w-full max-w-6xl max-h-[92vh] overflow-y-auto p-6 md:p-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black">Import Monitoring SP2D Bank</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Upload workbook monitoring SP2D dari SPANExt untuk memeriksa transaksi non-final dan mencocokkannya ke master penerima PTKP.
+                </p>
+              </div>
+              <button type="button" onClick={closeMonitoringImport} className="p-2 rounded-xl hover:bg-muted transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-[1.15fr_1fr]">
+              <div className="rounded-2xl border border-border bg-muted/20 p-4 flex flex-col gap-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => monitoringImportInputRef.current?.click()}
+                    disabled={isMonitoringImporting}
+                    className="inline-flex items-center gap-2 rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-2 text-sm font-bold text-violet-600 disabled:opacity-60"
+                  >
+                    {isMonitoringImporting ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                    {isMonitoringImporting ? "Memeriksa..." : "Pilih Workbook SPANExt"}
+                  </button>
+                  <input
+                    ref={monitoringImportInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="hidden"
+                    disabled={isMonitoringImporting}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) void checkMonitoringWorkbook(file);
+                      event.target.value = "";
+                    }}
+                  />
+                  {monitoringImportSummary && (
+                    <button
+                      type="button"
+                      onClick={() => setMonitoringImportSummary(null)}
+                      className="text-xs font-bold uppercase text-muted-foreground hover:text-foreground"
+                    >
+                      Reset file
+                    </button>
+                  )}
+                </div>
+
+                {monitoringImportError && (
+                  <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-600">
+                    {monitoringImportError}
+                  </div>
+                )}
+
+                {monitoringImportSummary ? (
+                  <>
+                    <div className="rounded-2xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm font-medium text-violet-700">
+                      {monitoringImportSummary.fileName} · {monitoringImportSummary.totalRows} baris · {monitoringImportSummary.eligibleRows} eligible non-final
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      <div className="min-w-0 overflow-hidden rounded-xl bg-background p-4 border border-border">
+                        <div className="text-[10px] uppercase font-bold text-muted-foreground">File</div>
+                        <div className="font-black mt-1 break-all leading-tight">{monitoringImportSummary.fileName}</div>
+                      </div>
+                      <div className="min-w-0 overflow-hidden rounded-xl bg-background p-4 border border-border">
+                        <div className="text-[10px] uppercase font-bold text-muted-foreground">Rows</div>
+                        <div className="font-black mt-1">{monitoringImportSummary.totalRows}</div>
+                      </div>
+                      <div className="min-w-0 overflow-hidden rounded-xl bg-background p-4 border border-border">
+                        <div className="text-[10px] uppercase font-bold text-muted-foreground">Eligible</div>
+                        <div className="font-black mt-1">{monitoringImportSummary.eligibleRows}</div>
+                      </div>
+                      <div className="min-w-0 overflow-hidden rounded-xl bg-background p-4 border border-border">
+                        <div className="text-[10px] uppercase font-bold text-muted-foreground">Total eligible</div>
+                        <div className="font-black mt-1 break-all leading-tight text-[clamp(1rem,1.2vw,1.35rem)]">
+                          Rp{new Intl.NumberFormat("id-ID").format(monitoringImportSummary.totalEligibleAmount)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="min-w-0 overflow-hidden rounded-xl bg-background p-4 border border-border">
+                        <div className="text-[10px] uppercase font-bold text-muted-foreground">Excluded</div>
+                        <div className="font-black mt-1">{monitoringImportSummary.excludedRows}</div>
+                      </div>
+                      <div className="min-w-0 overflow-hidden rounded-xl bg-background p-4 border border-border">
+                        <div className="text-[10px] uppercase font-bold text-muted-foreground">Recipient unik</div>
+                        <div className="font-black mt-1">{monitoringImportSummary.uniqueRecipients}</div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-border bg-background/50 p-6 text-sm text-muted-foreground">
+                    Upload workbook monitoring SP2D dari SPANExt dulu untuk membaca baris eligible non-final.
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-border bg-muted/20 p-4 flex flex-col gap-4">
+                <div>
+                  <div className="text-xs font-black uppercase tracking-widest text-muted-foreground">Preview baris</div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Baris eligible akan dipakai sebagai kandidat transaksi non-final dan dicocokkan ke nama penerima di master PTKP.
+                  </div>
+                </div>
+                <div className="max-h-[34rem] overflow-y-auto rounded-2xl border border-border bg-background">
+                  {monitoringImportSummary?.rows?.length ? (
+                    <div className="divide-y divide-border overflow-hidden">
+                      {monitoringImportSummary.rows.map((row) => (
+                        <div key={`${row.rowNumber}-${row.noSp2d || row.namaPenerima}`} className="p-4 text-sm">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="font-black break-words leading-tight">
+                                {row.noSp2d || "-"} · {row.namaPenerima || "-"}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1 break-words leading-relaxed">
+                                Baris {row.rowNumber} · {row.tanggalSp2d || "-"} · {row.jenisSpm || "-"}
+                              </div>
+                            </div>
+                            <span className={`badge ${row.isEligible ? "badge-completed" : "bg-rose-500/10! text-rose-600!"}`}>
+                              {row.isEligible ? "ELIGIBLE" : "EXCLUDED"}
+                            </span>
+                          </div>
+                          <div className="mt-3 grid gap-2 md:grid-cols-3 text-xs">
+                            <div className="rounded-xl bg-muted/40 p-3">
+                              <div className="uppercase font-bold text-muted-foreground">Jumlah</div>
+                              <div className="font-black mt-1">Rp{new Intl.NumberFormat("id-ID").format(row.jumlah)}</div>
+                            </div>
+                            <div className="rounded-xl bg-muted/40 p-3">
+                              <div className="uppercase font-bold text-muted-foreground">Match Master</div>
+                              <div className="font-black mt-1">{row.matchedRecipientName || "-"}</div>
+                            </div>
+                            <div className="rounded-xl bg-muted/40 p-3">
+                              <div className="uppercase font-bold text-muted-foreground">Keterangan</div>
+                              <div className="font-black mt-1 break-words leading-tight">
+                                {row.isEligible ? "Masuk kandidat non-final" : row.excludeReason || "Tidak eligible"}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 text-sm text-muted-foreground">Belum ada file yang diunggah.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="glass-card min-w-0 max-w-full overflow-hidden transition-all duration-500 shadow-xl border-white/5">
         <div className="max-w-full overflow-x-auto overscroll-x-contain">
           <table className="premium-table min-w-[1500px]">
@@ -1698,7 +2130,7 @@ export default function RecordsPage() {
                         {record.accountCode === "411121" ? (
                           <div className="flex flex-col items-center gap-2">
                             <span className={`badge ${getPph21BadgeClass(record.pph21Batch?.status)}`}>{getPph21StatusLabel(record.pph21Batch?.status)}</span>
-                            <Link href={`/master-penerima-pph21?recordId=${record.id}`} className="text-[10px] font-black uppercase text-accent hover:underline">Kelola rincian</Link>
+                            <Link href={`/pph21?recordId=${record.id}`} className="text-[10px] font-black uppercase text-accent hover:underline">Kelola rincian</Link>
                           </div>
                         ) : <span className="text-muted-foreground">—</span>}
                       </td>

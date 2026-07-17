@@ -312,7 +312,7 @@ export type ImportedMmPayrollLine = {
 };
 
 export function calculateMmPayrollTax(gross: number, rate: number) {
-  return Math.floor(gross * (rate / 100));
+  return Math.round(gross * (rate / 100));
 }
 
 export function parseMmPayrollXml(xml: string): ImportedMmPayrollLine[] {
