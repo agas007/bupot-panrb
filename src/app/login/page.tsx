@@ -7,9 +7,11 @@ import {
   ArrowRight, ShieldCheck, KeyRound, Loader2, Code
 } from "lucide-react";
 import { readSession, saveSession, getSessionUser } from "@/lib/auth-session";
+import { useLanguage } from "@/components/LanguageProvider";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { language } = useLanguage();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -50,10 +52,10 @@ export default function LoginPage() {
           window.location.href = "/";
         }, 1500);
       } else {
-        setError(data.error || "Login Gagal. Silakan cek kembali username & password Anda.");
+        setError(data.error || (language === "ID" ? "Login gagal. Silakan cek kembali username dan kata sandi Anda." : "Login failed. Please recheck your username and password."));
       }
     } catch {
-      setError("Kesalahan koneksi. Silakan coba lagi.");
+      setError(language === "ID" ? "Kesalahan koneksi. Silakan coba lagi." : "Connection error. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -73,18 +75,22 @@ export default function LoginPage() {
               </div>
               <div className="flex flex-col gap-1">
                  <h1 className="text-3xl font-black uppercase tracking-tight text-white/90 leading-none">Bupot PANRB</h1>
-              <p className="text-[10px] font-bold text-accent uppercase tracking-[0.3em] opacity-80 italic">Biro Umum dan Keuangan</p>
+              <p className="text-[10px] font-bold text-accent uppercase tracking-[0.3em] opacity-80 italic">
+                {language === "ID" ? "Biro Umum dan Keuangan" : "General Affairs and Finance Bureau"}
+              </p>
               </div>
            </div>
 
            <form onSubmit={handleLogin} className="flex flex-col gap-5">
               <div className="flex flex-col gap-2">
-                 <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Username / NIP</label>
+                 <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">
+                   {language === "ID" ? "Username / NIP" : "Username / Staff ID"}
+                 </label>
                  <div className="relative group">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-accent transition-colors" size={18} />
                     <input 
                        className="w-full bg-white/5 border border-white/5 hover:border-white/10 focus:border-accent/40 rounded-2xl py-4 pl-12 pr-4 text-sm font-medium text-white transition-all outline-none focus:ring-4 focus:ring-accent/5"
-                       placeholder="username"
+                       placeholder={language === "ID" ? "nama pengguna" : "username"}
                        value={username}
                        onChange={e => setUsername(e.target.value)}
                        required
@@ -93,7 +99,9 @@ export default function LoginPage() {
               </div>
 
               <div className="flex flex-col gap-2">
-                 <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Password System</label>
+                 <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">
+                   {language === "ID" ? "Kata Sandi" : "Password"}
+                 </label>
                  <div className="relative group">
                     <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-accent transition-colors" size={18} />
                     <input 
@@ -117,7 +125,7 @@ export default function LoginPage() {
               {success && (
                 <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs p-4 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
                    <CheckCircle2 size={16} className="shrink-0" />
-                   <span className="font-bold">Login Berhasil! Mengalihkan...</span>
+                   <span className="font-bold">{language === "ID" ? "Login berhasil! Mengalihkan..." : "Login successful! Redirecting..."}</span>
                 </div>
               )}
 
@@ -130,10 +138,10 @@ export default function LoginPage() {
                  {isLoading ? (
                     <Loader2 className="animate-spin" size={20} />
                  ) : success ? (
-                    <>Success <CheckCircle2 size={20} /></>
-                 ) : (
-                    <>Akses Dashboard <ArrowRight size={20} /></>
-                 )}
+                    <>{language === "ID" ? "Berhasil" : "Success"} <CheckCircle2 size={20} /></>
+                  ) : (
+                    <>{language === "ID" ? "Akses Dashboard" : "Enter Dashboard"} <ArrowRight size={20} /></>
+                  )}
               </button>
 
               <button 
@@ -141,14 +149,18 @@ export default function LoginPage() {
                 onClick={() => router.push("/api-docs")}
                 className="w-full py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-accent flex items-center justify-center gap-2 transition-all hover:bg-white/5 rounded-2xl"
               >
-                  <Code size={14} /> Documentation API
+                  <Code size={14} /> {language === "ID" ? "Dokumentasi API" : "API Documentation"}
               </button>
            </div>
            </form>
 
            <div className="flex flex-col items-center gap-1 opacity-20 hover:opacity-100 transition-opacity">
               <span className="text-[9px] font-bold text-white uppercase tracking-widest italic">Digital Security Layer v2.1</span>
-              <p className="text-[8px] text-center text-white/60">Sistem ini hanya ditujukan untuk penggunaan internal Biro Umum dan Keuangan PANRB.</p>
+              <p className="text-[8px] text-center text-white/60">
+                {language === "ID"
+                  ? "Sistem ini hanya ditujukan untuk penggunaan internal Biro Umum dan Keuangan PANRB."
+                  : "This system is intended for internal use only by the General Affairs and Finance Bureau of PANRB."}
+              </p>
            </div>
         </div>
       </div>

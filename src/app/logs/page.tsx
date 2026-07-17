@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo } from "react";
 
 export default function LogsPage() {
   const { t, language } = useLanguage();
+  const isID = language === "ID";
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [logs, setLogs] = useState<any[]>([]);
@@ -110,7 +111,11 @@ export default function LogsPage() {
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
           <History className="text-accent" /> {t.nav.log_aktivitas}
         </h1>
-        <p className="text-muted-foreground">Monitor riwayat perubahan dan aktivitas sistem secara transparan dengan kategorisasi detail.</p>
+        <p className="text-muted-foreground">
+          {isID
+            ? "Monitor riwayat perubahan dan aktivitas sistem secara transparan dengan kategorisasi detail."
+            : "Track system changes and activity history transparently with detailed categorization."}
+        </p>
       </header>
 
       <div className="flex flex-col md:flex-row items-center gap-4">
@@ -118,7 +123,7 @@ export default function LogsPage() {
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
              <input 
                type="text" 
-               placeholder="Cari berdasarkan pengguna, aksi, atau target..." 
+               placeholder={isID ? "Cari berdasarkan pengguna, aksi, atau target..." : "Search by user, action, or target..."}
                className="w-full bg-muted border-none rounded-xl pl-10 pr-4 py-3 text-sm focus:ring-2 focus:ring-accent/20 outline-none transition-all"
                value={search}
                onChange={(e) => setSearch(e.target.value)}
@@ -132,12 +137,12 @@ export default function LogsPage() {
                value={categoryFilter}
                onChange={(e) => setCategoryFilter(e.target.value)}
              >
-                <option value="ALL">{language === "ID" ? "Semua Kategori" : "All Categories"}</option>
-                <option value="AUTH">Authentication</option>
-                <option value="DATA">Data Management</option>
-                <option value="ADMIN">Administrative</option>
-                <option value="SECURITY">Security/Audit</option>
-                <option value="GENERAL">General</option>
+                <option value="ALL">{isID ? "Semua Kategori" : "All Categories"}</option>
+                <option value="AUTH">{isID ? "Autentikasi" : "Authentication"}</option>
+                <option value="DATA">{isID ? "Manajemen Data" : "Data Management"}</option>
+                <option value="ADMIN">{isID ? "Administratif" : "Administrative"}</option>
+                <option value="SECURITY">{isID ? "Keamanan/Audit" : "Security/Audit"}</option>
+                <option value="GENERAL">{isID ? "Umum" : "General"}</option>
              </select>
              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
           </div>
@@ -147,23 +152,23 @@ export default function LogsPage() {
                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
                disabled={logs.length === 0}
                className="w-full bg-accent text-accent-foreground font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-accent/20 disabled:opacity-50 disabled:scale-100"
-             >
+               >
                {copySuccess ? <Check size={18} /> : <Download size={18} />}
-               {copySuccess ? "Copied!" : (language === "ID" ? "Ekspor Data" : "Export Data")}
+               {copySuccess ? (isID ? "Tersalin!" : "Copied!") : (isID ? "Ekspor Data" : "Export Data")}
                <ChevronDown size={14} className={`transition-transform ${isExportMenuOpen ? "rotate-180" : ""}`} />
              </button>
 
              {isExportMenuOpen && (
                <div className="absolute top-full right-0 mt-2 w-full glass-card bg-background/95 backdrop-blur-xl border border-border/50 p-2 z-50 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200">
                  <button onClick={handleExportCSV} className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted text-sm font-medium transition-colors">
-                   <Download size={16} className="text-emerald-500" /> Download .CSV
+                   <Download size={16} className="text-emerald-500" /> {isID ? "Unduh .CSV" : "Download .CSV"}
                  </button>
                  <button onClick={handleExportJSON} className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted text-sm font-medium transition-colors">
-                   <FileJson size={16} className="text-blue-500" /> Download .JSON
+                   <FileJson size={16} className="text-blue-500" /> {isID ? "Unduh .JSON" : "Download .JSON"}
                  </button>
                  <div className="my-1 h-px bg-border/50" />
                  <button onClick={handleCopyJSON} className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted text-sm font-medium transition-colors">
-                   <Copy size={16} className="text-purple-500" /> Copy as JSON
+                   <Copy size={16} className="text-purple-500" /> {isID ? "Salin sebagai JSON" : "Copy as JSON"}
                  </button>
                </div>
              )}
@@ -175,19 +180,19 @@ export default function LogsPage() {
           <table className="premium-table w-full text-left whitespace-nowrap">
             <thead>
               <tr className="bg-muted font-bold uppercase tracking-widest text-[10px] text-muted-foreground">
-                <th className="p-4 px-6">Timestamp</th>
-                <th className="p-4">Pengguna</th>
-                <th className="p-4">Kategori</th>
-                <th className="p-4">Aktivitas</th>
-                <th className="p-4">Objek/Target</th>
-                <th className="p-4 text-center">Tipe</th>
+                <th className="p-4 px-6">{isID ? "Waktu" : "Timestamp"}</th>
+                <th className="p-4">{isID ? "Pengguna" : "User"}</th>
+                <th className="p-4">{isID ? "Kategori" : "Category"}</th>
+                <th className="p-4">{isID ? "Aktivitas" : "Activity"}</th>
+                <th className="p-4">{isID ? "Objek/Target" : "Object/Target"}</th>
+                <th className="p-4 text-center">{isID ? "Tipe" : "Type"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/5">
               {isLoading ? (
-                <tr><td colSpan={6} className="p-20 text-center text-muted-foreground animate-pulse italic font-bold">Memperbarui data audit...</td></tr>
+                <tr><td colSpan={6} className="p-20 text-center text-muted-foreground animate-pulse italic font-bold">{isID ? "Memperbarui data audit..." : "Refreshing audit data..."}</td></tr>
               ) : filteredLogs.length === 0 ? (
-                <tr><td colSpan={6} className="p-20 text-center text-muted-foreground italic font-semibold">Belum ada aktivitas yang tercatat untuk filter ini.</td></tr>
+                <tr><td colSpan={6} className="p-20 text-center text-muted-foreground italic font-semibold">{isID ? "Belum ada aktivitas yang tercatat untuk filter ini." : "No activity has been recorded for this filter."}</td></tr>
               ) : (
                 filteredLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-accent/20 transition-colors group">
@@ -239,14 +244,14 @@ export default function LogsPage() {
         </div>
         <div className="p-6 md:p-8 flex items-center justify-between bg-muted/10 border-t border-border/5">
           <div className="text-muted-foreground italic text-[10px] uppercase tracking-[0.2em] font-black opacity-60">
-            {isLoading ? "PROCESSING..." : `TOTAL ENTRIES: ${filteredLogs.length}`}
+            {isLoading ? (isID ? "MEMPROSES..." : "PROCESSING...") : `${isID ? "TOTAL ENTRI" : "TOTAL ENTRIES"}: ${filteredLogs.length}`}
           </div>
           <button 
             onClick={fetchLogs}
             className="text-[11px] font-black text-accent hover:brightness-110 uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95"
           >
             <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
-            Refresh Activity Stream
+            {isID ? "Muat Ulang Aktivitas" : "Refresh Activity Stream"}
           </button>
         </div>
       </div>

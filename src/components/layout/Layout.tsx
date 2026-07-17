@@ -295,13 +295,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const filteredNavItems = [
     { href: "/", label: t.nav.beranda, icon: LayoutDashboard, minRole: "USER" },
     { href: "/records", label: t.nav.lembar_kerja, icon: FileSpreadsheet, minRole: "USER" },
-    { href: "/master-penerima-pph21", label: "Master Penerima PPh 21", icon: ReceiptText, minRole: "USER" },
-    { href: "/reconciliation", label: t.nav.rekonsiliasi_spt || "Rekonsiliasi SPT", icon: Scale, minRole: "USER" },
+    { href: "/master-penerima-pph21", label: t.nav.master_penerima_pph21, icon: ReceiptText, minRole: "USER" },
+    { href: "/reconciliation", label: t.nav.rekonsiliasi_spt, icon: Scale, minRole: "USER" },
     { href: "/colleagues", label: t.nav.daftar_rekan, icon: Users, minRole: "ADMIN" },
-    { href: "/logs", label: t.nav.log_aktivitas || "Log Aktivitas", icon: History, minRole: "ADMIN" },
-    { href: "/api-docs", label: t.nav.dokumentasi_api || "API Docs", icon: FileText },
+    { href: "/logs", label: t.nav.log_aktivitas, icon: History, minRole: "ADMIN" },
+    { href: "/api-docs", label: t.nav.dokumentasi_api, icon: FileText },
     { href: "/admin", label: t.nav.panel_admin, icon: Settings, minRole: "ADMIN" },
-    { href: "/settings", label: t.nav.pengaturan || "Settings", icon: Settings2, minRole: "USER" },
+    { href: "/settings", label: t.nav.pengaturan, icon: Settings2, minRole: "USER" },
   ].filter(item => {
     if (item.minRole === "ADMIN") return currentUser?.role === "ADMIN";
     if (item.minRole === "USER") return currentUser !== null;
@@ -444,12 +444,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="bg-accent text-accent-foreground p-2 rounded-xl shrink-0">
             <FileSpreadsheet size={24} />
           </div>
-          {!isSidebarCollapsed && (
-            <div className="flex flex-col animate-in fade-in slide-in-from-left-4 text-left">
-              <span className="font-bold text-lg tracking-tight leading-none mb-1">Bupot PANRB</span>
-              <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Internal System</span>
-            </div>
-          )}
+              {!isSidebarCollapsed && (
+                <div className="flex flex-col animate-in fade-in slide-in-from-left-4 text-left">
+                  <span className="font-bold text-lg tracking-tight leading-none mb-1">Bupot PANRB</span>
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">{t.nav.internal_system}</span>
+                </div>
+              )}
         </div>
 
         <Link 
@@ -459,12 +459,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className={`p-2 rounded-lg shrink-0 transition-transform group-hover:scale-110 ${currentUser?.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
             {currentUser?.role === "ADMIN" ? <Shield size={18} /> : <UserIcon size={18} />}
           </div>
-          {!isSidebarCollapsed && (
-            <div className="flex flex-col min-w-0 animate-in fade-in slide-in-from-left-4 text-left">
-              <span className="text-xs font-bold truncate group-hover:text-accent transition-colors">{currentUser?.name || "Visitor"}</span>
-              <span className="text-[10px] text-muted-foreground uppercase">{currentUser?.role || "GUEST"} MODE</span>
-            </div>
-          )}
+              {!isSidebarCollapsed && (
+                <div className="flex flex-col min-w-0 animate-in fade-in slide-in-from-left-4 text-left">
+                  <span className="text-xs font-bold truncate group-hover:text-accent transition-colors">{currentUser?.name || "Visitor"}</span>
+                  <span className="text-[10px] text-muted-foreground uppercase">{currentUser?.role || "GUEST"} MODE</span>
+                </div>
+              )}
         </Link>
 
         <nav className="flex flex-col gap-1 flex-1">
@@ -510,7 +510,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           
           <button onClick={handleLogout} className={`w-full flex items-center gap-3 text-foreground/70 hover:text-rose-500 cursor-pointer transition-colors p-2 rounded-lg hover:bg-rose-500/8 group ${isSidebarCollapsed ? "justify-center" : ""}`}>
              <LogOut size={20} className="group-hover:translate-x-1 transition-transform" />
-             {!isSidebarCollapsed && <span className="font-medium text-sm">Keluar / Logout</span>}
+             {!isSidebarCollapsed && <span className="font-medium text-sm">{t.nav.keluar}</span>}
           </button>
         </div>
       </aside>

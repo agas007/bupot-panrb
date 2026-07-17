@@ -3,6 +3,7 @@ export const translations = {
     nav: {
       beranda: "Beranda",
       lembar_kerja: "Lembar Kerja",
+      master_penerima_pph21: "Master Penerima PPh 21",
       daftar_rekan: "Daftar Rekan",
       panel_admin: "Panel Admin",
       ganti_pengguna: "Ganti Pengguna",
@@ -12,7 +13,10 @@ export const translations = {
       ganti_bahasa: "Ganti Bahasa",
       log_aktivitas: "Log Aktivitas",
       pengaturan: "Pengaturan",
-      rekonsiliasi_spt: "Rekonsiliasi Coretax"
+      rekonsiliasi_spt: "Rekonsiliasi Coretax",
+      dokumentasi_api: "Dokumentasi API",
+      keluar: "Keluar",
+      internal_system: "Sistem Internal"
     },
     dashboard: {
       title: "Beranda Bupot PANRB",
@@ -123,6 +127,7 @@ export const translations = {
     nav: {
       beranda: "Dashboard",
       lembar_kerja: "Worksheet",
+      master_penerima_pph21: "PPh 21 Recipient Master",
       daftar_rekan: "Colleagues",
       panel_admin: "Admin Panel",
       ganti_pengguna: "Switch User",
@@ -132,7 +137,10 @@ export const translations = {
       ganti_bahasa: "Change Language",
       log_aktivitas: "Activity Logs",
       pengaturan: "Settings",
-      rekonsiliasi_spt: "Coretax Reconciliation"
+      rekonsiliasi_spt: "Coretax Reconciliation",
+      dokumentasi_api: "API Docs",
+      keluar: "Logout",
+      internal_system: "Internal System"
     },
     dashboard: {
       title: "Bupot PANRB Dashboard",

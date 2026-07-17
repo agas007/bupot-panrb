@@ -11,6 +11,7 @@ import { useState } from "react";
 export default function CustomApiDocs({ spec }: { spec: any }) {
   const { language } = useLanguage();
   const [activeTag, setActiveTag] = useState("All");
+  const isID = language === "ID";
 
   const paths = spec.paths || {};
   const tags = ["All", ...Object.values(paths).flatMap((p: any) => 
@@ -37,7 +38,7 @@ export default function CustomApiDocs({ spec }: { spec: any }) {
       <aside className="w-full lg:w-72 lg:sticky lg:top-24 flex flex-col gap-6">
         <div className="glass-card p-4 flex flex-col gap-2">
           <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground ml-3 mb-2">
-            API SECTIONS
+            {isID ? "Bagian API" : "API Sections"}
           </label>
           {tags.map((tag) => (
             <button
@@ -48,9 +49,9 @@ export default function CustomApiDocs({ spec }: { spec: any }) {
                 ? "bg-accent text-accent-foreground shadow-lg shadow-accent/20 translate-x-1" 
                 : "hover:bg-muted text-muted-foreground hover:translate-x-1"
               }`}
-            >
+              >
               {tagIcons[tag] || <Database size={18} />}
-              {tag}
+              {tag === "All" ? (isID ? "Semua" : "All") : tag}
             </button>
           ))}
         </div>
@@ -58,13 +59,15 @@ export default function CustomApiDocs({ spec }: { spec: any }) {
         <div className="glass-card p-6 flex flex-col gap-3">
           <div className="flex items-center gap-3 text-accent mb-2">
             <Lock size={20} />
-            <span className="font-bold text-sm tracking-tight">Security Model</span>
+            <span className="font-bold text-sm tracking-tight">{isID ? "Model Keamanan" : "Security Model"}</span>
           </div>
           <div className="p-3 bg-muted/50 rounded-xl">
              <code className="text-[10px] font-bold text-foreground opacity-80 uppercase tracking-widest break-all">x-simulated-user</code>
           </div>
           <p className="text-[10px] text-muted-foreground leading-relaxed italic">
-            Include this header in all non-GET requests to properly attribute audit logs in the system simulation.
+            {isID
+              ? "Tambahkan header ini pada semua request non-GET agar audit log bisa ditandai dengan benar pada mode simulasi."
+              : "Include this header in all non-GET requests to properly attribute audit logs in the system simulation."}
           </p>
         </div>
       </aside>
@@ -104,7 +107,7 @@ export default function CustomApiDocs({ spec }: { spec: any }) {
                     <div className="flex flex-col gap-6 text-left">
                       <div className="flex items-center gap-3">
                         <Code size={18} className="text-accent" />
-                        <h4 className="text-sm font-black uppercase tracking-widest">Request Spec</h4>
+                        <h4 className="text-sm font-black uppercase tracking-widest">{isID ? "Spesifikasi Request" : "Request Spec"}</h4>
                       </div>
                       
                       {/* Query Parameters */}
@@ -129,7 +132,7 @@ export default function CustomApiDocs({ spec }: { spec: any }) {
                                 }, null, 2)}`}
                               </pre>
                            </div>
-                           <div className="absolute top-4 right-4 text-[10px] uppercase font-black text-white/20">PAYLOAD</div>
+                          <div className="absolute top-4 right-4 text-[10px] uppercase font-black text-white/20">PAYLOAD</div>
                         </div>
                       )}
                     </div>
@@ -137,7 +140,7 @@ export default function CustomApiDocs({ spec }: { spec: any }) {
                     <div className="flex flex-col gap-6 text-left">
                       <div className="flex items-center gap-3">
                         <Zap size={18} className="text-emerald-500" />
-                        <h4 className="text-sm font-black uppercase tracking-widest">Expected Response</h4>
+                        <h4 className="text-sm font-black uppercase tracking-widest">{isID ? "Respons yang Diharapkan" : "Expected Response"}</h4>
                       </div>
                       
                       {Object.entries(details.responses || {}).map(([code, resp]: [string, any]) => (
@@ -148,7 +151,7 @@ export default function CustomApiDocs({ spec }: { spec: any }) {
                            <div className="flex flex-col gap-1">
                              <span className="text-sm font-bold opacity-90">{resp.description}</span>
                              <span className="text-[10px] text-muted-foreground font-mono">content-type: application/json</span>
-                           </div>
+                          </div>
                         </div>
                       ))}
                     </div>
