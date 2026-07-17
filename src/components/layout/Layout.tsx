@@ -523,87 +523,128 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Modern Announcement Modal v1.4.0 */}
       {showAnnouncement && mounted && (
          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-9999 flex items-center justify-center p-4">
-            <div className="glass-card bg-slate-900/95! border-white/10! w-full max-w-xl p-8 flex flex-col gap-8 shadow-2xl animate-in zoom-in duration-300">
-               <div className="flex justify-between items-center text-left">
+            <div className="glass-card bg-slate-900/95! border-white/10! w-full max-w-2xl p-8 flex flex-col gap-6 shadow-2xl animate-in zoom-in duration-300">
+               <div className="flex justify-between items-start text-left gap-4">
                   <div className="flex items-center gap-4">
                      <div className="bg-accent/20 text-accent p-3 rounded-2xl animate-pulse">
                         <Sparkles size={32} />
                      </div>
-                     <div className="flex flex-col">
+                     <div className="flex flex-col gap-1">
                         <h2 className="text-2xl font-black uppercase tracking-tight text-white">Rilis v1.4.0 Stabil</h2>
                         <span className="text-accent text-[10px] font-bold uppercase tracking-[0.2em]">PTKP Master & Payroll XML</span>
                      </div>
                   </div>
                   <button onClick={() => setShowAnnouncement(false)} className="p-2 hover:bg-white/10 rounded-full transition-all text-white/40 hover:text-white"><X size={24}/></button>
                </div>
-               
+
                <div className="flex gap-2 bg-white/5 p-1 rounded-xl">
-                  <button onClick={() => setAnnouncementTab("v1.4.0")} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.4.0" ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-white/40"}`}>LATEST v1.4.0</button>
-                  <button onClick={() => setAnnouncementTab("v1.3.0")} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.3.0" ? "bg-white/20 text-white" : "text-white/40"}`}>PREVIOUS v1.3.0</button>
+                  <button onClick={() => setAnnouncementTab("v1.4.0")} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.4.0" ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-white/40"}`}>LATEST v1.4.0</button>
+                  <button onClick={() => setAnnouncementTab("v1.3.0")} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.3.0" ? "bg-white/20 text-white" : "text-white/40"}`}>PREVIOUS v1.3.0</button>
+               </div>
+
+               <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.25em] text-white/30">
+                  <span>Sebelum</span>
+                  <span>Sesudah</span>
                </div>
 
                {announcementTab === "v1.4.0" ? (
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                      <Scale className="text-emerald-400 shrink-0 mt-1" size={18} />
-                      <div className="flex flex-col gap-1">
-                         <span className="text-xs font-bold text-white leading-none">Master PTKP Non-Final</span>
-                         <p className="text-[11px] text-white/50 leading-relaxed">Data PTKP sekarang bisa dipakai sebagai referensi master untuk kebutuhan payroll non-final.</p>
-                      </div>
-                   </div>
-                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                      <FileText className="text-indigo-400 shrink-0 mt-1" size={18} />
-                      <div className="flex flex-col gap-1">
-                         <span className="text-xs font-bold text-white leading-none">XML Payroll Non-Final</span>
-                         <p className="text-[11px] text-white/50 leading-relaxed">Impor XML payroll non-final sekarang lebih siap dipakai untuk alur komparasi dan pemrosesan data.</p>
-                      </div>
-                   </div>
-                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                      <Info className="text-amber-400 shrink-0 mt-1" size={18} />
-                      <div className="flex flex-col gap-1">
-                         <span className="text-xs font-bold text-white leading-none">Login & Log Dilokalkan</span>
-                         <p className="text-[11px] text-white/50 leading-relaxed">Halaman login, log aktivitas, dan halaman PPh 21 sekarang lebih konsisten untuk pengguna lokal.</p>
-                      </div>
-                   </div>
-                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                      <Bell className="text-rose-400 shrink-0 mt-1" size={18} />
-                      <div className="flex flex-col gap-1">
-                         <span className="text-xs font-bold text-white leading-none">Records & Auth Diperkeras</span>
-                         <p className="text-[11px] text-white/50 leading-relaxed">Alur records, auth session, dan query handling diperkuat supaya workflow harian lebih stabil.</p>
-                      </div>
-                   </div>
-               </div>
+                 <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/10">
+                       <div className="p-6 md:p-7">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/35">Sebelum</p>
+                          <h3 className="mt-2 text-lg font-black text-white">Workflow masih pecah</h3>
+                          <ul className="mt-4 space-y-3 text-sm leading-relaxed text-white/65">
+                             <li className="flex gap-3">
+                                <span className="text-white/25">•</span>
+                                <span>PTKP belum jadi referensi master untuk payroll non-final.</span>
+                             </li>
+                             <li className="flex gap-3">
+                                <span className="text-white/25">•</span>
+                                <span>Impor XML payroll belum terasa sebagai alur komparasi yang rapi.</span>
+                             </li>
+                             <li className="flex gap-3">
+                                <span className="text-white/25">•</span>
+                                <span>Login, log aktivitas, dan halaman PPh 21 belum seragam untuk user lokal.</span>
+                             </li>
+                          </ul>
+                       </div>
+
+                       <div className="p-6 md:p-7 bg-accent/10">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-accent/80">Sesudah</p>
+                          <h3 className="mt-2 text-lg font-black text-white">Workflow jadi satu jalur</h3>
+                          <ul className="mt-4 space-y-3 text-sm leading-relaxed text-white/80">
+                             <li className="flex gap-3">
+                                <span className="text-accent">•</span>
+                                <span>PTKP master siap dipakai buat kebutuhan payroll non-final.</span>
+                             </li>
+                             <li className="flex gap-3">
+                                <span className="text-accent">•</span>
+                                <span>XML payroll non-final lebih siap dipakai untuk impor dan komparasi data.</span>
+                             </li>
+                             <li className="flex gap-3">
+                                <span className="text-accent">•</span>
+                                <span>Login, log aktivitas, PPh 21, dan records/auth lebih konsisten serta lebih stabil.</span>
+                             </li>
+                          </ul>
+                       </div>
+                    </div>
+
+                    <div className="border-t border-white/10 px-6 py-4 flex flex-wrap gap-2 bg-black/10">
+                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">PTKP master</span>
+                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">XML payroll</span>
+                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Local login & logs</span>
+                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Records/auth hardening</span>
+                    </div>
+                 </div>
                ) : (
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                      <ShieldCheck className="text-emerald-400 shrink-0 mt-1" size={18} />
-                      <div className="flex flex-col gap-1">
-                         <span className="text-xs font-bold text-white leading-none">Rekonsiliasi Lebih Rapi</span>
-                         <p className="text-[11px] text-white/50 leading-relaxed">Alur pencocokan data sekarang lebih jelas untuk membandingkan, mengoreksi, dan menutup selisih dokumen.</p>
-                      </div>
-                   </div>
-                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                      <Bell className="text-indigo-400 shrink-0 mt-1" size={18} />
-                      <div className="flex flex-col gap-1">
-                         <span className="text-xs font-bold text-white leading-none">Workspace PPh 21</span>
-                         <p className="text-[11px] text-white/50 leading-relaxed">Ekstraksi, telaah, dan pengelolaan bukti potong PPh 21 kini terkonsolidasi di satu ruang kerja.</p>
-                      </div>
-                   </div>
-                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                      <History className="text-amber-400 shrink-0 mt-1" size={18} />
-                      <div className="flex flex-col gap-1">
-                         <span className="text-xs font-bold text-white leading-none">API Docs Interaktif</span>
-                         <p className="text-[11px] text-white/50 leading-relaxed">Referensi endpoint backend kini lebih mudah ditelusuri untuk integrasi dan pengecekan payload.</p>
-                      </div>
-                   </div>
-                   <div className="flex gap-3 items-start p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
-                      <FileType className="text-rose-400 shrink-0 mt-1" size={18} />
-                      <div className="flex flex-col gap-1">
-                         <span className="text-xs font-bold text-white leading-none">Notifikasi & Audit Lebih Cepat</span>
-                         <p className="text-[11px] text-white/50 leading-relaxed">Peringatan aktivitas dan log sesi tampil lebih responsif untuk pemantauan harian tim.</p>
-                      </div>
-                   </div>
-               </div>
+                 <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/10">
+                       <div className="p-6 md:p-7">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/35">Sebelum</p>
+                          <h3 className="mt-2 text-lg font-black text-white">Workflow lebih tersebar</h3>
+                          <ul className="mt-4 space-y-3 text-sm leading-relaxed text-white/65">
+                             <li className="flex gap-3">
+                                <span className="text-white/25">•</span>
+                                <span>Rekonsiliasi masih terasa manual dan belum fokus ke satu alur jelas.</span>
+                             </li>
+                             <li className="flex gap-3">
+                                <span className="text-white/25">•</span>
+                                <span>PPh 21 belum terkonsolidasi penuh di satu ruang kerja.</span>
+                             </li>
+                             <li className="flex gap-3">
+                                <span className="text-white/25">•</span>
+                                <span>API docs, notifikasi, dan audit session belum secepat sekarang buat dicek.</span>
+                             </li>
+                          </ul>
+                       </div>
+
+                       <div className="p-6 md:p-7 bg-white/5">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-accent/80">Sesudah</p>
+                          <h3 className="mt-2 text-lg font-black text-white">Lebih gampang dipantau</h3>
+                          <ul className="mt-4 space-y-3 text-sm leading-relaxed text-white/80">
+                             <li className="flex gap-3">
+                                <span className="text-accent">•</span>
+                                <span>Rekonsiliasi jadi lebih rapi untuk banding, koreksi, dan tutup selisih.</span>
+                             </li>
+                             <li className="flex gap-3">
+                                <span className="text-accent">•</span>
+                                <span>Workspace PPh 21 lebih terkonsolidasi dan mudah dipakai tim.</span>
+                             </li>
+                             <li className="flex gap-3">
+                                <span className="text-accent">•</span>
+                                <span>API docs interaktif, notifikasi in-app, dan audit activity lebih responsif.</span>
+                             </li>
+                          </ul>
+                       </div>
+                    </div>
+
+                    <div className="border-t border-white/10 px-6 py-4 flex flex-wrap gap-2 bg-black/10">
+                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Rekonsiliasi</span>
+                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Workspace PPh 21</span>
+                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">API docs</span>
+                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Notifikasi & audit</span>
+                    </div>
+                 </div>
                )}
 
                <button onClick={() => { setShowAnnouncement(false); localStorage.setItem("bupot_announcement_seen", MODAL_VERSION); }} className="premium-button py-4 font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3">
