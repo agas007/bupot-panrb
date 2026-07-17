@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildMmPayrollXml, buildPph21Xml, calculateMmPayrollTax, calculatePph21Tax, getPtkpTerCategory, normalizePph21Lines, normalizePtkpStatus, parseMmPayrollXml, parsePph21Xml } from "../src/lib/pph21.ts";
+import { buildMmPayrollXml, buildPph21ExportFileName, buildPph21Xml, calculateMmPayrollTax, calculatePph21Tax, getPtkpTerCategory, normalizePph21Lines, normalizePtkpStatus, parseMmPayrollXml, parsePph21Xml } from "../src/lib/pph21.ts";
 
 test("maps supported tax objects and rounds each calculated tax", () => {
   const lines = normalizePph21Lines([
@@ -36,6 +36,14 @@ test("builds a Coretax-compatible XML row for every recipient", () => {
   assert.equal(imported[0].documentNumber, "261330000047614");
   assert.equal(imported[0].calculatedTax, 150000);
   assert.equal(imported[1].calculatedTax, 13600);
+});
+
+test("builds export file names from SPM, SP2D, and operator name", () => {
+  const fileName = buildPph21ExportFileName([
+    { spmNumber: "SPM-001/2026", sp2dNumber: "SP2D-00047" },
+  ], "Andi Santoso", new Date("2026-07-17T10:20:30.000Z"));
+
+  assert.equal(fileName, "Bupot_PPh21_SPM-001-2026_SP2D-00047_Andi-Santoso_2026-07-17T10-20-30-000Z.xml");
 });
 
 test("rejects unsafe or malformed imported XML", () => {

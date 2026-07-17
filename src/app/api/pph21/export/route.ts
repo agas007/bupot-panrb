@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { buildPph21Xml, PPH21_ACCOUNT_CODE } from "@/lib/pph21";
+import { buildPph21ExportFileName, buildPph21Xml, PPH21_ACCOUNT_CODE } from "@/lib/pph21";
 import { canManagePph21, getPph21User } from "@/lib/pph21-auth";
 
 export const runtime = "nodejs";
@@ -36,8 +36,7 @@ export async function POST(req: NextRequest) {
     });
 
     const xml = buildPph21Xml(batches);
-    const now = new Date();
-    const fileName = `Bupot_PPh21_${now.toISOString().replace(/[:.]/g, "-")}.xml`;
+    const fileName = buildPph21ExportFileName(records.map((record) => ({ spmNumber: record.spmNumber, sp2dNumber: record.sp2dNumber })), user.name);
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const exportLog = await tx.pph21Export.create({ data: { fileName, exportedById: user.id } });
       await tx.pph21ExportItem.createMany({ data: batches.map((batch) => ({ exportId: exportLog.id, batchId: batch.id })) });

@@ -117,6 +117,34 @@ export function formatDateOnly(value: Date | string) {
   return date.toISOString().slice(0, 10);
 }
 
+function normalizeFileNamePart(value: string) {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-+/g, "-");
+}
+
+export function buildPph21ExportFileName(
+  records: Array<{ spmNumber: string; sp2dNumber: string | null }>,
+  exportedByName: string,
+  now = new Date(),
+) {
+  if (!records.length) {
+    throw new Error("Minimal satu record wajib dipilih.");
+  }
+
+  const firstRecord = records[0];
+  const spmNumber = normalizeFileNamePart(firstRecord.spmNumber) || "SPM";
+  const sp2dNumber = normalizeFileNamePart(firstRecord.sp2dNumber || "") || "SP2D";
+  const exporterName = normalizeFileNamePart(exportedByName) || "petugas";
+  const timestamp = now.toISOString().replace(/[:.]/g, "-");
+  const batchSuffix = records.length > 1 ? `_x${records.length}` : "";
+
+  return `Bupot_PPh21_${spmNumber}_${sp2dNumber}_${exporterName}${batchSuffix}_${timestamp}.xml`;
+}
+
 function escapeXml(value: unknown) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
