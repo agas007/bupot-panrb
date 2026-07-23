@@ -161,6 +161,7 @@ export default function ReconciliationPage() {
   const [cortexReport, setCortexReport] = useState<CortexComparisonReport | null>(null);
   const [isComparingCortex, setIsComparingCortex] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [reconciliationView, setReconciliationView] = useState<"summary" | "compare">("summary");
 
   const monthNames = language === "ID" ? monthNamesID : monthNamesEN;
 
@@ -192,6 +193,7 @@ export default function ReconciliationPage() {
 
   useEffect(() => {
     setCortexReport(null);
+    setReconciliationView("summary");
   }, [selectedMonth, selectedYear]);
 
   useEffect(() => {
@@ -369,15 +371,18 @@ export default function ReconciliationPage() {
 
       const recipients: RecipientSummary[] = await recipientRes.json();
       const appRows = recipients.flatMap((recipient) =>
-        recipient.transactions.map((transaction) => ({
-          nik: recipient.nik,
-          name: recipient.name,
-          amount: Number(transaction.calculatedTax) || 0,
-          reference: [transaction.sp2dNumber, transaction.spmNumber].filter(Boolean).join(" / "),
-        }))
+        recipient.transactions
+          .filter((transaction) => transaction.status === "COMPLETED")
+          .map((transaction) => ({
+            nik: recipient.nik,
+            name: recipient.name,
+            amount: Number(transaction.calculatedTax) || 0,
+            reference: [transaction.sp2dNumber, transaction.spmNumber].filter(Boolean).join(" / "),
+          }))
       );
 
-      const coretaxRowsParsed = parseCoretaxExcel(cortexBuffer);
+      const coretaxInput = cortexFile.name.toLowerCase().endsWith(".csv") ? await cortexFile.text() : cortexBuffer;
+      const coretaxRowsParsed = parseCoretaxExcel(coretaxInput);
       const filePeriods = Array.from(new Set(coretaxRowsParsed.map((row) => row.period).filter(Boolean)));
       const cortexRows = coretaxRowsParsed.map((row) => ({
         nik: row.nik,
@@ -495,7 +500,7 @@ export default function ReconciliationPage() {
         </div>
       </header>
 
-      <section className="glass-card p-6 md:p-8 flex flex-col gap-6 shadow-xl">
+      <section className={`glass-card p-6 md:p-8 flex flex-col gap-6 shadow-xl ${reconciliationView !== "compare" ? "hidden" : ""}`}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-2 text-left">
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
@@ -620,7 +625,7 @@ export default function ReconciliationPage() {
         )}
       </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.9fr] gap-8">
+      <section className={`grid grid-cols-1 xl:grid-cols-[1.2fr_0.9fr] gap-8 ${reconciliationView !== "summary" ? "hidden" : ""}`}>
         <div className="glass-card p-6 md:p-8 flex flex-col gap-6 shadow-xl">
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div className="flex flex-col gap-1 text-left">
@@ -948,11 +953,12 @@ export default function ReconciliationPage() {
               <span>{cortexFile ? cortexFile.name : (language === "ID" ? "Pilih File Coretax" : "Choose Coretax File")}</span>
               <input
                 type="file"
-                accept=".xlsx,.xls"
+                accept=".xlsx,.xls,.csv"
                 className="hidden"
                 onChange={(event) => {
                   setCortexFile(event.target.files?.[0] || null);
                   setCortexReport(null);
+                  setReconciliationView("compare");
                 }}
               />
             </label>
@@ -980,11 +986,31 @@ export default function ReconciliationPage() {
             {language === "ID" ? "Data aplikasi difilter per bulan terpilih" : "Application data filtered by selected month"}
           </span>
           <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
-            {language === "ID" ? "Coretax dibandingkan per NIK, fallback nama" : "Coretax compared by NIK with name fallback"}
+            {language === "ID" ? "Coretax dibandingkan per NIK, nama hanya fallback kalau NIK kosong" : "Coretax compared by NIK; name fallback only when NIK is missing"}
           </span>
           <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
             {language === "ID" ? "Selisih = Coretax - Aplikasi" : "Difference = Coretax - App"}
           </span>
+          <div className="ml-auto inline-flex rounded-2xl border border-border bg-muted/40 p-1">
+            <button
+              type="button"
+              onClick={() => setReconciliationView("summary")}
+              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+                reconciliationView === "summary" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              }`}
+            >
+              {language === "ID" ? "Ringkasan" : "Summary"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setReconciliationView("compare")}
+              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+                reconciliationView === "compare" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              }`}
+            >
+              {language === "ID" ? "Banding File" : "Compare File"}
+            </button>
+          </div>
         </div>
 
         {cortexReport ? (

@@ -243,7 +243,10 @@ function mergeComparisonGroups(
   const cortexNikMap = new Map<string, number>();
   const cortexNameMap = new Map<string, number>();
   cortexGroups.forEach((group, index) => {
-    if (group.nik) cortexNikMap.set(group.nik, index);
+    if (group.nik) {
+      cortexNikMap.set(group.nik, index);
+      return;
+    }
     const nameAlias = normalizeComparisonName(group.name);
     if (nameAlias) cortexNameMap.set(nameAlias, index);
   });
@@ -251,7 +254,10 @@ function mergeComparisonGroups(
   const appNikMap = new Map<string, number>();
   const appNameMap = new Map<string, number>();
   appGroups.forEach((group, index) => {
-    if (group.nik) appNikMap.set(group.nik, index);
+    if (group.nik) {
+      appNikMap.set(group.nik, index);
+      return;
+    }
     const nameAlias = normalizeComparisonName(group.name);
     if (nameAlias) appNameMap.set(nameAlias, index);
   });
@@ -282,6 +288,7 @@ function mergeComparisonGroups(
     });
   };
 
+  // NIK is the primary key. Name fallback is only for rows without NIK.
   for (const [nik, appIndex] of appNikMap.entries()) {
     const cortexIndex = cortexNikMap.get(nik);
     if (cortexIndex === undefined) continue;

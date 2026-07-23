@@ -112,9 +112,41 @@ function normalizeText(value: unknown) {
   return String(value ?? "").trim().replace(/\s+/g, " ");
 }
 
-export const parseCoretaxExcel = (input: Buffer | ArrayBuffer) => {
-  const isBuffer = typeof Buffer !== "undefined" && input instanceof Buffer;
-  const workbook = XLSX.read(input, { type: isBuffer ? "buffer" : "array", raw: true, cellDates: true });
+function getWorkbookInputType(input: Buffer | ArrayBuffer | string) {
+  if (typeof input === "string") return "string";
+  return typeof Buffer !== "undefined" && input instanceof Buffer ? "buffer" : "array";
+}
+
+function getRowShift(row: unknown[], nikColumn: number) {
+  if (nikColumn < 0) return 0;
+  const directNik = normalizeText(row[nikColumn]).replace(/\D/g, "");
+  if (directNik.length >= 10) return 0;
+
+  for (let index = 0; index < row.length; index += 1) {
+    if (index === nikColumn) continue;
+    const candidate = normalizeText(row[index]).replace(/\D/g, "");
+    if (/^\d{16}$/.test(candidate)) {
+      return index - nikColumn;
+    }
+  }
+
+  return 0;
+}
+
+function getShiftedRowValue(row: unknown[], columnIndex: number, shift: number) {
+  if (columnIndex < 0) return null;
+  if (shift !== 0) {
+    const shiftedIndex = columnIndex + shift;
+    if (shiftedIndex >= 0 && shiftedIndex < row.length) {
+      return row[shiftedIndex] ?? null;
+    }
+    return null;
+  }
+  return row[columnIndex] ?? null;
+}
+
+export const parseCoretaxExcel = (input: Buffer | ArrayBuffer | string) => {
+  const workbook = XLSX.read(input, { type: getWorkbookInputType(input), raw: true, cellDates: true });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) {
     throw new Error("File Coretax tidak memiliki sheet.");
@@ -125,11 +157,24 @@ export const parseCoretaxExcel = (input: Buffer | ArrayBuffer) => {
   const headerIndex = rows.findIndex((row) =>
     row.some((cell) => {
       const normalized = normalizeHeaderText(cell);
-      return normalized.includes("NAMA") || normalized.includes("RECIPIENT") || normalized.includes("ATAS NAMA");
+      return (
+        normalized.includes("NAMA") ||
+        normalized.includes("NAME") ||
+        normalized.includes("RECIPIENT") ||
+        normalized.includes("ATAS NAMA")
+      );
     }) &&
     row.some((cell) => {
       const normalized = normalizeHeaderText(cell);
-      return normalized.includes("PAJAK PENGHASILAN") || normalized.includes("PENGHASILAN") || normalized.includes("NOMINAL") || normalized.includes("NILAI") || normalized.includes("POTONGAN");
+      return (
+        normalized.includes("PAJAK PENGHASILAN") ||
+        normalized.includes("PENGHASILAN") ||
+        normalized.includes("INCOME TAX") ||
+        normalized.includes("INCOMETAX") ||
+        normalized.includes("NOMINAL") ||
+        normalized.includes("NILAI") ||
+        normalized.includes("POTONGAN")
+      );
     })
   );
 
@@ -138,12 +183,61 @@ export const parseCoretaxExcel = (input: Buffer | ArrayBuffer) => {
   }
 
   const headerRow = rows[headerIndex];
-  const nikColumn = findColumnIndex(headerRow, ["NOMOR IDENTITAS WP", "NIK", "NPWP", "IDENTITAS", "NOMOR IDENTITAS"]);
-  const nameColumn = findColumnIndex(headerRow, ["NAMA", "ATAS NAMA", "RECIPIENT", "NAMA PENERIMA", "PEGAWAI"]);
-  const amountColumn = findColumnIndex(headerRow, ["PAJAK PENGHASILAN", "PENGHASILAN", "PPh", "PPH", "NOMINAL", "NILAI", "AMOUNT"]);
-  const referenceColumn = findColumnIndex(headerRow, ["NOMOR PEMOTONGAN", "SPM", "NO SPM", "NO.SPM", "SP2D", "NO SP2D", "NO.SP2D", "REFERENSI", "REFERENCE"]);
-  const periodColumn = findColumnIndex(headerRow, ["MASA PAJAK", "PERIODE", "BULAN", "MONTH"]);
-  const taxObjectCodeColumn = findColumnIndex(headerRow, ["KODE OBJEK PAJAK", "KODE OBJEK", "TAX OBJECT CODE"]);
+  const nikColumn = findColumnIndex(headerRow, [
+    "NOMOR IDENTITAS WP",
+    "TAX IDENTIFICATION NUMBER",
+    "TAXIDENTIFICATIONNUMBER",
+    "NIK",
+    "NPWP",
+    "IDENTITAS",
+    "NOMOR IDENTITAS",
+  ]);
+  const nameColumn = findColumnIndex(headerRow, [
+    "NAMA",
+    "NAME",
+    "ATAS NAMA",
+    "RECIPIENT",
+    "NAMA PENERIMA",
+    "PEGAWAI",
+  ]);
+  const amountColumn = findColumnIndex(headerRow, [
+    "PAJAK PENGHASILAN",
+    "PENGHASILAN",
+    "INCOME TAX",
+    "INCOMETAX",
+    "PPh",
+    "PPH",
+    "NOMINAL",
+    "NILAI",
+    "AMOUNT",
+  ]);
+  const referenceColumn = findColumnIndex(headerRow, [
+    "NOMOR PEMOTONGAN",
+    "WITHHOLDING SLIPS NUMBER",
+    "WITHHOLDINGSLIPSNUMBER",
+    "SPM",
+    "NO SPM",
+    "NO.SPM",
+    "SP2D",
+    "NO SP2D",
+    "NO.SP2D",
+    "REFERENSI",
+    "REFERENCE",
+  ]);
+  const periodColumn = findColumnIndex(headerRow, [
+    "MASA PAJAK",
+    "TAX PERIOD CODE",
+    "TAXPERIODCODE",
+    "PERIODE",
+    "BULAN",
+    "MONTH",
+  ]);
+  const taxObjectCodeColumn = findColumnIndex(headerRow, [
+    "KODE OBJEK PAJAK",
+    "TAX OBJECT CODE",
+    "TAXOBJECTCODE",
+    "KODE OBJEK",
+  ]);
 
   if (nameColumn < 0 || amountColumn < 0) {
     throw new Error("Kolom Nama dan Pajak Penghasilan pada file Coretax wajib ada.");
@@ -153,12 +247,13 @@ export const parseCoretaxExcel = (input: Buffer | ArrayBuffer) => {
 
   for (let rowIndex = headerIndex + 1; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex];
-    const nik = nikColumn >= 0 ? normalizeText(row[nikColumn]).replace(/\D/g, "") : "";
-    const name = normalizeText(row[nameColumn]);
-    const amount = safeIndoNum(row[amountColumn]);
-    const reference = referenceColumn >= 0 ? String(row[referenceColumn] ?? "").trim() : "";
-    const period = periodColumn >= 0 ? String(row[periodColumn] ?? "").trim() : "";
-    const taxObjectCode = taxObjectCodeColumn >= 0 ? normalizeText(row[taxObjectCodeColumn]) : "";
+    const rowShift = getRowShift(row, nikColumn);
+    const nik = nikColumn >= 0 ? normalizeText(getShiftedRowValue(row, nikColumn, rowShift)).replace(/\D/g, "") : "";
+    const name = normalizeText(getShiftedRowValue(row, nameColumn, rowShift));
+    const amount = safeIndoNum(getShiftedRowValue(row, amountColumn, rowShift));
+    const reference = referenceColumn >= 0 ? String(getShiftedRowValue(row, referenceColumn, rowShift) ?? "").trim() : "";
+    const period = periodColumn >= 0 ? String(getShiftedRowValue(row, periodColumn, rowShift) ?? "").trim() : "";
+    const taxObjectCode = taxObjectCodeColumn >= 0 ? normalizeText(getShiftedRowValue(row, taxObjectCodeColumn, rowShift)) : "";
 
     if (!name && !nik && !reference && amount === 0) {
       continue;

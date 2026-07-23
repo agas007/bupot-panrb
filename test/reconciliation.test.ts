@@ -37,6 +37,46 @@ test("aggregates monthly comparison rows by NIK first", () => {
   assert.equal(totals.onlyInCortexCount, 1);
 });
 
+test("keeps same names separate when NIK differs", () => {
+  const { rows } = buildMonthlyComparisonRows(
+    [
+      { nik: "3275090906680014", name: "Adityo Trimurdani", amount: 300000, reference: "APP-01" },
+      { nik: "3275090906680015", name: "Adityo Trimurdani", amount: 200000, reference: "APP-02" },
+    ],
+    [
+      { nik: "3275090906680014", name: "Adityo Trimurdani", amount: 300000, reference: "CORE-01" },
+      { nik: "3275090906680016", name: "Adityo Trimurdani", amount: 200000, reference: "CORE-02" },
+    ]
+  );
+
+  assert.equal(rows.length, 3);
+  const matchedRow = rows.find((row) => row.appNik === "3275090906680014");
+  assert.equal(matchedRow?.status, "MATCHED");
+  assert.equal(matchedRow?.matchBy, "NIK");
+
+  const appOnlyRow = rows.find((row) => row.appNik === "3275090906680015");
+  const cortexOnlyRow = rows.find((row) => row.cortexNik === "3275090906680016");
+  assert.equal(appOnlyRow?.status, "ONLY_IN_APP");
+  assert.equal(cortexOnlyRow?.status, "ONLY_IN_CORTEX");
+});
+
+test("parses a Coretax CSV export with English headers", () => {
+  const csv = [
+    ",,TaxPeriodCode,WithholdingSlipsNumber,WithholdingSlipsStatus,ESignStatus,BranchId,TaxArticle,TaxObjectCode,TaxIdentificationNumber,Name,TaxBase,IncomeTax,TaxCertificateCode",
+    ",Juni 2026,,Disimpan,,0001861061012000000000,Pasal 23,24-104-65,0038031043042000,ARJUNA RAYA JAYASENA,20410150,408203,Tanpa Fasilitas",
+    ",Juni 2026,,Disimpan,,0001861061012000000000,Pasal 23,24-104-65,0724633243076000,THAMRIN EKSPRESS INDONESIA,47600000,952000,Tanpa Fasilitas",
+  ].join("\n");
+
+  const rows = parseCoretaxExcel(csv);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].nik, "0038031043042000");
+  assert.equal(rows[0].name, "ARJUNA RAYA JAYASENA");
+  assert.equal(rows[0].amount, 408203);
+  assert.equal(rows[0].period, "Juni 2026");
+  assert.equal(rows[0].reference, "");
+  assert.equal(rows[0].taxObjectCode, "24-104-65");
+});
+
 test("parses a Coretax Excel sheet with NIK and tax columns", () => {
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet([
