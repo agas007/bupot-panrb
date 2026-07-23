@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -11,67 +12,109 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const where: any = {
-      archiveStatus: status ? status : undefined,
-      dataType: dataType ? dataType : undefined,
-    };
+    const whereSql =
+      status && dataType
+        ? Prisma.sql`WHERE ar."archiveStatus" = ${status} AND ar."dataType" = ${dataType}`
+        : status
+          ? Prisma.sql`WHERE ar."archiveStatus" = ${status}`
+          : dataType
+            ? Prisma.sql`WHERE ar."dataType" = ${dataType}`
+            : Prisma.empty;
 
-    // Remove undefined keys
-    Object.keys(where).forEach((key) =>
-      where[key] === undefined && delete where[key]
-    );
-
-    const [records, total] = await Promise.all([
-      prisma.archivedRecord.findMany({
-        where,
-        select: {
-          id: true,
-          originalId: true,
-          dataType: true,
-          archiveStatus: true,
-          spmNumber: true,
-          archivedData: true,
-          archivedBy: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-            },
-          },
-          disposalScheduledAt: true,
-          disposalScheduledDate: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
-      }),
-      prisma.archivedRecord.count({ where }),
+    const [records, totalRows, dataTypeRows, statusRows] = await Promise.all([
+      prisma.$queryRaw<
+        Array<{
+          id: number;
+          originalId: number;
+          dataType: string;
+          archiveStatus: string;
+          spmNumber: string | null;
+          archivedData: unknown;
+          archivedById: number | null;
+          archivedByName: string | null;
+          archivedByUsername: string | null;
+          disposalScheduledAt: string | null;
+          disposalScheduledDate: string | null;
+          createdAt: string;
+          updatedAt: string;
+        }>
+      >(Prisma.sql`
+        SELECT
+          ar."id",
+          ar."originalId",
+          ar."dataType",
+          ar."archiveStatus",
+          ar."spmNumber",
+          ar."archivedData",
+          ar."archivedById",
+          c."name" AS "archivedByName",
+          c."username" AS "archivedByUsername",
+          ar."disposalScheduledAt",
+          ar."disposalScheduledDate",
+          ar."createdAt",
+          ar."updatedAt"
+        FROM "ArchivedRecord" ar
+        LEFT JOIN "Colleague" c ON c."id" = ar."archivedById"
+        ${whereSql}
+        ORDER BY ar."createdAt" DESC
+        LIMIT ${limit}
+        OFFSET ${skip}
+      `),
+      prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+        SELECT COUNT(*)::int AS count
+        FROM "ArchivedRecord" ar
+        ${whereSql}
+      `),
+      prisma.$queryRaw<Array<{ dataType: string; count: number }>>(Prisma.sql`
+        SELECT ar."dataType", COUNT(*)::int AS count
+        FROM "ArchivedRecord" ar
+        ${whereSql}
+        GROUP BY ar."dataType"
+      `),
+      prisma.$queryRaw<Array<{ archiveStatus: string; count: number }>>(Prisma.sql`
+        SELECT ar."archiveStatus", COUNT(*)::int AS count
+        FROM "ArchivedRecord" ar
+        ${whereSql}
+        GROUP BY ar."archiveStatus"
+      `),
     ]);
 
-    const byDataType = records.reduce<Record<string, number>>((acc, record) => {
-      acc[record.dataType] = (acc[record.dataType] || 0) + 1;
-      return acc;
-    }, {});
-
-    const byStatus = records.reduce<Record<string, number>>((acc, record) => {
-      acc[record.archiveStatus] = (acc[record.archiveStatus] || 0) + 1;
-      return acc;
-    }, {});
-
     return NextResponse.json({
-      data: records,
+      data: records.map((record) => ({
+        id: record.id,
+        originalId: record.originalId,
+        dataType: record.dataType,
+        archiveStatus: record.archiveStatus,
+        spmNumber: record.spmNumber,
+        archivedData: record.archivedData,
+        archivedBy: record.archivedByName
+          ? {
+              id: record.archivedById ?? 0,
+              name: record.archivedByName,
+              username: record.archivedByUsername ?? "",
+            }
+          : null,
+        disposalScheduledAt: record.disposalScheduledAt,
+        disposalScheduledDate: record.disposalScheduledDate,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+      })),
       summary: {
-        total,
-        byDataType,
-        byStatus,
+        total: totalRows[0]?.count ?? 0,
+        byDataType: dataTypeRows.reduce<Record<string, number>>((acc, row) => {
+          acc[row.dataType] = row.count;
+          return acc;
+        }, {}),
+        byStatus: statusRows.reduce<Record<string, number>>((acc, row) => {
+          acc[row.archiveStatus] = row.count;
+          return acc;
+        }, {}),
       },
       pagination: {
-        total,
+        total: totalRows[0]?.count ?? 0,
         page,
         limit,
-        pages: Math.ceil(total / limit),
+        pages: Math.ceil((totalRows[0]?.count ?? 0) / limit),
       },
     });
   } catch (error) {

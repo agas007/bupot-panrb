@@ -1,19 +1,60 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_request: NextRequest) {
   try {
-    const archivedRecords = await prisma.archivedRecord.findMany({
-      select: {
-        id: true,
-        dataType: true,
-        archiveStatus: true,
-        archivedBy: {
-          select: { id: true, name: true },
-        },
-        createdAt: true,
-      },
-    });
+    const [statusRows, typeRows, accessLogsRows, disposalPendingRows, disposalApprovedRows, archivedCountRows] = await Promise.all([
+      prisma.$queryRaw<Array<{ archiveStatus: string; count: number }>>(Prisma.sql`
+        SELECT ar."archiveStatus", COUNT(*)::int AS count
+        FROM "ArchivedRecord" ar
+        GROUP BY ar."archiveStatus"
+      `),
+      prisma.$queryRaw<Array<{ dataType: string; count: number }>>(Prisma.sql`
+        SELECT ar."dataType", COUNT(*)::int AS count
+        FROM "ArchivedRecord" ar
+        GROUP BY ar."dataType"
+      `),
+      prisma.$queryRaw<Array<{
+        id: number;
+        accessType: string;
+        createdAt: string;
+        archivedRecordSpmNumber: string | null;
+        archivedRecordDataType: string;
+        archivedRecordArchiveStatus: string;
+        accessedById: number;
+        accessedByName: string;
+      }>>(Prisma.sql`
+        SELECT
+          aal."id",
+          aal."accessType",
+          aal."createdAt",
+          ar."spmNumber" AS "archivedRecordSpmNumber",
+          ar."dataType" AS "archivedRecordDataType",
+          ar."archiveStatus" AS "archivedRecordArchiveStatus",
+          c."id" AS "accessedById",
+          c."name" AS "accessedByName"
+        FROM "ArchiveAccessLog" aal
+        LEFT JOIN "ArchivedRecord" ar ON ar."id" = aal."archivedRecordId"
+        LEFT JOIN "Colleague" c ON c."id" = aal."accessedById"
+        ORDER BY aal."createdAt" DESC
+        LIMIT 5
+      `),
+      prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+        SELECT COUNT(*)::int AS count
+        FROM "DisposalApproval"
+        WHERE "status" = 'PENDING'
+      `),
+      prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+        SELECT COUNT(*)::int AS count
+        FROM "DisposalApproval"
+        WHERE "status" = 'APPROVED'
+      `),
+      prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+        SELECT COUNT(*)::int AS count
+        FROM "ArchivedRecord"
+      `),
+    ]);
 
     const formatted = {
       ARCHIVED: 0,
@@ -28,35 +69,16 @@ export async function GET(_request: NextRequest) {
       TAX_RECONCILIATION: 0,
     };
 
-    archivedRecords.forEach((record) => {
-      if (record.archiveStatus in formatted) {
-        formatted[record.archiveStatus as keyof typeof formatted] += 1;
-      }
-      if (record.dataType in byDataType) {
-        byDataType[record.dataType as keyof typeof byDataType] += 1;
+    statusRows.forEach((row) => {
+      if (row.archiveStatus in formatted) {
+        formatted[row.archiveStatus as keyof typeof formatted] = row.count;
       }
     });
 
-    const accessLogs = await prisma.archiveAccessLog.findMany({
-      select: {
-        id: true,
-        accessedBy: { select: { id: true, name: true } },
-        accessType: true,
-        archivedRecord: {
-          select: { spmNumber: true, dataType: true, archiveStatus: true },
-        },
-        createdAt: true,
-      },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    });
-
-    const disposalPending = await prisma.disposalApproval.count({
-      where: { status: "PENDING" },
-    });
-
-    const disposalApproved = await prisma.disposalApproval.count({
-      where: { status: "APPROVED" },
+    typeRows.forEach((row) => {
+      if (row.dataType in byDataType) {
+        byDataType[row.dataType as keyof typeof byDataType] = row.count;
+      }
     });
 
     return NextResponse.json({
@@ -68,14 +90,27 @@ export async function GET(_request: NextRequest) {
       reportType: "ARCHIVE_SUMMARY",
       retentionTimeline: formatted,
       byDataType,
-      accessAudit: accessLogs,
+      accessAudit: accessLogsRows.map((row) => ({
+        id: row.id,
+        accessType: row.accessType,
+        archivedRecord: {
+          spmNumber: row.archivedRecordSpmNumber,
+          dataType: row.archivedRecordDataType,
+          archiveStatus: row.archivedRecordArchiveStatus,
+        },
+        accessedBy: {
+          id: row.accessedById,
+          name: row.accessedByName,
+        },
+        createdAt: row.createdAt,
+      })),
       disposalQueue: {
-        pending: disposalPending,
-        approved: disposalApproved,
+        pending: disposalPendingRows[0]?.count ?? 0,
+        approved: disposalApprovedRows[0]?.count ?? 0,
       },
       summary: {
-        totalArchivedRecords: archivedRecords.length,
-        totalAccessLogs: accessLogs.length,
+        totalArchivedRecords: archivedCountRows[0]?.count ?? 0,
+        totalAccessLogs: accessLogsRows.length,
       },
     });
   } catch (error) {

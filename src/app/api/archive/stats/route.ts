@@ -1,15 +1,26 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_request: NextRequest) {
   try {
-    const archivedRecords = await prisma.archivedRecord.findMany({
-      select: {
-        id: true,
-        dataType: true,
-        archiveStatus: true,
-      },
-    });
+    const [statusRows, typeRows, disposalPendingRows] = await Promise.all([
+      prisma.$queryRaw<Array<{ archiveStatus: string; count: number }>>(Prisma.sql`
+        SELECT "archiveStatus", COUNT(*)::int AS count
+        FROM "ArchivedRecord"
+        GROUP BY "archiveStatus"
+      `),
+      prisma.$queryRaw<Array<{ dataType: string; count: number }>>(Prisma.sql`
+        SELECT "dataType", COUNT(*)::int AS count
+        FROM "ArchivedRecord"
+        GROUP BY "dataType"
+      `),
+      prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+        SELECT COUNT(*)::int AS count
+        FROM "DisposalApproval"
+        WHERE "status" = 'PENDING'
+      `),
+    ]);
 
     const formatted = {
       ARCHIVED: 0,
@@ -24,24 +35,23 @@ export async function GET(_request: NextRequest) {
       TAX_RECONCILIATION: 0,
     };
 
-    archivedRecords.forEach((record) => {
-      if (record.archiveStatus in formatted) {
-        formatted[record.archiveStatus as keyof typeof formatted] += 1;
-      }
-      if (record.dataType in byDataType) {
-        byDataType[record.dataType as keyof typeof byDataType] += 1;
+    statusRows.forEach((row) => {
+      if (row.archiveStatus in formatted) {
+        formatted[row.archiveStatus as keyof typeof formatted] = row.count;
       }
     });
 
-    const disposalPending = await prisma.disposalApproval.count({
-      where: { status: "PENDING" },
+    typeRows.forEach((row) => {
+      if (row.dataType in byDataType) {
+        byDataType[row.dataType as keyof typeof byDataType] = row.count;
+      }
     });
 
     return NextResponse.json({
       stats: formatted,
       byDataType,
-      disposalPending,
-      total: archivedRecords.length,
+      disposalPending: disposalPendingRows[0]?.count ?? 0,
+      total: Object.values(formatted).reduce((a, b) => a + b, 0),
     });
   } catch (error) {
     console.error("Archive stats error:", error);
