@@ -220,6 +220,9 @@ export default function ArchivePage() {
   const getStatusBadge = (value: string) => STATUS_STYLES[value] || "bg-gray-100 text-gray-800";
 
   const getDataTypeBadge = (value: string) => DATA_TYPE_STYLES[value] || "bg-gray-100 text-gray-800";
+  const retentionTimeline = summary?.retentionTimeline ?? {};
+  const byDataTypeSummary = summary?.byDataType ?? {};
+  const accessAudit = summary?.accessAudit ?? [];
 
   const handleApproval = async (recordId: number, action: "approve" | "reject") => {
     try {
@@ -614,7 +617,7 @@ export default function ArchivePage() {
                           Ringkasan status arsip
                         </h3>
                         <div className="mt-4 grid gap-3 md:grid-cols-2">
-                          {Object.entries(summary.retentionTimeline).map(([status, count]) => (
+                          {Object.entries(retentionTimeline).map(([status, count]) => (
                             <div key={status} className="rounded-2xl bg-muted/40 p-4">
                               <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                 {formatStatus(status)}
@@ -632,7 +635,7 @@ export default function ArchivePage() {
                           Ringkasan per tipe data
                         </h3>
                         <div className="mt-4 space-y-3">
-                          {Object.entries(summary.byDataType).map(([type, count]) => (
+                          {Object.entries(byDataTypeSummary).map(([type, count]) => (
                             <div key={type} className="flex items-center justify-between rounded-2xl bg-muted/40 px-4 py-3">
                               <div className="font-semibold text-foreground">
                                 {formatDataType(type)}
@@ -655,12 +658,12 @@ export default function ArchivePage() {
                       </div>
 
                       <div className="mt-4 space-y-3">
-                        {summary.accessAudit.length === 0 ? (
+                        {accessAudit.length === 0 ? (
                           <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 py-10 text-center text-sm text-muted-foreground">
                             Belum ada log akses arsip.
                           </div>
                         ) : (
-                          summary.accessAudit.map((item) => (
+                          accessAudit.map((item) => (
                             <div key={item.id} className="rounded-2xl border border-border/70 bg-muted/30 p-4">
                               <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
