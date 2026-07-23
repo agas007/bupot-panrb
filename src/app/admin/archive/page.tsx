@@ -6,6 +6,28 @@ import { AlertCircle, Archive, CheckCircle, Download, Eye, FolderTree, ShieldChe
 type ArchiveStatus = "ARCHIVED" | "PENDING_APPROVAL" | "REJECTED" | "DISPOSED";
 type DataType = "SPM_RECORD" | "PPH21_WITHHOLDING" | "TAX_RECONCILIATION";
 
+interface DynamicArchiveRecord {
+  id: number;
+  uniqueKey: string;
+  spmNumber: string;
+  spmDate: string;
+  accountCode: string;
+  deductionAmount: number;
+  sp2dNumber: string | null;
+  recipient: string | null;
+  description: string | null;
+  status: string;
+  importDate: string;
+  updatedAt: string;
+  archiveStatus: "ACTIVE" | "INACTIVE" | "ARCHIVED";
+  retentionProgress: {
+    current: number;
+    total: number;
+    percentage: number;
+    statusLabel: string;
+  };
+}
+
 interface ArchiveRecord {
   id: number;
   originalId: number;
@@ -29,6 +51,17 @@ interface ArchiveStatsResponse {
   byDataType: Record<string, number>;
   disposalPending: number;
   total: number;
+}
+
+interface DynamicArchiveStatsResponse {
+  data: DynamicArchiveRecord[];
+  summary: Record<string, number>;
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
 }
 
 interface ArchiveSummaryResponse {
@@ -100,8 +133,9 @@ const DATA_TYPE_STYLES: Record<string, string> = {
 };
 
 export default function ArchivePage() {
-  const [activeTab, setActiveTab] = useState<"data" | "approval" | "ringkasan">("data");
+  const [activeTab, setActiveTab] = useState<"dinamis" | "permanen" | "approval" | "ringkasan">("dinamis");
   const [stats, setStats] = useState<ArchiveStatsResponse | null>(null);
+  const [dynamicRecords, setDynamicRecords] = useState<DynamicArchiveStatsResponse | null>(null);
   const [records, setRecords] = useState<ArchiveRecord[]>([]);
   const [summary, setSummary] = useState<ArchiveSummaryResponse | null>(null);
   const [approvalQueue, setApprovalQueue] = useState<DisposalRequest[]>([]);
@@ -145,6 +179,20 @@ export default function ArchivePage() {
 
     fetchRecords();
   }, [selectedStatus, selectedDataType]);
+
+  useEffect(() => {
+    const fetchDynamicRecords = async () => {
+      try {
+        const res = await fetch("/api/archive/dynamic-records");
+        const data = (await res.json()) as DynamicArchiveStatsResponse;
+        setDynamicRecords(data);
+      } catch (error) {
+        console.error("Failed to fetch dynamic archive records:", error);
+      }
+    };
+
+    fetchDynamicRecords();
+  }, []);
 
   useEffect(() => {
     if (activeTab !== "approval") return;
@@ -223,6 +271,8 @@ export default function ArchivePage() {
   const retentionTimeline = summary?.retentionTimeline ?? {};
   const byDataTypeSummary = summary?.byDataType ?? {};
   const accessAudit = summary?.accessAudit ?? [];
+  const dynamicRecordItems = dynamicRecords?.data ?? [];
+  const dynamicSummary = dynamicRecords?.summary ?? {};
 
   const handleApproval = async (recordId: number, action: "approve" | "reject") => {
     try {
@@ -267,7 +317,15 @@ export default function ArchivePage() {
         <div className="mb-8 grid gap-4 md:grid-cols-4">
           <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
             <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Total arsip
+              Arsip dinamis
+            </div>
+            <div className="mt-2 text-3xl font-black text-foreground">
+              {dynamicRecords?.pagination.total ?? 0}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Arsip permanen
             </div>
             <div className="mt-2 text-3xl font-black text-foreground">
               {stats?.total ?? 0}
@@ -275,18 +333,10 @@ export default function ArchivePage() {
           </div>
           <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
             <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Pending approval
+              Menunggu approval
             </div>
             <div className="mt-2 text-3xl font-black text-amber-600">
               {stats?.disposalPending ?? 0}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
-            <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Tipe arsip
-            </div>
-            <div className="mt-2 text-3xl font-black text-foreground">
-              {Object.keys(stats?.byDataType || {}).length}
             </div>
           </div>
           <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
@@ -303,15 +353,27 @@ export default function ArchivePage() {
           <div className="flex flex-wrap border-b border-border/70">
             <button
               type="button"
-              onClick={() => setActiveTab("data")}
+              onClick={() => setActiveTab("dinamis")}
               className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold ${
-                activeTab === "data"
+                activeTab === "dinamis"
                   ? "border-b-2 border-foreground text-foreground"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <FolderTree className="h-4 w-4" />
-              List Arsip
+              Arsip Dinamis
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("permanen")}
+              className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold ${
+                activeTab === "permanen"
+                  ? "border-b-2 border-foreground text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Archive className="h-4 w-4" />
+              Arsip Permanen
             </button>
             <button
               type="button"
@@ -340,7 +402,137 @@ export default function ArchivePage() {
           </div>
 
           <div className="p-6">
-            {activeTab === "data" && (
+            {activeTab === "dinamis" && (
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-border/70 bg-muted/30 p-4 text-sm text-muted-foreground">
+                  Ini daftar arsip yang masih dipakai atau sudah masuk masa inaktif.
+                  Kalau masa simpan menurut jadwal retensi sudah habis, barulah dipindahkan ke arsip permanen atau diproses sesuai keputusan JRA.
+                </div>
+
+                {dynamicRecords ? (
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
+                      <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                        Aktif
+                      </div>
+                      <div className="mt-2 text-3xl font-black text-foreground">
+                        {dynamicSummary.ACTIVE ?? 0}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
+                      <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                        Inaktif
+                      </div>
+                      <div className="mt-2 text-3xl font-black text-foreground">
+                        {dynamicSummary.INACTIVE ?? 0}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
+                      <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                        Menjelang arsip permanen
+                      </div>
+                      <div className="mt-2 text-3xl font-black text-foreground">
+                        {dynamicSummary.ARCHIVED ?? 0}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {dynamicRecordItems.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 py-12 text-center text-sm text-muted-foreground">
+                    Belum ada data arsip dinamis yang cocok.
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {(["ACTIVE", "INACTIVE", "ARCHIVED"] as const).map((statusKey) => {
+                      const items = dynamicRecordItems.filter((item) => item.archiveStatus === statusKey);
+                      if (items.length === 0) return null;
+
+                      return (
+                        <section
+                          key={statusKey}
+                          className="overflow-hidden rounded-3xl border border-border/70 bg-card/90 shadow-sm backdrop-blur-sm"
+                        >
+                          <div className="flex flex-col gap-3 border-b border-border/70 p-5 md:flex-row md:items-start md:justify-between">
+                            <div>
+                              <div className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getStatusBadge(statusKey)}`}>
+                                {statusKey === "ACTIVE" ? "Aktif" : statusKey === "INACTIVE" ? "Inaktif" : "Menuju arsip permanen"}
+                              </div>
+                              <h2 className="mt-2 text-xl font-black tracking-tight text-foreground">
+                                {statusKey === "ACTIVE" ? "Masih digunakan" : statusKey === "INACTIVE" ? "Sedang menunggu pemindahan" : "Perlu ditinjau untuk penyusutan"}
+                              </h2>
+                              <p className="text-sm text-muted-foreground">
+                                Daftar ini mengikuti konsep arsip dinamis di lingkungan pemerintah, bukan arsip permanen.
+                              </p>
+                            </div>
+                            <span className="text-sm font-semibold text-muted-foreground">
+                              {items.length} data
+                            </span>
+                          </div>
+
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full text-left text-sm">
+                              <thead className="bg-muted/40 text-xs uppercase tracking-widest text-muted-foreground">
+                                <tr>
+                                  <th className="px-5 py-4">SPM</th>
+                                  <th className="px-5 py-4">Nama / Penerima</th>
+                                  <th className="px-5 py-4">Status</th>
+                                  <th className="px-5 py-4">Retensi</th>
+                                  <th className="px-5 py-4">Terakhir diubah</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {items.map((record) => (
+                                  <tr key={record.id} className="border-t border-border/60">
+                                    <td className="px-5 py-4 align-top">
+                                      <div className="font-semibold text-foreground">
+                                        {record.spmNumber}
+                                      </div>
+                                      <div className="mt-1 text-xs text-muted-foreground">
+                                        {record.accountCode}
+                                      </div>
+                                    </td>
+                                    <td className="px-5 py-4 align-top">
+                                      <div className="font-semibold text-foreground">
+                                        {record.recipient || "-"}
+                                      </div>
+                                      <div className="mt-1 text-xs text-muted-foreground">
+                                        {record.description || "-"}
+                                      </div>
+                                    </td>
+                                    <td className="px-5 py-4 align-top">
+                                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getStatusBadge(record.archiveStatus)}`}>
+                                        {record.archiveStatus === "ACTIVE" ? "Aktif" : record.archiveStatus === "INACTIVE" ? "Inaktif" : "Menuju arsip permanen"}
+                                      </span>
+                                    </td>
+                                    <td className="px-5 py-4 align-top">
+                                      <div className="text-sm font-semibold text-foreground">
+                                        {record.retentionProgress.statusLabel}
+                                      </div>
+                                      <div className="mt-1 h-2 w-40 overflow-hidden rounded-full bg-muted">
+                                        <div
+                                          className="h-full rounded-full bg-sky-500"
+                                          style={{ width: `${record.retentionProgress.percentage}%` }}
+                                        />
+                                      </div>
+                                    </td>
+                                    <td className="px-5 py-4 align-top text-muted-foreground">
+                                      {formatDate(record.updatedAt)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </section>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "permanen" && (
               <div className="space-y-6">
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -400,11 +592,11 @@ export default function ArchivePage() {
 
                 {loadingRecords ? (
                   <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 py-12 text-center text-sm text-muted-foreground">
-                    Memuat data arsip...
+                    Memuat arsip permanen...
                   </div>
                 ) : sortedDataTypes.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 py-12 text-center text-sm text-muted-foreground">
-                    Belum ada data arsip yang cocok dengan filter ini.
+                    Belum ada arsip permanen yang cocok dengan filter ini.
                   </div>
                 ) : (
                   <div className="space-y-6">
@@ -431,10 +623,10 @@ export default function ArchivePage() {
                                 </span>
                               </div>
                               <h2 className="mt-2 text-xl font-black tracking-tight text-foreground">
-                                {formatDataType(type)}
+                                Arsip permanen {formatDataType(type)}
                               </h2>
                               <p className="text-sm text-muted-foreground">
-                                Grup ini menampilkan arsip permanen, status approval, dan siapa yang melakukan arsip.
+                                Data ini sudah masuk area arsip permanen dan siap diawasi sesuai jadwal retensi.
                               </p>
                             </div>
 
