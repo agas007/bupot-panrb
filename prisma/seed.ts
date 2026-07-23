@@ -20,6 +20,45 @@ async function main() {
   })
 
   console.log(`✅ Default Admin created: ${admin.username}`)
+
+  // Create Archive Policies
+  console.log('🗂️ Seeding archive policies...')
+
+  const policies = [
+    {
+      dataType: "SPM_RECORD",
+      retentionYears: 5,
+      inactivePeriod: 1,
+      disposalMethod: "SOFT_DELETE",
+    },
+    {
+      dataType: "PPH21_WITHHOLDING",
+      retentionYears: 5,
+      inactivePeriod: 1,
+      disposalMethod: "SOFT_DELETE",
+    },
+    {
+      dataType: "TAX_RECONCILIATION",
+      retentionYears: 3,
+      inactivePeriod: 1,
+      disposalMethod: "SOFT_DELETE",
+    },
+  ]
+
+  for (const policy of policies) {
+    const existing = await prisma.archivePolicy.findUnique({
+      where: { dataType: policy.dataType },
+    })
+
+    if (!existing) {
+      await prisma.archivePolicy.create({
+        data: policy,
+      })
+      console.log(`✅ Archive policy created for ${policy.dataType}`)
+    } else {
+      console.log(`✅ Archive policy already exists for ${policy.dataType}`)
+    }
+  }
 }
 
 main()

@@ -12,16 +12,20 @@ datasource db {
 }
 
 model Colleague {
-  id                    Int                       @id @default(autoincrement())
-  username              String                    @unique
-  password              String
-  name                  String                    @unique
-  role                  String                    @default("USER") // ADMIN or USER
-  records               SPMRecord[]
-  notifications         Notification[]
-  reconciliationPeriods TaxReconciliationPeriod[] @relation("ReconciliationCreatedBy")
-  pph21Exports          Pph21Export[]             @relation("Pph21ExportedBy")
-  createdAt             DateTime                  @default(now())
+  id                      Int                       @id @default(autoincrement())
+  username                String                    @unique
+  password                String
+  name                    String                    @unique
+  role                    String                    @default("USER") // ADMIN or USER
+  records                 SPMRecord[]
+  notifications           Notification[]
+  reconciliationPeriods   TaxReconciliationPeriod[] @relation("ReconciliationCreatedBy")
+  pph21Exports            Pph21Export[]             @relation("Pph21ExportedBy")
+  archivedRecords         ArchivedRecord[]          @relation("ArchivedBy")
+  archiveAccessLogs       ArchiveAccessLog[]        @relation("AccessedBy")
+  disposalRequestsCreated DisposalApproval[]        @relation("RequestedBy")
+  disposalApprovalsGiven  DisposalApproval[]        @relation("ApprovedBy")
+  createdAt               DateTime                  @default(now())
 }
 
 model Notification {
@@ -64,10 +68,15 @@ model SPMRecord {
   updatedAt  DateTime    @updatedAt
   pph21Batch Pph21Batch?
 
+  // Archive tracking
+  archiveStatus  String     @default("ACTIVE") // ACTIVE, INACTIVE, ARCHIVED, DISPOSED
+  archivedRecord ArchivedRecord?
+
   @@index([accountCode, sp2dDate])
   @@index([sp2dNumber])
   @@index([status])
   @@index([assigneeId])
+  @@index([archiveStatus])
 }
 
 model Pph21Recipient {
@@ -192,4 +201,90 @@ model TaxReconciliationTarget {
 
   @@unique([periodId, accountCode])
   @@index([accountCode])
+}
+
+model ArchivePolicy {
+  id               Int    @id @default(autoincrement())
+  dataType         String @unique // SPM_RECORD, PPH21_WITHHOLDING, TAX_RECONCILIATION
+  retentionYears   Int // 5, 5, 3 respectively
+  inactivePeriod   Int // years before becoming inactive (1)
+  disposalMethod   String @default("SOFT_DELETE") // SOFT_DELETE, PERMANENT_DELETE
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([dataType])
+}
+
+model ArchivedRecord {
+  id              Int    @id @default(autoincrement())
+  originalId      Int    // reference ke original record id
+  dataType        String // SPM_RECORD, PPH21_WITHHOLDING, TAX_RECONCILIATION
+  archivedData    Json   // snapshot of data sebagai JSON
+  archivedById    Int?
+  archivedBy      Colleague? @relation("ArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
+  spmNumber       String? // for SPM records, extract untuk easy searching
+  spmRecordId     Int? @unique
+  spmRecord       SPMRecord? @relation(fields: [spmRecordId], references: [id], onDelete: Cascade)
+
+  accessLogs      ArchiveAccessLog[]
+  disposalApproval DisposalApproval?
+
+  archiveStatus   String @default("ARCHIVED") // ARCHIVED, ELIGIBLE_FOR_DISPOSAL, DISPOSED
+  disposalScheduledDate DateTime?
+  disposalScheduledAt DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([dataType])
+  @@index([spmNumber])
+  @@index([archiveStatus])
+  @@index([originalId])
+  @@unique([originalId, dataType])
+}
+
+model ArchiveAccessLog {
+  id              Int    @id @default(autoincrement())
+  archivedRecordId Int
+  archivedRecord  ArchivedRecord @relation(fields: [archivedRecordId], references: [id], onDelete: Cascade)
+
+  accessedById    Int
+  accessedBy      Colleague @relation("AccessedBy", fields: [accessedById], references: [id], onDelete: Cascade)
+
+  accessType      String // VIEW, EXPORT, VERIFY, RESTORE
+  reason          String?
+  ipAddress       String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([archivedRecordId])
+  @@index([accessedById])
+  @@index([createdAt])
+}
+
+model DisposalApproval {
+  id              Int    @id @default(autoincrement())
+  archivedRecordId Int @unique
+  archivedRecord  ArchivedRecord @relation(fields: [archivedRecordId], references: [id], onDelete: Cascade)
+
+  requestedById   Int
+  requestedBy     Colleague @relation("RequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  approvedById    Int?
+  approvedBy      Colleague? @relation("ApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  status          String @default("PENDING") // PENDING, APPROVED, REJECTED, DISPOSED
+  disposalMethod  String @default("SOFT_DELETE") // SOFT_DELETE, PERMANENT_DELETE
+
+  approvalDate    DateTime?
+  disposalExecutedAt DateTime?
+  reason          String?
+  rejectionReason String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([archivedRecordId])
+  @@index([createdAt])
 }
