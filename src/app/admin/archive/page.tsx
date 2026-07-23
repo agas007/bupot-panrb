@@ -701,8 +701,9 @@ export default function ArchivePage() {
                 Skema pengelompokan
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
-                List arsip diprioritaskan per dataType, lalu dipecah per archiveStatus.
-                Alur admin cuma buat approval catatan, bukan destroy data.
+                Arsip ditampilkan per jenis dokumen, lalu dipisah lagi berdasarkan
+                statusnya. Persetujuan admin hanya untuk mencatat proses arsip,
+                bukan untuk menghapus permanen.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
