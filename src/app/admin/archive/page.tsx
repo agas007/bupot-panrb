@@ -242,18 +242,19 @@ export default function ArchivePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 md:p-8">
-      <div className="mx-auto max-w-7xl">
+    <div className="relative min-h-screen overflow-hidden bg-background px-6 py-8 text-foreground md:px-8">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(99,102,241,0.08),transparent_22%)]" />
+      <div className="relative mx-auto max-w-7xl">
         <div className="mb-8">
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-slate-900 p-3 text-white shadow-lg">
+            <div className="rounded-2xl bg-accent p-3 text-accent-foreground shadow-lg">
               <Archive className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-950">
+              <h1 className="text-3xl font-black tracking-tight text-foreground">
                 Archive Management
               </h1>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted-foreground">
                 Kerangka list arsip: grup per tipe data, status, dan jejak approval admin.
               </p>
             </div>
@@ -261,49 +262,49 @@ export default function ArchivePage() {
         </div>
 
         <div className="mb-8 grid gap-4 md:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
+          <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
               Total arsip
             </div>
-            <div className="mt-2 text-3xl font-black text-slate-950">
+            <div className="mt-2 text-3xl font-black text-foreground">
               {stats?.total ?? 0}
             </div>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
+          <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
               Pending approval
             </div>
             <div className="mt-2 text-3xl font-black text-amber-600">
               {stats?.disposalPending ?? 0}
             </div>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
+          <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
               Tipe arsip
             </div>
-            <div className="mt-2 text-3xl font-black text-slate-950">
+            <div className="mt-2 text-3xl font-black text-foreground">
               {Object.keys(stats?.byDataType || {}).length}
             </div>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
+          <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
+            <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
               Akses terbaru
             </div>
-            <div className="mt-2 text-3xl font-black text-slate-950">
+            <div className="mt-2 text-3xl font-black text-foreground">
               {summary?.summary?.totalAccessLogs ?? 0}
             </div>
           </div>
         </div>
 
-        <div className="mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap border-b border-slate-200">
+        <div className="mb-6 rounded-2xl border border-border/70 bg-card/90 shadow-sm backdrop-blur-sm">
+          <div className="flex flex-wrap border-b border-border/70">
             <button
               type="button"
               onClick={() => setActiveTab("data")}
               className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold ${
                 activeTab === "data"
-                  ? "border-b-2 border-slate-950 text-slate-950"
-                  : "text-slate-500 hover:text-slate-950"
+                  ? "border-b-2 border-foreground text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <FolderTree className="h-4 w-4" />
@@ -314,8 +315,8 @@ export default function ArchivePage() {
               onClick={() => setActiveTab("approval")}
               className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold ${
                 activeTab === "approval"
-                  ? "border-b-2 border-slate-950 text-slate-950"
-                  : "text-slate-500 hover:text-slate-950"
+                  ? "border-b-2 border-foreground text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <ShieldCheck className="h-4 w-4" />
@@ -326,8 +327,8 @@ export default function ArchivePage() {
               onClick={() => setActiveTab("ringkasan")}
               className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold ${
                 activeTab === "ringkasan"
-                  ? "border-b-2 border-slate-950 text-slate-950"
-                  : "text-slate-500 hover:text-slate-950"
+                  ? "border-b-2 border-foreground text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <AlertCircle className="h-4 w-4" />
@@ -344,8 +345,8 @@ export default function ArchivePage() {
                     onClick={() => setSelectedStatus(null)}
                     className={`rounded-full px-4 py-2 text-sm font-semibold ${
                       selectedStatus === null
-                        ? "bg-slate-950 text-white"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        ? "bg-foreground text-background"
+                        : "bg-muted text-foreground hover:bg-muted/80"
                     }`}
                   >
                     Semua status
@@ -357,8 +358,8 @@ export default function ArchivePage() {
                       onClick={() => setSelectedStatus(status)}
                       className={`rounded-full px-4 py-2 text-sm font-semibold ${
                         selectedStatus === status
-                          ? "bg-slate-950 text-white"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          ? "bg-foreground text-background"
+                          : "bg-muted text-foreground hover:bg-muted/80"
                       }`}
                     >
                       {formatStatus(status)}
@@ -372,8 +373,8 @@ export default function ArchivePage() {
                     onClick={() => setSelectedDataType(null)}
                     className={`rounded-full px-4 py-2 text-sm font-semibold ${
                       selectedDataType === null
-                        ? "bg-slate-950 text-white"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        ? "bg-foreground text-background"
+                        : "bg-muted text-foreground hover:bg-muted/80"
                     }`}
                   >
                     Semua tipe
@@ -385,8 +386,8 @@ export default function ArchivePage() {
                       onClick={() => setSelectedDataType(type)}
                       className={`rounded-full px-4 py-2 text-sm font-semibold ${
                         selectedDataType === type
-                          ? "bg-slate-950 text-white"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          ? "bg-foreground text-background"
+                          : "bg-muted text-foreground hover:bg-muted/80"
                       }`}
                     >
                       {formatDataType(type)}
@@ -395,11 +396,11 @@ export default function ArchivePage() {
                 </div>
 
                 {loadingRecords ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-12 text-center text-sm text-slate-500">
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 py-12 text-center text-sm text-muted-foreground">
                     Memuat data arsip...
                   </div>
                 ) : sortedDataTypes.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-12 text-center text-sm text-slate-500">
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 py-12 text-center text-sm text-muted-foreground">
                     Belum ada data arsip yang cocok dengan filter ini.
                   </div>
                 ) : (
@@ -414,22 +415,22 @@ export default function ArchivePage() {
                       return (
                         <section
                           key={type}
-                          className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+                          className="overflow-hidden rounded-3xl border border-border/70 bg-card/90 shadow-sm backdrop-blur-sm"
                         >
-                          <div className="flex flex-col gap-4 border-b border-slate-200 p-5 md:flex-row md:items-start md:justify-between">
+                          <div className="flex flex-col gap-4 border-b border-border/70 p-5 md:flex-row md:items-start md:justify-between">
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest ${getDataTypeBadge(type)}`}>
                                   {formatDataType(type)}
                                 </span>
-                                <span className="text-sm font-semibold text-slate-500">
+                                <span className="text-sm font-semibold text-muted-foreground">
                                   {items.length} arsip
                                 </span>
                               </div>
-                              <h2 className="mt-2 text-xl font-black tracking-tight text-slate-950">
+                              <h2 className="mt-2 text-xl font-black tracking-tight text-foreground">
                                 {formatDataType(type)}
                               </h2>
-                              <p className="text-sm text-slate-600">
+                              <p className="text-sm text-muted-foreground">
                                 Grup ini menampilkan arsip permanen, status approval, dan siapa yang melakukan arsip.
                               </p>
                             </div>
@@ -448,7 +449,7 @@ export default function ArchivePage() {
 
                           <div className="overflow-x-auto">
                             <table className="min-w-full text-left text-sm">
-                              <thead className="bg-slate-50 text-xs uppercase tracking-widest text-slate-500">
+                              <thead className="bg-muted/40 text-xs uppercase tracking-widest text-muted-foreground">
                                 <tr>
                                   <th className="px-5 py-4">Identitas</th>
                                   <th className="px-5 py-4">Status</th>
@@ -459,12 +460,12 @@ export default function ArchivePage() {
                               </thead>
                               <tbody>
                                 {items.map((record) => (
-                                  <tr key={record.id} className="border-t border-slate-100">
+                                  <tr key={record.id} className="border-t border-border/60">
                                     <td className="px-5 py-4 align-top">
-                                      <div className="font-semibold text-slate-950">
+                                      <div className="font-semibold text-foreground">
                                         {record.spmNumber || `#${record.originalId}`}
                                       </div>
-                                      <div className="mt-1 text-xs text-slate-500">
+                                      <div className="mt-1 text-xs text-muted-foreground">
                                         Original ID: {record.originalId}
                                       </div>
                                     </td>
@@ -474,20 +475,20 @@ export default function ArchivePage() {
                                       </div>
                                     </td>
                                     <td className="px-5 py-4 align-top">
-                                      <div className="font-semibold text-slate-900">
+                                      <div className="font-semibold text-foreground">
                                         {record.archivedBy?.name || "-"}
                                       </div>
-                                      <div className="mt-1 text-xs text-slate-500">
+                                      <div className="mt-1 text-xs text-muted-foreground">
                                         {record.archivedBy?.username || "-"}
                                       </div>
                                     </td>
-                                    <td className="px-5 py-4 align-top text-slate-600">
+                                    <td className="px-5 py-4 align-top text-muted-foreground">
                                       {formatDate(record.createdAt)}
                                     </td>
                                     <td className="px-5 py-4 align-top">
                                       <button
                                         type="button"
-                                        className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                                        className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/80"
                                       >
                                         <Eye className="h-3.5 w-3.5" />
                                         Lihat
@@ -508,22 +509,22 @@ export default function ArchivePage() {
 
             {activeTab === "approval" && (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <ShieldCheck className="h-4 w-4 text-slate-900" />
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <ShieldCheck className="h-4 w-4 text-foreground" />
                   Hanya admin yang bisa approve. Untuk sementara approve artinya dicatat, bukan destroy.
                 </div>
 
                 {loadingApproval ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-12 text-center text-sm text-slate-500">
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 py-12 text-center text-sm text-muted-foreground">
                     Memuat approval queue...
                   </div>
                 ) : approvalQueue.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-12 text-center text-sm text-slate-500">
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 py-12 text-center text-sm text-muted-foreground">
                     Tidak ada request approval yang pending.
                   </div>
                 ) : (
                   approvalQueue.map((request) => (
-                    <div key={request.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div key={request.id} className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
                       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
@@ -534,14 +535,14 @@ export default function ArchivePage() {
                               {formatStatus(request.status)}
                             </span>
                           </div>
-                          <h3 className="mt-3 text-lg font-black text-slate-950">
+                          <h3 className="mt-3 text-lg font-black text-foreground">
                             {request.archivedRecord.spmNumber || `${request.archivedRecord.dataType} #${request.archivedRecord.id}`}
                           </h3>
-                          <p className="mt-1 text-sm text-slate-600">
+                          <p className="mt-1 text-sm text-muted-foreground">
                             Requested by {request.requestedBy.name}
                           </p>
                           {request.reason && (
-                            <p className="mt-2 text-sm text-slate-500">
+                            <p className="mt-2 text-sm text-muted-foreground">
                               Alasan: {request.reason}
                             </p>
                           )}
@@ -575,50 +576,50 @@ export default function ArchivePage() {
             {activeTab === "ringkasan" && (
               <div className="space-y-8">
                 {loadingSummary ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-12 text-center text-sm text-slate-500">
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 py-12 text-center text-sm text-muted-foreground">
                     Memuat ringkasan arsip...
                   </div>
                 ) : summary ? (
                   <>
                     <div className="grid gap-4 md:grid-cols-3">
-                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                      <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
+                        <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                           Periode
                         </div>
-                        <div className="mt-2 text-lg font-black text-slate-950">
+                        <div className="mt-2 text-lg font-black text-foreground">
                           {summary.period}
                         </div>
                       </div>
-                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                      <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
+                        <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                           Status ringkasan
                         </div>
-                        <div className="mt-2 text-lg font-black text-slate-950">
+                        <div className="mt-2 text-lg font-black text-foreground">
                           {summary.status}
                         </div>
                       </div>
-                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                      <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
+                        <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                           Total log akses
                         </div>
-                        <div className="mt-2 text-lg font-black text-slate-950">
+                        <div className="mt-2 text-lg font-black text-foreground">
                           {summary.summary?.totalAccessLogs ?? 0}
                         </div>
                       </div>
                     </div>
 
                     <div className="grid gap-6 lg:grid-cols-2">
-                      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <h3 className="text-lg font-black text-slate-950">
+                      <section className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
+                        <h3 className="text-lg font-black text-foreground">
                           Ringkasan status arsip
                         </h3>
                         <div className="mt-4 grid gap-3 md:grid-cols-2">
                           {Object.entries(summary.retentionTimeline).map(([status, count]) => (
-                            <div key={status} className="rounded-2xl bg-slate-50 p-4">
-                              <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                            <div key={status} className="rounded-2xl bg-muted/40 p-4">
+                              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                 {formatStatus(status)}
                               </div>
-                              <div className="mt-2 text-2xl font-black text-slate-950">
+                              <div className="mt-2 text-2xl font-black text-foreground">
                                 {count}
                               </div>
                             </div>
@@ -626,51 +627,51 @@ export default function ArchivePage() {
                         </div>
                       </section>
 
-                      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <h3 className="text-lg font-black text-slate-950">
+                      <section className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
+                        <h3 className="text-lg font-black text-foreground">
                           Ringkasan per tipe data
                         </h3>
                         <div className="mt-4 space-y-3">
                           {Object.entries(summary.byDataType).map(([type, count]) => (
-                            <div key={type} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                              <div className="font-semibold text-slate-700">
+                            <div key={type} className="flex items-center justify-between rounded-2xl bg-muted/40 px-4 py-3">
+                              <div className="font-semibold text-foreground">
                                 {formatDataType(type)}
                               </div>
-                              <div className="font-black text-slate-950">{count}</div>
+                              <div className="font-black text-foreground">{count}</div>
                             </div>
                           ))}
                         </div>
                       </section>
                     </div>
 
-                    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <section className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
                       <div className="flex items-center justify-between gap-4">
-                        <h3 className="text-lg font-black text-slate-950">
+                        <h3 className="text-lg font-black text-foreground">
                           5 akses terakhir
                         </h3>
-                        <span className="text-sm text-slate-500">
+                        <span className="text-sm text-muted-foreground">
                           Ini log akses, bukan compliance jargon.
                         </span>
                       </div>
 
                       <div className="mt-4 space-y-3">
                         {summary.accessAudit.length === 0 ? (
-                          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-10 text-center text-sm text-slate-500">
+                          <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 py-10 text-center text-sm text-muted-foreground">
                             Belum ada log akses arsip.
                           </div>
                         ) : (
                           summary.accessAudit.map((item) => (
-                            <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <div key={item.id} className="rounded-2xl border border-border/70 bg-muted/30 p-4">
                               <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
-                                  <div className="font-semibold text-slate-950">
+                                  <div className="font-semibold text-foreground">
                                     {item.archivedRecord.spmNumber || item.archivedRecord.dataType}
                                   </div>
-                                  <div className="text-sm text-slate-600">
+                                  <div className="text-sm text-muted-foreground">
                                     {item.accessType} oleh {item.accessedBy?.name || "-"}
                                   </div>
                                 </div>
-                                <div className="text-xs text-slate-500">
+                                <div className="text-xs text-muted-foreground">
                                   {formatDate(item.createdAt)}
                                 </div>
                               </div>
@@ -681,7 +682,7 @@ export default function ArchivePage() {
                     </section>
                   </>
                 ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-12 text-center text-sm text-slate-500">
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 py-12 text-center text-sm text-muted-foreground">
                     Ringkasan belum tersedia.
                   </div>
                 )}
@@ -690,32 +691,32 @@ export default function ArchivePage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <div className="text-sm font-bold uppercase tracking-widest text-slate-500">
+              <div className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
                 Skema pengelompokan
               </div>
-              <p className="mt-2 text-sm text-slate-600">
-                List arsip diprioritaskan per `dataType`, lalu dipecah per `archiveStatus`.
+              <p className="mt-2 text-sm text-muted-foreground">
+                List arsip diprioritaskan per dataType, lalu dipecah per archiveStatus.
                 Alur admin cuma buat approval catatan, bukan destroy data.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+              <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-foreground">
                 1. Tipe data
               </span>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+              <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-foreground">
                 2. Status arsip
               </span>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+              <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-foreground">
                 3. Approval admin
               </span>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-2 text-xs text-slate-500">
+        <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
           <Download className="h-3.5 w-3.5" />
           Export PDF/CSV masih placeholder sampai flow destroy/retain-nya benar-benar final.
         </div>

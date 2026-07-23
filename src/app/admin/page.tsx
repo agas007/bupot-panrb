@@ -257,7 +257,7 @@ export default function AdminPage() {
       </section>
 
       {/* 🔥 NEW: Maintenance & Log Retention Section */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
          <div className="md:col-span-2 glass-card p-8 border-rose-500/10 flex flex-col gap-6 shadow-xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform duration-700"><Trash2 size={120} /></div>
             <div className="flex items-center gap-4">
@@ -297,21 +297,31 @@ export default function AdminPage() {
                <div className="flex justify-between items-center bg-white/5 p-3 rounded-2xl border border-white/5"><span className="text-[11px] font-bold opacity-60">LOGGING SYSTEM</span><span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full font-black uppercase tracking-widest">Active</span></div>
             </div>
          </div>
+      </section>
 
-         <Link href="/admin/archive" className="glass-card p-8 border-sky-500/10 flex flex-col gap-6 shadow-xl relative overflow-hidden group hover:border-sky-500/30 transition-all">
-            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-500"><Archive size={80} /></div>
+      <section className="mt-8">
+        <Link href="/admin/archive" className="glass-card block p-8 border-sky-500/10 shadow-xl relative overflow-hidden group hover:border-sky-500/30 transition-all">
+          <div className="absolute right-0 top-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-500">
+            <Archive size={140} />
+          </div>
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
-               <div className="p-3 bg-sky-500/10 text-sky-500 rounded-2xl"><Archive size={24} /></div>
-               <div className="flex flex-col text-left">
-                  <h3 className="font-black uppercase tracking-widest text-sm">Archive Menu</h3>
-                  <p className="text-[11px] text-muted-foreground font-medium">Lihat list arsip, grouping data, dan approval admin.</p>
-               </div>
+              <div className="p-4 bg-sky-500/10 text-sky-500 rounded-3xl">
+                <Archive size={28} />
+              </div>
+              <div className="flex flex-col text-left">
+                <h3 className="font-black uppercase tracking-widest text-lg">Archive Menu</h3>
+                <p className="max-w-2xl text-sm text-muted-foreground font-medium">
+                  Lihat list arsip, grouping data per tipe, dan approval admin dalam satu tempat.
+                </p>
+              </div>
             </div>
-            <div className="mt-auto flex items-center justify-between rounded-2xl bg-sky-500/10 px-4 py-3">
-               <span className="text-[10px] font-black uppercase tracking-widest text-sky-500">Open Archive</span>
-               <span className="text-[10px] font-bold text-muted-foreground">{language === "ID" ? "Masuk" : "Enter"}</span>
+            <div className="flex items-center gap-3 rounded-2xl bg-sky-500/10 px-5 py-3">
+              <span className="text-[10px] font-black uppercase tracking-widest text-sky-500">Open Archive</span>
+              <span className="text-[10px] font-bold text-muted-foreground">{language === "ID" ? "Masuk" : "Enter"}</span>
             </div>
-         </Link>
+          </div>
+        </Link>
       </section>
     </div>
   );
