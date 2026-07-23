@@ -1,8 +1,33 @@
 import { prisma } from "@/lib/prisma";
+import { getRequestSessionUser } from "@/lib/session-cookie";
 import { NextRequest, NextResponse } from "next/server";
+
+const assertAdmin = async (request: NextRequest) => {
+  const sessionUser = getRequestSessionUser(request);
+  if (!sessionUser) return null;
+
+  const adminUser = await prisma.colleague.findUnique({
+    where: { id: sessionUser.id },
+    select: { id: true, role: true, name: true, username: true },
+  });
+
+  if (!adminUser || adminUser.role !== "ADMIN") {
+    return null;
+  }
+
+  return adminUser;
+};
 
 export async function GET(request: NextRequest) {
   try {
+    const adminUser = await assertAdmin(request);
+    if (!adminUser) {
+      return NextResponse.json(
+        { error: "Unauthorized access: Administrative level required" },
+        { status: 403 }
+      );
+    }
+
     const status = request.nextUrl.searchParams.get("status") || "PENDING";
     const page = parseInt(request.nextUrl.searchParams.get("page") || "1");
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20");
@@ -63,36 +88,45 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { archivedRecordId, approvedById, action, reason } =
+    const adminUser = await assertAdmin(request);
+    if (!adminUser) {
+      return NextResponse.json(
+        { error: "Unauthorized access: Administrative level required" },
+        { status: 403 }
+      );
+    }
+
+    const { archivedRecordId, action, reason } =
       await request.json();
+    const archivedRecordIdNumber = Number(archivedRecordId);
+
+    if (!Number.isFinite(archivedRecordIdNumber)) {
+      return NextResponse.json(
+        { error: "Invalid archivedRecordId" },
+        { status: 400 }
+      );
+    }
 
     if (action === "approve") {
       const updated = await prisma.disposalApproval.update({
-        where: { archivedRecordId },
+        where: { archivedRecordId: archivedRecordIdNumber },
         data: {
           status: "APPROVED",
-          approvedById,
+          approvedById: adminUser.id,
           approvalDate: new Date(),
           reason,
-        },
-      });
-
-      // Update archived record status
-      await prisma.archivedRecord.update({
-        where: { id: archivedRecordId },
-        data: {
-          archiveStatus: "ELIGIBLE_FOR_DISPOSAL",
-          disposalScheduledAt: new Date(),
         },
       });
 
       return NextResponse.json(updated);
     } else if (action === "reject") {
       const updated = await prisma.disposalApproval.update({
-        where: { archivedRecordId },
+        where: { archivedRecordId: archivedRecordIdNumber },
         data: {
           status: "REJECTED",
           reason,
+          approvedById: null,
+          approvalDate: null,
         },
       });
 

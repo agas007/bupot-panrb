@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const dataType = searchParams.get("dataType") || "SPM_RECORD";
+    const dataType = searchParams.get("dataType");
     const status = searchParams.get("status");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
 
     const where: any = {
       archiveStatus: status ? status : undefined,
+      dataType: dataType ? dataType : undefined,
     };
 
     // Remove undefined keys
@@ -21,37 +22,51 @@ export async function GET(request: NextRequest) {
     );
 
     const [records, total] = await Promise.all([
-      prisma.sPMRecord.findMany({
+      prisma.archivedRecord.findMany({
         where,
         select: {
           id: true,
-          spmNumber: true,
-          spmDate: true,
-          accountCode: true,
-          deductionAmount: true,
-          sp2dNumber: true,
-          recipient: true,
-          status: true,
+          originalId: true,
+          dataType: true,
           archiveStatus: true,
-          importDate: true,
-          updatedAt: true,
-          archivedRecord: {
+          spmNumber: true,
+          archivedData: true,
+          archivedBy: {
             select: {
               id: true,
-              archiveStatus: true,
-              createdAt: true,
+              name: true,
+              username: true,
             },
           },
+          disposalScheduledAt: true,
+          disposalScheduledDate: true,
+          createdAt: true,
+          updatedAt: true,
         },
-        orderBy: { spmDate: "desc" },
+        orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
-      prisma.sPMRecord.count({ where }),
+      prisma.archivedRecord.count({ where }),
     ]);
+
+    const byDataType = records.reduce<Record<string, number>>((acc, record) => {
+      acc[record.dataType] = (acc[record.dataType] || 0) + 1;
+      return acc;
+    }, {});
+
+    const byStatus = records.reduce<Record<string, number>>((acc, record) => {
+      acc[record.archiveStatus] = (acc[record.archiveStatus] || 0) + 1;
+      return acc;
+    }, {});
 
     return NextResponse.json({
       data: records,
+      summary: {
+        total,
+        byDataType,
+        byStatus,
+      },
       pagination: {
         total,
         page,

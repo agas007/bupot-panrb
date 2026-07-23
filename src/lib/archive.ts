@@ -12,7 +12,7 @@ export const ARCHIVE_POLICIES = {
     dataType: "PPH21_WITHHOLDING",
   },
   TAX_RECONCILIATION: {
-    retentionYears: 3,
+    retentionYears: 5,
     inactivePeriod: 1,
     dataType: "TAX_RECONCILIATION",
   },
@@ -27,7 +27,7 @@ export function getArchivePolicy(dataType: DataType) {
 export function calculateArchiveStatus(
   createdDate: Date,
   dataType: DataType
-): "ACTIVE" | "INACTIVE" | "ARCHIVED" | "ELIGIBLE_FOR_DISPOSAL" {
+): "ACTIVE" | "INACTIVE" | "ARCHIVED" {
   const policy = getArchivePolicy(dataType);
   const now = new Date();
   const yearsDiff =
@@ -35,7 +35,7 @@ export function calculateArchiveStatus(
     (1000 * 60 * 60 * 24 * 365.25);
 
   if (yearsDiff >= policy.retentionYears) {
-    return "ELIGIBLE_FOR_DISPOSAL";
+    return "ARCHIVED";
   }
   if (yearsDiff >= policy.inactivePeriod) {
     return "INACTIVE";

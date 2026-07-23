@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { 
   Upload, CheckCircle, AlertCircle, Loader2, 
   X, Eye, Trash2, 
-  History, Hammer
+  History, Hammer, Archive
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { readSessionUser } from "@/lib/auth-session";
@@ -296,6 +297,21 @@ export default function AdminPage() {
                <div className="flex justify-between items-center bg-white/5 p-3 rounded-2xl border border-white/5"><span className="text-[11px] font-bold opacity-60">LOGGING SYSTEM</span><span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full font-black uppercase tracking-widest">Active</span></div>
             </div>
          </div>
+
+         <Link href="/admin/archive" className="glass-card p-8 border-sky-500/10 flex flex-col gap-6 shadow-xl relative overflow-hidden group hover:border-sky-500/30 transition-all">
+            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-500"><Archive size={80} /></div>
+            <div className="flex items-center gap-4">
+               <div className="p-3 bg-sky-500/10 text-sky-500 rounded-2xl"><Archive size={24} /></div>
+               <div className="flex flex-col text-left">
+                  <h3 className="font-black uppercase tracking-widest text-sm">Archive Menu</h3>
+                  <p className="text-[11px] text-muted-foreground font-medium">Lihat list arsip, grouping data, dan approval admin.</p>
+               </div>
+            </div>
+            <div className="mt-auto flex items-center justify-between rounded-2xl bg-sky-500/10 px-4 py-3">
+               <span className="text-[10px] font-black uppercase tracking-widest text-sky-500">Open Archive</span>
+               <span className="text-[10px] font-bold text-muted-foreground">{language === "ID" ? "Masuk" : "Enter"}</span>
+            </div>
+         </Link>
       </section>
     </div>
   );

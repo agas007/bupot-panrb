@@ -1,22 +1,36 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
-    const stats = await prisma.sPMRecord.groupBy({
-      by: ["archiveStatus"],
-      _count: true,
+    const archivedRecords = await prisma.archivedRecord.findMany({
+      select: {
+        id: true,
+        dataType: true,
+        archiveStatus: true,
+      },
     });
 
     const formatted = {
-      ACTIVE: 0,
-      INACTIVE: 0,
       ARCHIVED: 0,
+      PENDING_APPROVAL: 0,
+      REJECTED: 0,
       DISPOSED: 0,
     };
 
-    stats.forEach((stat) => {
-      formatted[stat.archiveStatus as keyof typeof formatted] = stat._count;
+    const byDataType = {
+      SPM_RECORD: 0,
+      PPH21_WITHHOLDING: 0,
+      TAX_RECONCILIATION: 0,
+    };
+
+    archivedRecords.forEach((record) => {
+      if (record.archiveStatus in formatted) {
+        formatted[record.archiveStatus as keyof typeof formatted] += 1;
+      }
+      if (record.dataType in byDataType) {
+        byDataType[record.dataType as keyof typeof byDataType] += 1;
+      }
     });
 
     const disposalPending = await prisma.disposalApproval.count({
@@ -25,8 +39,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       stats: formatted,
+      byDataType,
       disposalPending,
-      total: Object.values(formatted).reduce((a, b) => a + b, 0),
+      total: archivedRecords.length,
     });
   } catch (error) {
     console.error("Archive stats error:", error);

@@ -1,33 +1,49 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
-    // Get archive status counts
-    const stats = await prisma.sPMRecord.groupBy({
-      by: ["archiveStatus"],
-      _count: true,
+    const archivedRecords = await prisma.archivedRecord.findMany({
+      select: {
+        id: true,
+        dataType: true,
+        archiveStatus: true,
+        archivedBy: {
+          select: { id: true, name: true },
+        },
+        createdAt: true,
+      },
     });
 
     const formatted = {
-      ACTIVE: 0,
-      INACTIVE: 0,
       ARCHIVED: 0,
+      PENDING_APPROVAL: 0,
+      REJECTED: 0,
       DISPOSED: 0,
     };
 
-    stats.forEach((stat) => {
-      formatted[stat.archiveStatus as keyof typeof formatted] = stat._count;
+    const byDataType = {
+      SPM_RECORD: 0,
+      PPH21_WITHHOLDING: 0,
+      TAX_RECONCILIATION: 0,
+    };
+
+    archivedRecords.forEach((record) => {
+      if (record.archiveStatus in formatted) {
+        formatted[record.archiveStatus as keyof typeof formatted] += 1;
+      }
+      if (record.dataType in byDataType) {
+        byDataType[record.dataType as keyof typeof byDataType] += 1;
+      }
     });
 
-    // Get access logs (top 5)
     const accessLogs = await prisma.archiveAccessLog.findMany({
       select: {
         id: true,
         accessedBy: { select: { id: true, name: true } },
         accessType: true,
         archivedRecord: {
-          select: { spmNumber: true, dataType: true },
+          select: { spmNumber: true, dataType: true, archiveStatus: true },
         },
         createdAt: true,
       },
@@ -35,7 +51,6 @@ export async function GET(request: NextRequest) {
       take: 5,
     });
 
-    // Get disposal queue
     const disposalPending = await prisma.disposalApproval.count({
       where: { status: "PENDING" },
     });
@@ -44,35 +59,29 @@ export async function GET(request: NextRequest) {
       where: { status: "APPROVED" },
     });
 
-    // Check compliance
-    const allRecordsCompliant = await prisma.sPMRecord.count({
-      where: {
-        archiveStatus: "ELIGIBLE_FOR_DISPOSAL",
-      },
-    });
-
     return NextResponse.json({
       period: new Date().toLocaleDateString("id-ID", {
         month: "long",
         year: "numeric",
       }),
-      status: "COMPLIANT",
+      status: "READY",
+      reportType: "ARCHIVE_SUMMARY",
       retentionTimeline: formatted,
+      byDataType,
       accessAudit: accessLogs,
       disposalQueue: {
         pending: disposalPending,
         approved: disposalApproved,
       },
-      complianceMetrics: {
-        dataRetention: "100%",
-        auditTrail: "Complete",
-        accessControl: "Enforced",
+      summary: {
+        totalArchivedRecords: archivedRecords.length,
+        totalAccessLogs: accessLogs.length,
       },
     });
   } catch (error) {
-    console.error("Compliance report error:", error);
+    console.error("Archive summary error:", error);
     return NextResponse.json(
-      { error: "Failed to generate compliance report" },
+      { error: "Failed to generate archive summary" },
       { status: 500 }
     );
   }

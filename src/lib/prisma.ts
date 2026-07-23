@@ -44,7 +44,17 @@ const getPrismaClient = () => {
 const _global = globalThis as unknown as { prisma: PrismaClient | undefined };
 
 // Detect if we have the new models and properties
-if (_global.prisma && (!("auditLog" in _global.prisma) || !("colleague" in _global.prisma))) {
+if (
+  _global.prisma &&
+  (
+    !("auditLog" in _global.prisma) ||
+    !("colleague" in _global.prisma) ||
+    !("archivedRecord" in _global.prisma) ||
+    !("archivePolicy" in _global.prisma) ||
+    !("archiveAccessLog" in _global.prisma) ||
+    !("disposalApproval" in _global.prisma)
+  )
+) {
   console.log("[Prisma Log] Stale instance detected (missing models), re-initializing client...");
   _global.prisma = undefined;
 }

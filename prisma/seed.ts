@@ -39,7 +39,7 @@ async function main() {
     },
     {
       dataType: "TAX_RECONCILIATION",
-      retentionYears: 3,
+      retentionYears: 5,
       inactivePeriod: 1,
       disposalMethod: "SOFT_DELETE",
     },
