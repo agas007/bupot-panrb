@@ -159,33 +159,55 @@ export default function AdminPage() {
               </div>
 
               <div className="flex-1 overflow-auto border border-border/70 rounded-3xl bg-background/80 shadow-inner">
-                 <table className="admin-preview-table w-full text-left text-xs border-collapse">
-                    <thead className="sticky top-0 bg-card/95 backdrop-blur-md">
-                       <tr className="uppercase font-black tracking-widest text-[10px] text-muted-foreground border-b border-border/70">
-                          <th className="p-4 px-6">SPM NUMBER</th>
-                          <th className="p-4">RECIPIENT</th>
-                          <th className="p-4">DEDUCTION (IDR)</th>
-                          <th className="p-4">SP2D REF</th>
-                          <th className="p-4">DESCRIPTION</th>
-                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60">
-                       {previewData.map((row, i) => (
-                         <tr key={i} className="hover:bg-accent/5 transition-colors even:bg-muted/20">
-                            <td className="p-4 px-6 font-semibold text-foreground">{row.spmNumber}</td>
-                            <td className="p-4 font-medium text-foreground/90">{row.recipient}</td>
-                            <td className="p-4 font-black tabular-nums text-accent">{row.deductionAmount.toLocaleString("id-ID")}</td>
-                            <td className="p-4 font-mono text-muted-foreground">{row.sp2dNumber || "-"}</td>
-                            <td className="p-4 italic text-muted-foreground max-w-[200px] truncate">{row.description || "-"}</td>
+                {previewData.length === 0 ? (
+                  <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 px-6 py-12 text-center">
+                    <div className="rounded-full bg-muted px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                      Tidak ada data terbaca
+                    </div>
+                    <p className="max-w-2xl text-sm text-muted-foreground">
+                      Hasil pratinjau kosong. Biasanya ini terjadi kalau header file tidak cocok,
+                      data ada di sheet lain, atau isi file belum masuk ke format impor yang dikenali.
+                    </p>
+                    <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-5 py-4 text-left text-xs text-muted-foreground">
+                      Cek lagi:
+                      <ul className="mt-2 list-disc space-y-1 pl-5">
+                        <li>file yang diupload memang format potongan dan SPP yang benar</li>
+                        <li>sheet pertama berisi data, bukan cover atau judul</li>
+                        <li>kolom SPM, akun, jumlah, dan nomor SP2D ada di baris header</li>
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <table className="admin-preview-table w-full text-left text-xs border-collapse">
+                      <thead className="sticky top-0 bg-card/95 backdrop-blur-md">
+                         <tr className="uppercase font-black tracking-widest text-[10px] text-muted-foreground border-b border-border/70">
+                            <th className="p-4 px-6">SPM NUMBER</th>
+                            <th className="p-4">RECIPIENT</th>
+                            <th className="p-4">DEDUCTION (IDR)</th>
+                            <th className="p-4">SP2D REF</th>
+                            <th className="p-4">DESCRIPTION</th>
                          </tr>
-                       ))}
-                    </tbody>
-                 </table>
-                 {previewCount > 100 && (
-                   <div className="p-4 text-center bg-accent/5 italic text-[10px] font-bold uppercase tracking-[0.2em] text-accent">
-                      ---Showing 100 of {previewCount} items---
-                   </div>
-                 )}
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                         {previewData.map((row, i) => (
+                           <tr key={i} className="hover:bg-accent/5 transition-colors even:bg-muted/20">
+                              <td className="p-4 px-6 font-semibold text-foreground">{row.spmNumber}</td>
+                              <td className="p-4 font-medium text-foreground/90">{row.recipient}</td>
+                              <td className="p-4 font-black tabular-nums text-accent">{row.deductionAmount.toLocaleString("id-ID")}</td>
+                              <td className="p-4 font-mono text-muted-foreground">{row.sp2dNumber || "-"}</td>
+                              <td className="p-4 italic text-muted-foreground max-w-[200px] truncate">{row.description || "-"}</td>
+                           </tr>
+                         ))}
+                      </tbody>
+                    </table>
+                    {previewCount > 100 && (
+                      <div className="p-4 text-center bg-accent/5 italic text-[10px] font-bold uppercase tracking-[0.2em] text-accent">
+                         ---Showing 100 of {previewCount} items---
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               <div className="flex gap-4">

@@ -9,13 +9,13 @@ export interface PotonganRow {
   "Tgl. SP2D"?: string | number;
   "Uraian SPM"?: string;
   "Atas Nama"?: string;
-  [key: string]: any;
+  [key: string]: string | number | null | undefined;
 }
 
 export interface SPP_SPM_SP2D_Row {
   "No. SPP/SPM": string;
   "Jumlah Pengeluaran": number;
-  [key: string]: any;
+  [key: string]: string | number | null | undefined;
 }
 
 export interface CoretaxExcelRow {
@@ -28,16 +28,7 @@ export interface CoretaxExcelRow {
   taxObjectCode: string;
 }
 
-export const parseExcel = (buffer: Buffer) => {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
-  const sheetName = workbook.SheetNames[0];
-  const worksheet = workbook.Sheets[sheetName];
-  // Skip 2 rows for title, headers on row 3 (range: 2)
-  // Use raw: true to avoid library pre-formatting dates
-  return XLSX.utils.sheet_to_json(worksheet, { range: 2, raw: true, defval: null });
-};
-
-const safeDateID = (val: any) => {
+const safeDateID = (val: unknown) => {
   if (!val || val === "-" || val === "") return null;
   
   // Handle Excel serial numbers (numbers)
@@ -68,11 +59,11 @@ const safeDateID = (val: any) => {
     }
   }
 
-  const d = new Date(val);
+  const d = new Date(val as string | number);
   return isNaN(d.getTime()) ? null : d;
 };
 
-const safeIndoNum = (val: any) => {
+const safeIndoNum = (val: unknown) => {
   if (typeof val === "number") return val;
   if (!val) return 0;
   
@@ -110,6 +101,38 @@ function findColumnIndex(headerRow: unknown[], aliases: string[]) {
 
 function normalizeText(value: unknown) {
   return String(value ?? "").trim().replace(/\s+/g, " ");
+}
+
+function findMonitoringHeaderRow(rows: unknown[][]) {
+  const headerSignals = [
+    "NO.SPM",
+    "AKUN",
+    "JUMLAH",
+    "NO. SPP/SPM",
+    "JUMLAH PENGELUARAN",
+    "NAMA SATKER",
+    "KODE SATKER",
+    "JENIS SPP/SPM",
+    "STATUS SPP/SPM",
+    "NO SP2D",
+    "TGL SPM",
+    "TGL SP2D",
+  ];
+
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    const row = rows[rowIndex] ?? [];
+    const normalizedCells = row.map((cell) => normalizeHeaderText(cell)).filter(Boolean);
+    const matchCount = headerSignals.reduce((count, signal) => {
+      const normalizedSignal = normalizeHeaderText(signal);
+      return count + (normalizedCells.some((cell) => cell === normalizedSignal || cell.includes(normalizedSignal)) ? 1 : 0);
+    }, 0);
+
+    if (matchCount >= 3) {
+      return rowIndex;
+    }
+  }
+
+  return -1;
 }
 
 export const parseCoretaxExcel = (input: Buffer | ArrayBuffer) => {
@@ -189,6 +212,29 @@ export const parseCoretaxExcel = (input: Buffer | ArrayBuffer) => {
 export const parseCortexExcel = parseCoretaxExcel;
 
 export type CortexExcelRow = CoretaxExcelRow;
+
+export const parseExcel = (buffer: Buffer) => {
+  const workbook = XLSX.read(buffer, { type: "buffer", raw: true, cellDates: true });
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) {
+    throw new Error("File Excel tidak memiliki sheet.");
+  }
+
+  const worksheet = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true, defval: null, blankrows: true }) as unknown[][];
+  const headerRowIndex = findMonitoringHeaderRow(rows);
+
+  if (headerRowIndex < 0) {
+    throw new Error("Baris header file Excel tidak ditemukan. Pastikan file memakai format monitoring yang benar.");
+  }
+
+  return XLSX.utils.sheet_to_json(worksheet, {
+    range: headerRowIndex,
+    raw: true,
+    defval: null,
+    blankrows: false,
+  });
+};
 
 export const mergeExcelData = (
   potonganData: PotonganRow[],
