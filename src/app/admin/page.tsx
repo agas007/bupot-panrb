@@ -312,7 +312,7 @@ export default function AdminPage() {
               <div className="flex flex-col text-left">
                 <h3 className="font-black uppercase tracking-widest text-lg">Archive Menu</h3>
                 <p className="max-w-2xl text-sm text-muted-foreground font-medium">
-                  Lihat list arsip, grouping data per tipe, dan approval admin dalam satu tempat.
+                  Shortcut ke menu arsip untuk lihat dosier, riwayat, dan lampiran dalam satu tempat.
                 </p>
               </div>
             </div>

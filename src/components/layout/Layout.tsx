@@ -22,14 +22,13 @@ import {
   FileText,
   PanelLeftClose,
   PanelLeftOpen,
-  ShieldCheck,
   Settings2,
   Bell,
   CheckCircle2,
   AlertCircle,
-  FileType,
-  Scale
-  ,ReceiptText
+  Scale,
+  Archive,
+  ReceiptText
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { clearSession, readSession, touchSession, SESSION_MAX_AGE_MS, getSessionUser } from "@/lib/auth-session";
@@ -299,6 +298,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/reconciliation", label: t.nav.rekonsiliasi_spt, icon: Scale, minRole: "USER" },
     { href: "/colleagues", label: t.nav.daftar_rekan, icon: Users, minRole: "ADMIN" },
     { href: "/logs", label: t.nav.log_aktivitas, icon: History, minRole: "ADMIN" },
+    { href: "/admin/archive", label: t.nav.arsip, icon: Archive, minRole: "ADMIN" },
     { href: "/api-docs", label: t.nav.dokumentasi_api, icon: FileText },
     { href: "/admin", label: t.nav.panel_admin, icon: Settings, minRole: "ADMIN" },
     { href: "/settings", label: t.nav.pengaturan, icon: Settings2, minRole: "USER" },

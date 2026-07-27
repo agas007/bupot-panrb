@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRequestSessionUser } from "@/lib/session-cookie";
 import { NextRequest, NextResponse } from "next/server";
@@ -33,6 +34,27 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20");
 
     const skip = (page - 1) * limit;
+
+    const tableStatus = await prisma.$queryRaw<Array<{
+      archivedRecordExists: boolean;
+      disposalApprovalExists: boolean;
+    }>>(Prisma.sql`
+      SELECT
+        to_regclass('public."ArchivedRecord"') IS NOT NULL AS "archivedRecordExists",
+        to_regclass('public."DisposalApproval"') IS NOT NULL AS "disposalApprovalExists"
+    `);
+
+    if (!tableStatus[0]?.archivedRecordExists || !tableStatus[0]?.disposalApprovalExists) {
+      return NextResponse.json({
+        data: [],
+        pagination: {
+          total: 0,
+          page,
+          limit,
+          pages: 0,
+        },
+      });
+    }
 
     const [approvals, total] = await Promise.all([
       prisma.disposalApproval.findMany({
@@ -104,6 +126,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Invalid archivedRecordId" },
         { status: 400 }
+      );
+    }
+
+    const tableStatus = await prisma.$queryRaw<Array<{
+      archivedRecordExists: boolean;
+      disposalApprovalExists: boolean;
+    }>>(Prisma.sql`
+      SELECT
+        to_regclass('public."ArchivedRecord"') IS NOT NULL AS "archivedRecordExists",
+        to_regclass('public."DisposalApproval"') IS NOT NULL AS "disposalApprovalExists"
+    `);
+
+    if (!tableStatus[0]?.archivedRecordExists || !tableStatus[0]?.disposalApprovalExists) {
+      return NextResponse.json(
+        { error: "Archive tables are not available yet" },
+        { status: 503 }
       );
     }
 

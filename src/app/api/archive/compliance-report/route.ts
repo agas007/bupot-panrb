@@ -4,6 +4,48 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_request: NextRequest) {
   try {
+    const tableStatus = await prisma.$queryRaw<Array<{
+      archivedRecordExists: boolean;
+      accessLogExists: boolean;
+      disposalApprovalExists: boolean;
+    }>>(Prisma.sql`
+      SELECT
+        to_regclass('public."ArchivedRecord"') IS NOT NULL AS "archivedRecordExists",
+        to_regclass('public."ArchiveAccessLog"') IS NOT NULL AS "accessLogExists",
+        to_regclass('public."DisposalApproval"') IS NOT NULL AS "disposalApprovalExists"
+    `);
+
+    if (!tableStatus[0]?.archivedRecordExists) {
+      return NextResponse.json({
+        period: new Date().toLocaleDateString("id-ID", {
+          month: "long",
+          year: "numeric",
+        }),
+        status: "READY",
+        reportType: "ARCHIVE_SUMMARY",
+        retentionTimeline: {
+          ARCHIVED: 0,
+          PENDING_APPROVAL: 0,
+          REJECTED: 0,
+          DISPOSED: 0,
+        },
+        byDataType: {
+          SPM_RECORD: 0,
+          PPH21_WITHHOLDING: 0,
+          TAX_RECONCILIATION: 0,
+        },
+        accessAudit: [],
+        disposalQueue: {
+          pending: 0,
+          approved: 0,
+        },
+        summary: {
+          totalArchivedRecords: 0,
+          totalAccessLogs: 0,
+        },
+      });
+    }
+
     const [statusRows, typeRows, accessLogsRows, disposalPendingRows, disposalApprovedRows, archivedCountRows] = await Promise.all([
       prisma.$queryRaw<Array<{ archiveStatus: string; count: number }>>(Prisma.sql`
         SELECT ar."archiveStatus", COUNT(*)::int AS count

@@ -12,6 +12,29 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
+    const tableStatus = await prisma.$queryRaw<Array<{
+      archivedRecordExists: boolean;
+    }>>(Prisma.sql`
+      SELECT to_regclass('public."ArchivedRecord"') IS NOT NULL AS "archivedRecordExists"
+    `);
+
+    if (!tableStatus[0]?.archivedRecordExists) {
+      return NextResponse.json({
+        data: [],
+        summary: {
+          total: 0,
+          byDataType: {},
+          byStatus: {},
+        },
+        pagination: {
+          total: 0,
+          page,
+          limit,
+          pages: 0,
+        },
+      });
+    }
+
     const whereSql =
       status && dataType
         ? Prisma.sql`WHERE ar."archiveStatus" = ${status} AND ar."dataType" = ${dataType}`

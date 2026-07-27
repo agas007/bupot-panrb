@@ -4,6 +4,33 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_request: NextRequest) {
   try {
+    const tableStatus = await prisma.$queryRaw<Array<{
+      archivedRecordExists: boolean;
+      disposalApprovalExists: boolean;
+    }>>(Prisma.sql`
+      SELECT
+        to_regclass('public."ArchivedRecord"') IS NOT NULL AS "archivedRecordExists",
+        to_regclass('public."DisposalApproval"') IS NOT NULL AS "disposalApprovalExists"
+    `);
+
+    if (!tableStatus[0]?.archivedRecordExists) {
+      return NextResponse.json({
+        stats: {
+          ARCHIVED: 0,
+          PENDING_APPROVAL: 0,
+          REJECTED: 0,
+          DISPOSED: 0,
+        },
+        byDataType: {
+          SPM_RECORD: 0,
+          PPH21_WITHHOLDING: 0,
+          TAX_RECONCILIATION: 0,
+        },
+        disposalPending: 0,
+        total: 0,
+      });
+    }
+
     const [statusRows, typeRows, disposalPendingRows] = await Promise.all([
       prisma.$queryRaw<Array<{ archiveStatus: string; count: number }>>(Prisma.sql`
         SELECT "archiveStatus", COUNT(*)::int AS count

@@ -52,7 +52,9 @@ if (
     !("archivedRecord" in _global.prisma) ||
     !("archivePolicy" in _global.prisma) ||
     !("archiveAccessLog" in _global.prisma) ||
-    !("disposalApproval" in _global.prisma)
+    !("disposalApproval" in _global.prisma) ||
+    !("archiveDossier" in _global.prisma) ||
+    !("archiveDossierAttachment" in _global.prisma)
   )
 ) {
   console.log("[Prisma Log] Stale instance detected (missing models), re-initializing client...");

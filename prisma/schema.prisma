@@ -25,6 +25,8 @@ model Colleague {
   archiveAccessLogs       ArchiveAccessLog[]        @relation("AccessedBy")
   disposalRequestsCreated DisposalApproval[]        @relation("RequestedBy")
   disposalApprovalsGiven  DisposalApproval[]        @relation("ApprovedBy")
+  archiveDossiersCreated  ArchiveDossier[]          @relation("ArchiveDossierCreatedBy")
+  archiveDossierAttachmentsUploaded ArchiveDossierAttachment[] @relation("ArchiveDossierAttachmentUploadedBy")
   createdAt               DateTime                  @default(now())
 }
 
@@ -286,5 +288,42 @@ model DisposalApproval {
 
   @@index([status])
   @@index([archivedRecordId])
+  @@index([createdAt])
+}
+
+model ArchiveDossier {
+  id             Int      @id @default(autoincrement())
+  dossierIndex   String   @unique
+  title          String
+  period         String?
+  notes          String?
+  status         String   @default("STORED") // STORED, NEEDS_REVIEW, CLOSED
+  createdById    Int?
+  createdBy      Colleague? @relation("ArchiveDossierCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  attachments    ArchiveDossierAttachment[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([dossierIndex])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ArchiveDossierAttachment {
+  id             Int      @id @default(autoincrement())
+  dossierId      Int
+  dossier        ArchiveDossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  fileName       String
+  mimeType       String
+  size           Int
+  fileData       Bytes
+  uploadedById   Int?
+  uploadedBy     Colleague? @relation("ArchiveDossierAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime @default(now())
+
+  @@index([dossierId])
   @@index([createdAt])
 }
