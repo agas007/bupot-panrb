@@ -313,8 +313,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   if (pathname === "/login") return <>{children}</>;
 
   const shellSurfaceClass = theme === "light"
-    ? "bg-white/96 border-border/80 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.18)]"
-    : "bg-card/90 border-white/10 shadow-[0_20px_70px_-28px_rgba(0,0,0,0.45)]";
+    ? "bg-gradient-to-b from-white/98 via-white/96 to-white/92 border-border/70 shadow-[0_28px_90px_-36px_rgba(15,23,42,0.22)]"
+    : "bg-gradient-to-b from-card/95 via-card/92 to-card/88 border-white/10 shadow-[0_24px_84px_-34px_rgba(0,0,0,0.5)]";
 
   const shellSurfaceSoftClass = theme === "light"
     ? "bg-white/92 border-border/70"
@@ -433,7 +433,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         fixed left-0 top-0 h-full z-120 lg:z-50 transition-all duration-500 ease-in-out flex flex-col p-4 gap-6
         ${isMobileMenuOpen ? "translate-x-0 w-[280px]" : "-translate-x-full w-[280px] lg:translate-x-0"} 
         ${isSidebarCollapsed ? "lg:w-22" : "lg:w-60"}
-        overflow-visible! lg:h-screen lg:rounded-r-3xl lg:rounded-l-none lg:border-l-0 ${shellSurfaceClass}
+        overflow-visible! lg:h-screen lg:rounded-r-[1.75rem] lg:rounded-l-none lg:border-l-0 ${shellSurfaceClass}
       `}>
         <button 
           onClick={toggleSidebar}
