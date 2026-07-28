@@ -58,7 +58,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { language, setLanguage, t } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
-  const [announcementTab, setAnnouncementTab] = useState<"v1.4.0" | "v1.3.0">("v1.4.0");
+  const [announcementTab, setAnnouncementTab] = useState<"v1.5.0" | "v1.4.0">("v1.5.0");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [currentUser, setCurrentUser] = useState<Colleague | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -69,7 +69,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  const MODAL_VERSION = "1.4.0";
+  const MODAL_VERSION = "1.5.0";
 
   const fetchNotifications = useCallback(async () => {
     if (!currentUser) return;
@@ -522,7 +522,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="container min-w-0 max-w-full">{children}</div>
       </main>
 
-      {/* Modern Announcement Modal v1.4.0 */}
+      {/* Modern Announcement Modal v1.5.0 */}
       {showAnnouncement && mounted && (
          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-9999 flex items-center justify-center p-4">
             <div className="glass-card bg-slate-900/95! border-white/10! w-full max-w-2xl p-8 flex flex-col gap-6 shadow-2xl animate-in zoom-in duration-300">
@@ -532,16 +532,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <Sparkles size={32} />
                      </div>
                      <div className="flex flex-col gap-1">
-                        <h2 className="text-2xl font-black uppercase tracking-tight text-white">Rilis v1.4.0 Stabil</h2>
-                        <span className="text-accent text-[10px] font-bold uppercase tracking-[0.2em]">PTKP Master & Payroll XML</span>
+                        <h2 className="text-2xl font-black uppercase tracking-tight text-white">Rilis v1.5.0 Stabil</h2>
+                        <span className="text-accent text-[10px] font-bold uppercase tracking-[0.2em]">Archive module, export, and shell polish</span>
                      </div>
                   </div>
                   <button onClick={() => setShowAnnouncement(false)} className="p-2 hover:bg-white/10 rounded-full transition-all text-white/40 hover:text-white"><X size={24}/></button>
                </div>
 
                <div className="flex gap-2 bg-white/5 p-1 rounded-xl">
-                  <button onClick={() => setAnnouncementTab("v1.4.0")} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.4.0" ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-white/40"}`}>LATEST v1.4.0</button>
-                  <button onClick={() => setAnnouncementTab("v1.3.0")} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.3.0" ? "bg-white/20 text-white" : "text-white/40"}`}>PREVIOUS v1.3.0</button>
+                  <button onClick={() => setAnnouncementTab("v1.5.0")} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.5.0" ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-white/40"}`}>LATEST v1.5.0</button>
+                  <button onClick={() => setAnnouncementTab("v1.4.0")} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${announcementTab === "v1.4.0" ? "bg-white/20 text-white" : "text-white/40"}`}>PREVIOUS v1.4.0</button>
                </div>
 
                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.25em] text-white/30">
@@ -549,53 +549,53 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <span>Sesudah</span>
                </div>
 
-               {announcementTab === "v1.4.0" ? (
+               {announcementTab === "v1.5.0" ? (
                  <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5">
                     <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/10">
                        <div className="p-6 md:p-7">
                           <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/35">Sebelum</p>
-                          <h3 className="mt-2 text-lg font-black text-white">Workflow masih pecah</h3>
+                          <h3 className="mt-2 text-lg font-black text-white">Workflow arsip masih tersebar</h3>
                           <ul className="mt-4 space-y-3 text-sm leading-relaxed text-white/65">
                              <li className="flex gap-3">
                                 <span className="text-white/25">•</span>
-                                <span>PTKP belum jadi referensi master untuk payroll non-final.</span>
+                                <span>Arsip permanen belum punya export PDF/CSV yang siap dipakai.</span>
                              </li>
                              <li className="flex gap-3">
                                 <span className="text-white/25">•</span>
-                                <span>Impor XML payroll belum terasa sebagai alur komparasi yang rapi.</span>
+                                <span>Sidebar masih terasa ngambang dari pinggir kiri.</span>
                              </li>
                              <li className="flex gap-3">
                                 <span className="text-white/25">•</span>
-                                <span>Login, log aktivitas, dan halaman PPh 21 belum seragam untuk user lokal.</span>
+                                <span>Guard tabel arsip masih tersebar di beberapa route.</span>
                              </li>
                           </ul>
                        </div>
 
                        <div className="p-6 md:p-7 bg-accent/10">
                           <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-accent/80">Sesudah</p>
-                          <h3 className="mt-2 text-lg font-black text-white">Workflow jadi satu jalur</h3>
+                          <h3 className="mt-2 text-lg font-black text-white">Workflow jadi satu paket</h3>
                           <ul className="mt-4 space-y-3 text-sm leading-relaxed text-white/80">
                              <li className="flex gap-3">
                                 <span className="text-accent">•</span>
-                                <span>PTKP master siap dipakai buat kebutuhan payroll non-final.</span>
+                                <span>Archive module sudah jalan dengan dosier permanen, approval, dan compliance summary.</span>
                              </li>
                              <li className="flex gap-3">
                                 <span className="text-accent">•</span>
-                                <span>XML payroll non-final lebih siap dipakai untuk impor dan komparasi data.</span>
+                                <span>Export PDF/CSV sudah tersedia langsung dari halaman arsip.</span>
                              </li>
                              <li className="flex gap-3">
                                 <span className="text-accent">•</span>
-                                <span>Login, log aktivitas, PPh 21, dan records/auth lebih konsisten serta lebih stabil.</span>
+                                <span>Sidebar premium menempel ke kiri dan lebih rapi secara visual.</span>
                              </li>
                           </ul>
                        </div>
                     </div>
 
                     <div className="border-t border-white/10 px-6 py-4 flex flex-wrap gap-2 bg-black/10">
-                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">PTKP master</span>
-                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">XML payroll</span>
-                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Local login & logs</span>
-                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Records/auth hardening</span>
+                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Archive module</span>
+                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">PDF/CSV export</span>
+                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Sidebar polish</span>
+                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Main branch release</span>
                     </div>
                  </div>
                ) : (

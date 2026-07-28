@@ -7,7 +7,7 @@ const apiSpec = {
   openapi: "3.0.3",
   info: {
     title: "Bupot PANRB API Documentation",
-    version: "1.4.0",
+    version: "1.5.0",
     description: "Complete OpenAPI inventory for the Bupot PANRB backend routes.",
   },
   servers: [
