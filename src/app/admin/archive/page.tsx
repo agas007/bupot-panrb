@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Archive, CheckCircle, Clock3, Download, FileText, FolderOpen, FolderTree, Paperclip, Plus, ShieldCheck, Upload, X, Trash2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 type ArchiveStatus = "ARCHIVED" | "PENDING_APPROVAL" | "REJECTED" | "DISPOSED";
 type DataType = "SPM_RECORD" | "PPH21_WITHHOLDING" | "TAX_RECONCILIATION";
@@ -176,6 +177,7 @@ const DATA_TYPE_STYLES: Record<string, string> = {
 };
 
 export default function ArchivePage() {
+  const { user: currentUser, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<"dinamis" | "permanen" | "approval" | "ringkasan">("dinamis");
   const [stats, setStats] = useState<ArchiveStatsResponse | null>(null);
   const [dynamicRecords, setDynamicRecords] = useState<DynamicArchiveStatsResponse | null>(null);
@@ -200,8 +202,12 @@ export default function ArchivePage() {
   const [isStoringDossier, setIsStoringDossier] = useState(false);
   const [isAppendingAttachment, setIsAppendingAttachment] = useState(false);
   const [storageNotice, setStorageNotice] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const canViewArchive = currentUser?.role === "ADMIN" || currentUser?.role === "ARCHIVIST";
+  const canApproveDisposal = currentUser?.role === "ADMIN";
 
   useEffect(() => {
+    if (!canViewArchive) return;
+
     const fetchStats = async () => {
       try {
         const res = await fetch("/api/archive/stats");
@@ -213,9 +219,11 @@ export default function ArchivePage() {
     };
 
     fetchStats();
-  }, []);
+  }, [canViewArchive]);
 
   useEffect(() => {
+    if (!canViewArchive) return;
+
     const fetchRecords = async () => {
       setLoadingRecords(true);
       try {
@@ -234,9 +242,11 @@ export default function ArchivePage() {
     };
 
     fetchRecords();
-  }, [selectedStatus, selectedDataType]);
+  }, [canViewArchive, selectedStatus, selectedDataType]);
 
   useEffect(() => {
+    if (!canViewArchive) return;
+
     if (hasLoadedDynamicRecords.current) return;
     hasLoadedDynamicRecords.current = true;
 
@@ -251,7 +261,7 @@ export default function ArchivePage() {
     };
 
     fetchDynamicRecords();
-  }, [activeTab]);
+  }, [activeTab, canViewArchive]);
 
   const refreshStoredDossiers = async () => {
     const res = await fetch("/api/archive/dossiers?limit=12");
@@ -275,12 +285,16 @@ export default function ArchivePage() {
   };
 
   useEffect(() => {
+    if (!canViewArchive) return;
+
     void refreshStoredDossiers().catch((error) => {
       console.error("Failed to fetch stored archive dossiers:", error);
     });
-  }, []);
+  }, [canViewArchive]);
 
   useEffect(() => {
+    if (!canViewArchive) return;
+
     if (activeTab !== "approval") return;
 
     const fetchApprovals = async () => {
@@ -297,9 +311,11 @@ export default function ArchivePage() {
     };
 
     fetchApprovals();
-  }, [activeTab]);
+  }, [activeTab, canViewArchive]);
 
   useEffect(() => {
+    if (!canViewArchive) return;
+
     if (activeTab !== "ringkasan") return;
 
     const fetchSummary = async () => {
@@ -316,7 +332,7 @@ export default function ArchivePage() {
     };
 
     fetchSummary();
-  }, [activeTab]);
+  }, [activeTab, canViewArchive]);
 
   const groupedRecords = useMemo(() => {
     return records.reduce<Record<string, ArchiveRecord[]>>((acc, record) => {
@@ -711,6 +727,32 @@ export default function ArchivePage() {
       [selectedDossierKey]: [...(current[selectedDossierKey] ?? []), ...incoming],
     }));
   };
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
+        Memuat akses arsip...
+      </div>
+    );
+  }
+
+  if (!canViewArchive) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center px-6">
+        <div className="max-w-xl rounded-3xl border border-border/70 bg-card/90 p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-600">
+            <ShieldCheck className="h-7 w-7" />
+          </div>
+          <h1 className="mt-4 text-2xl font-black tracking-tight text-foreground">
+            Akses arsip belum tersedia
+          </h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Menu ini hanya untuk admin dan petugas arsip.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background px-6 py-8 text-foreground md:px-8">
@@ -1356,7 +1398,7 @@ export default function ArchivePage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <ShieldCheck className="h-4 w-4 text-foreground" />
-                  Hanya admin yang bisa approve. Untuk sementara approve artinya dicatat, bukan destroy.
+                  Hanya admin yang bisa approve. Petugas arsip tetap bisa melihat antrian, tapi belum bisa mengeksekusi approval.
                 </div>
 
                 {loadingApproval ? (
@@ -1394,22 +1436,30 @@ export default function ArchivePage() {
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleApproval(request.archivedRecord.id, "approve")}
-                            className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                            Approve
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleApproval(request.archivedRecord.id, "reject")}
-                            className="inline-flex items-center gap-2 rounded-full bg-rose-100 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-200"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Reject
-                          </button>
+                          {canApproveDisposal ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleApproval(request.archivedRecord.id, "approve")}
+                                className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleApproval(request.archivedRecord.id, "reject")}
+                                className="inline-flex items-center gap-2 rounded-full bg-rose-100 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-200"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Reject
+                              </button>
+                            </>
+                          ) : (
+                            <span className="rounded-full bg-muted px-4 py-2 text-xs font-semibold text-muted-foreground">
+                              Mode lihat saja
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>

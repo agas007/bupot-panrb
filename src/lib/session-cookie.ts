@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import type { AuthSession } from "@/types";
+import { getPrimaryRole, normalizeUserRoles } from "@/lib/roles";
 
 export const SESSION_COOKIE_NAME = "bupot_session";
 export const SESSION_COOKIE_MAX_AGE_SECONDS = 30 * 60;
@@ -12,7 +13,11 @@ export type CookieSessionPayload = {
 
 export const createCookieSessionValue = (user: AuthSession): string => {
   const payload: CookieSessionPayload = {
-    user,
+    user: {
+      ...user,
+      role: getPrimaryRole(user.roles ?? user.role),
+      roles: normalizeUserRoles(user.roles ?? user.role),
+    },
     issuedAt: Date.now(),
     expiresAt: Date.now() + SESSION_COOKIE_MAX_AGE_SECONDS * 1000,
   };
@@ -32,11 +37,17 @@ export const parseCookieSessionValue = (value: string | undefined | null): Cooki
       typeof user !== "object" ||
       typeof user.id !== "number" ||
       typeof user.name !== "string" ||
-      typeof user.username !== "string" ||
-      (user.role !== "ADMIN" && user.role !== "USER")
+      typeof user.username !== "string"
     ) {
       return null;
     }
+
+    const normalizedRoles = normalizeUserRoles((user as AuthSession).roles ?? user.role);
+    const normalizedUser: AuthSession = {
+      ...user,
+      role: getPrimaryRole(normalizedRoles),
+      roles: normalizedRoles,
+    };
 
     if (typeof payload.issuedAt !== "number" || typeof payload.expiresAt !== "number") {
       return null;
@@ -47,7 +58,7 @@ export const parseCookieSessionValue = (value: string | undefined | null): Cooki
     }
 
     return {
-      user,
+      user: normalizedUser,
       issuedAt: payload.issuedAt,
       expiresAt: payload.expiresAt,
     };

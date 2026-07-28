@@ -1,9 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { calculateArchiveStatus, getRetentionProgress } from "@/lib/archive";
 import { NextRequest, NextResponse } from "next/server";
+import { canAccessArchive } from "@/lib/roles";
+import { getRequestSessionUser } from "@/lib/session-cookie";
 
 export async function GET(request: NextRequest) {
   try {
+    const user = getRequestSessionUser(request);
+    if (!user || !canAccessArchive(user.role)) {
+      return NextResponse.json({ error: "Unauthorized access" }, { status: 403 });
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get("status");
     const page = parseInt(searchParams.get("page") || "1");

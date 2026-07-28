@@ -1,30 +1,40 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRequestSessionUser } from "@/lib/session-cookie";
+import { canAccessArchive, isAdminRole } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 
-const assertAdmin = async (request: NextRequest) => {
+const assertArchiveAccess = async (request: NextRequest) => {
   const sessionUser = getRequestSessionUser(request);
   if (!sessionUser) return null;
 
-  const adminUser = await prisma.colleague.findUnique({
+  const user = await prisma.colleague.findUnique({
     where: { id: sessionUser.id },
     select: { id: true, role: true, name: true, username: true },
   });
 
-  if (!adminUser || adminUser.role !== "ADMIN") {
+  if (!user || !canAccessArchive(user.role)) {
     return null;
   }
 
-  return adminUser;
+  return user;
+};
+
+const assertAdmin = async (request: NextRequest) => {
+  const user = await assertArchiveAccess(request);
+  if (!user || !isAdminRole(user.role)) {
+    return null;
+  }
+
+  return user;
 };
 
 export async function GET(request: NextRequest) {
   try {
-    const adminUser = await assertAdmin(request);
-    if (!adminUser) {
+    const user = await assertArchiveAccess(request);
+    if (!user) {
       return NextResponse.json(
-        { error: "Unauthorized access: Administrative level required" },
+        { error: "Unauthorized access: Archive access required" },
         { status: 403 }
       );
     }

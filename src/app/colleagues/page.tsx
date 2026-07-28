@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UserPlus, Trash2, Shield, User, Loader2, KeyRound, AtSign, ChevronDown, X, Save, UserPen } from "lucide-react";
+import { UserPlus, Trash2, Shield, User, Loader2, KeyRound, AtSign, X, Save, UserPen, Archive } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useAuth } from "@/hooks/useAuth";
-import { Colleague } from "@/types";
+import { Colleague, type UserRole } from "@/types";
+
+const ROLE_OPTIONS: Array<{ value: UserRole; labelKey: "role_user" | "role_admin" | "role_archivist" }> = [
+  { value: "USER", labelKey: "role_user" },
+  { value: "ARCHIVIST", labelKey: "role_archivist" },
+  { value: "ADMIN", labelKey: "role_admin" },
+];
+
+const dedupeRoles = (roles: UserRole[]) => Array.from(new Set(roles));
 
 export default function ColleaguesPage() {
   const { language, t } = useLanguage();
@@ -14,7 +22,7 @@ export default function ColleaguesPage() {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("USER");
+  const [roles, setRoles] = useState<UserRole[]>(["USER"]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -24,7 +32,15 @@ export default function ColleaguesPage() {
   const [editName, setEditName] = useState("");
   const [editUsername, setEditUsername] = useState("");
   const [editPassword, setEditPassword] = useState("");
-  const [editRole, setEditRole] = useState("");
+  const [editRoles, setEditRoles] = useState<UserRole[]>(["USER"]);
+
+  const toggleRole = (value: UserRole, current: UserRole[], setValue: (next: UserRole[]) => void) => {
+    setValue(
+      current.includes(value)
+        ? current.filter((item) => item !== value)
+        : dedupeRoles([...current, value])
+    );
+  };
 
   useEffect(() => {
     fetchColleagues();
@@ -59,7 +75,7 @@ export default function ColleaguesPage() {
           name, 
           username: username.toLowerCase() || undefined, 
           password: password || undefined, 
-          role 
+          roles 
         }),
       });
       if (res.ok) {
@@ -97,7 +113,7 @@ export default function ColleaguesPage() {
     setSelectedColleague(col);
     setEditName(col.name);
     setEditUsername(col.username);
-    setEditRole(col.role);
+    setEditRoles(col.roles?.length ? col.roles : [col.role]);
     setEditPassword(""); 
     setIsEditModalOpen(true);
   };
@@ -116,7 +132,7 @@ export default function ColleaguesPage() {
           id: selectedColleague.id,
           name: editName,
           username: editUsername,
-          role: editRole,
+          roles: editRoles,
           password: editPassword || undefined
         }),
       });
@@ -198,15 +214,19 @@ export default function ColleaguesPage() {
                 {t.team.role}
               </label>
               <div className="relative">
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full bg-muted/50 border-none p-4 rounded-2xl outline-none focus:ring-2 focus:ring-accent/20 transition-all text-sm appearance-none cursor-pointer font-bold"
-                >
-                  <option value="USER">{t.team.role_user}</option>
-                  <option value="ADMIN">{t.team.role_admin}</option>
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
+                <div className="grid gap-2 rounded-2xl border border-border/70 bg-muted/30 p-3">
+                  {ROLE_OPTIONS.map((option) => (
+                    <label key={option.value} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-background/60">
+                      <input
+                        type="checkbox"
+                        checked={roles.includes(option.value)}
+                        onChange={() => toggleRole(option.value, roles, setRoles)}
+                        className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                      />
+                      <span className="text-sm font-semibold text-foreground">{t.team[option.labelKey]}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -238,8 +258,8 @@ export default function ColleaguesPage() {
                   className="glass-card p-5 flex items-center gap-4 group transition-all hover:scale-[1.02] hover:-translate-y-1 shadow-lg hover:shadow-accent/5 cursor-pointer"
                   onClick={() => openEditModal(col)}
                 >
-                  <div className={`p-4 rounded-2xl shrink-0 ${col.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
-                    {col.role === "ADMIN" ? <Shield size={32} /> : <User size={32} />}
+                  <div className={`p-4 rounded-2xl shrink-0 ${col.role === "ADMIN" ? "bg-accent/10 text-accent" : col.role === "ARCHIVIST" ? "bg-sky-500/10 text-sky-500" : "bg-primary/10 text-primary"}`}>
+                    {col.role === "ADMIN" ? <Shield size={32} /> : col.role === "ARCHIVIST" ? <Archive size={32} /> : <User size={32} />}
                   </div>
                   <div className="flex flex-col flex-1 min-w-0 text-left">
                     <span className="font-bold tracking-tight text-lg line-clamp-1 decoration-accent/50 hover:underline" title={col.name}>{col.name}</span>
@@ -250,11 +270,13 @@ export default function ColleaguesPage() {
                           <span className="bg-emerald-500/10 text-emerald-500 rounded lowercase text-[8px] border border-emerald-500/20 px-1 ml-1 font-black">You</span>
                         )}
                       </span>
-                      <span className="text-[9px] text-muted-foreground font-bold flex items-center gap-2">
-                        <span className={`px-1.5 py-0.5 rounded-md ${col.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
-                          {col.role}
-                        </span>
-                        • {col._count?.records || 0} {t.team.tasks}
+                      <span className="flex flex-wrap items-center gap-1 text-[9px] text-muted-foreground font-bold">
+                        {(col.roles?.length ? col.roles : [col.role]).map((roleItem) => (
+                          <span key={roleItem} className={`px-1.5 py-0.5 rounded-md ${roleItem === "ADMIN" ? "bg-accent/10 text-accent" : roleItem === "ARCHIVIST" ? "bg-sky-500/10 text-sky-500" : "bg-primary/10 text-primary"}`}>
+                            {roleItem === "ADMIN" ? t.team.role_admin : roleItem === "ARCHIVIST" ? t.team.role_archivist : t.team.role_user}
+                          </span>
+                        ))}
+                        <span>• {col._count?.records || 0} {t.team.tasks}</span>
                       </span>
                     </div>
                   </div>
@@ -311,12 +333,18 @@ export default function ColleaguesPage() {
 
                 <div className="flex flex-col gap-2">
                    <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">{t.team.role}</label>
-                   <div className="relative">
-                      <select className="w-full bg-muted/50 border-none p-4 rounded-2xl outline-none focus:ring-2 focus:ring-accent/20 transition-all text-sm appearance-none cursor-pointer font-bold" value={editRole} onChange={e => setEditRole(e.target.value)}>
-                        <option value="USER">{t.team.role_user}</option>
-                        <option value="ADMIN">{t.team.role_admin}</option>
-                      </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                   <div className="grid gap-2 rounded-2xl border border-border/70 bg-muted/30 p-3">
+                      {ROLE_OPTIONS.map((option) => (
+                        <label key={option.value} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-background/60">
+                          <input
+                            type="checkbox"
+                            checked={editRoles.includes(option.value)}
+                            onChange={() => toggleRole(option.value, editRoles, setEditRoles)}
+                            className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                          />
+                          <span className="text-sm font-semibold text-foreground">{t.team[option.labelKey]}</span>
+                        </label>
+                      ))}
                    </div>
                 </div>
              </div>

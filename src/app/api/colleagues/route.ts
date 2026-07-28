@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { getRequestSessionUser } from "@/lib/session-cookie";
+import { getPrimaryRole, isAdminRole, normalizeUserRoles, serializeUserRoles } from "@/lib/roles";
 
 export const runtime = 'nodejs';
 
@@ -16,7 +17,7 @@ async function isAdmin(req: NextRequest) {
   const user = await prisma.colleague.findFirst({
     where: { username }
   });
-  return user?.role === "ADMIN";
+  return isAdminRole(user?.role);
 }
 
 export async function GET() {
@@ -29,7 +30,11 @@ export async function GET() {
       },
       orderBy: { name: 'asc' }
     });
-    return NextResponse.json(colleagues);
+    return NextResponse.json(colleagues.map((colleague) => ({
+      ...colleague,
+      roles: normalizeUserRoles(colleague.role),
+      role: getPrimaryRole(colleague.role),
+    })));
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memuat colleagues" }, { status: 500 });
   }
@@ -42,7 +47,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Access Denied: Administrative role required" }, { status: 403 });
     }
 
-    const { name, username, password, role } = await req.json();
+    const { name, username, password, role, roles } = await req.json();
     if (!name) throw new Error("Name is required");
 
     // Auto-generate username and password if not provided
@@ -52,12 +57,13 @@ export async function POST(req: NextRequest) {
     // 🔥 NEW: Password Hashing
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
+    const normalizedRoles = normalizeUserRoles(roles ?? role);
     const colleague = await prisma.colleague.create({
       data: { 
         name, 
         username: finalUsername,
         password: hashedPassword,
-        role: role || "USER" 
+        role: serializeUserRoles(normalizedRoles),
       }
     });
 
@@ -67,12 +73,16 @@ export async function POST(req: NextRequest) {
       data: {
         userName: reqUser,
         action: "Added New Member (Hashed)",
-        target: `${name} (${role || "USER"})`,
+        target: `${name} (${normalizedRoles.join(", ")})`,
         type: "admin",
       }
     });
 
-    return NextResponse.json(colleague);
+    return NextResponse.json({
+      ...colleague,
+      role: getPrimaryRole(colleague.role),
+      roles: normalizeUserRoles(colleague.role),
+    });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal menambah colleague" }, { status: 500 });
   }
@@ -80,7 +90,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { id, name, username, password, role } = await req.json();
+    const { id, name, username, password, role, roles } = await req.json();
     const targetId = Number(id);
     const reqUsername = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
     if (!reqUsername) {
@@ -96,7 +106,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Invalid Session" }, { status: 401 });
     }
 
-    const isTargetAdmin = requester.role === "ADMIN";
+    const isTargetAdmin = isAdminRole(requester.role);
     const isSelf = requester.id === targetId;
 
     // 2. Authorization
@@ -108,7 +118,9 @@ export async function PATCH(req: NextRequest) {
     const updateData: Prisma.ColleagueUpdateInput = {};
     if (name) updateData.name = name;
     if (username && isTargetAdmin) updateData.username = username; // Only admin can change username
-    if (role && isTargetAdmin) updateData.role = role; // Only admin can change role
+    if ((role || roles) && isTargetAdmin) {
+      updateData.role = serializeUserRoles(normalizeUserRoles(roles ?? role));
+    } // Only admin can change role
     
     // 🔥 NEW: Password Hashing for updates
     if (password) {
@@ -131,7 +143,11 @@ export async function PATCH(req: NextRequest) {
       }
     });
 
-    return NextResponse.json(colleague);
+    return NextResponse.json({
+      ...colleague,
+      role: getPrimaryRole(colleague.role),
+      roles: normalizeUserRoles(colleague.role),
+    });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memperbarui colleague" }, { status: 500 });
   }

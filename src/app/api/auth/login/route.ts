@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPrismaDatabaseErrorMessage, prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { createCookieSessionValue, SESSION_COOKIE_MAX_AGE_SECONDS, SESSION_COOKIE_NAME } from "@/lib/session-cookie";
+import { getPrimaryRole, normalizeUserRoles } from "@/lib/roles";
 
 const isBcryptHash = (password: string) => /^\$2[aby]\$\d{2}\$/.test(password);
 
@@ -48,11 +49,14 @@ export async function POST(req: NextRequest) {
     });
 
     // Return user without password
+    const roles = normalizeUserRoles(user.role);
+    const role = getPrimaryRole(roles);
     const response = NextResponse.json({
       id: user.id,
       name: user.name,
       username: user.username,
-      role: user.role === "ADMIN" ? "ADMIN" : "USER",
+      role,
+      roles,
       createdAt: user.createdAt,
     });
 
@@ -62,7 +66,8 @@ export async function POST(req: NextRequest) {
         id: user.id,
         name: user.name,
         username: user.username,
-        role: user.role === "ADMIN" ? "ADMIN" : "USER",
+        role,
+        roles,
       }),
       httpOnly: true,
       sameSite: "lax",

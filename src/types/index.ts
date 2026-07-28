@@ -1,10 +1,11 @@
-export type UserRole = "ADMIN" | "USER";
+export type UserRole = "ADMIN" | "ARCHIVIST" | "USER";
 
 export interface Colleague {
   id: number;
   username: string;
   name: string;
   role: UserRole;
+  roles?: UserRole[];
   createdAt: string;
   _count?: {
     records: number;
@@ -54,4 +55,5 @@ export interface AuthSession {
   name: string;
   username: string;
   role: UserRole;
+  roles: UserRole[];
 }

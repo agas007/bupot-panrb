@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { clearSession, readSession, touchSession, SESSION_MAX_AGE_MS, getSessionUser } from "@/lib/auth-session";
+import { canAccessArchive, isAdminRole } from "@/lib/roles";
 
 interface Colleague {
   id: number;
@@ -298,12 +299,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/reconciliation", label: t.nav.rekonsiliasi_spt, icon: Scale, minRole: "USER" },
     { href: "/colleagues", label: t.nav.daftar_rekan, icon: Users, minRole: "ADMIN" },
     { href: "/logs", label: t.nav.log_aktivitas, icon: History, minRole: "ADMIN" },
-    { href: "/admin/archive", label: t.nav.arsip, icon: Archive, minRole: "ADMIN" },
+    { href: "/admin/archive", label: t.nav.arsip, icon: Archive, minRole: "ARCHIVIST" },
     { href: "/api-docs", label: t.nav.dokumentasi_api, icon: FileText },
     { href: "/admin", label: t.nav.panel_admin, icon: Settings, minRole: "ADMIN" },
     { href: "/settings", label: t.nav.pengaturan, icon: Settings2, minRole: "USER" },
   ].filter(item => {
-    if (item.minRole === "ADMIN") return currentUser?.role === "ADMIN";
+    if (item.minRole === "ADMIN") return isAdminRole(currentUser?.role);
+    if (item.minRole === "ARCHIVIST") return canAccessArchive(currentUser?.role);
     if (item.minRole === "USER") return currentUser !== null;
     return true;
   });
@@ -456,8 +458,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
           href="/settings"
           className={`bg-muted/70 p-3 rounded-xl flex items-center gap-3 overflow-hidden transition-all hover:bg-accent/10 active:scale-95 group border border-transparent hover:border-accent/20 ${isSidebarCollapsed ? "justify-center" : ""}`}
         >
-          <div className={`p-2 rounded-lg shrink-0 transition-transform group-hover:scale-110 ${currentUser?.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
-            {currentUser?.role === "ADMIN" ? <Shield size={18} /> : <UserIcon size={18} />}
+          <div className={`p-2 rounded-lg shrink-0 transition-transform group-hover:scale-110 ${currentUser?.role === "ADMIN" ? "bg-accent/10 text-accent" : currentUser?.role === "ARCHIVIST" ? "bg-sky-500/10 text-sky-500" : "bg-primary/10 text-primary"}`}>
+            {currentUser?.role === "ADMIN" ? <Shield size={18} /> : currentUser?.role === "ARCHIVIST" ? <Archive size={18} /> : <UserIcon size={18} />}
           </div>
               {!isSidebarCollapsed && (
                 <div className="flex flex-col min-w-0 animate-in fade-in slide-in-from-left-4 text-left">

@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequestSessionUser } from "@/lib/session-cookie";
+import { canAccessArchive } from "@/lib/roles";
 
 export const runtime = "nodejs";
 
@@ -14,7 +15,7 @@ const assertAdmin = async (request: NextRequest) => {
     select: { id: true, role: true, name: true, username: true },
   });
 
-  if (!adminUser || adminUser.role !== "ADMIN") {
+  if (!adminUser || !canAccessArchive(adminUser.role)) {
     return null;
   }
 
