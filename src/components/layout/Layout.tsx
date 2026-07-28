@@ -433,7 +433,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         fixed left-0 top-0 h-full z-120 lg:z-50 transition-all duration-500 ease-in-out flex flex-col p-4 gap-6
         ${isMobileMenuOpen ? "translate-x-0 w-[280px]" : "-translate-x-full w-[280px] lg:translate-x-0"} 
         ${isSidebarCollapsed ? "lg:w-22" : "lg:w-60"}
-        overflow-visible! lg:h-[calc(100vh-2rem)] lg:m-4 ${shellSurfaceClass}
+        overflow-visible! lg:h-screen lg:rounded-r-3xl lg:rounded-l-none lg:border-l-0 ${shellSurfaceClass}
       `}>
         <button 
           onClick={toggleSidebar}
@@ -518,7 +518,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className={`min-w-0 flex-1 p-4 pt-24 lg:pt-12 transition-all duration-500 ${isSidebarCollapsed ? "lg:ml-20" : "lg:ml-64"}`}>
+      <main className={`min-w-0 flex-1 p-4 pt-24 lg:pt-12 transition-all duration-500 ${isSidebarCollapsed ? "lg:ml-[5.5rem]" : "lg:ml-[15rem]"}`}>
         <div className="container min-w-0 max-w-full">{children}</div>
       </main>
 
