@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Archive, CheckCircle, Clock3, Download, FileText, FolderOpen, FolderTree, Paperclip, Plus, ShieldCheck, Upload, X, Trash2 } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { useAuth } from "@/hooks/useAuth";
 
 type ArchiveStatus = "ARCHIVED" | "PENDING_APPROVAL" | "REJECTED" | "DISPOSED";
@@ -174,6 +176,25 @@ const DATA_TYPE_STYLES: Record<string, string> = {
   SPM_RECORD: "bg-sky-100 text-sky-800",
   PPH21_WITHHOLDING: "bg-violet-100 text-violet-800",
   TAX_RECONCILIATION: "bg-cyan-100 text-cyan-800",
+};
+
+const csvEscape = (value: string | number | null | undefined) => {
+  const text = value === null || value === undefined ? "" : String(value);
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+};
+
+const downloadBlob = (blob: Blob, fileName: string) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 export default function ArchivePage() {
@@ -566,6 +587,112 @@ export default function ArchivePage() {
       : `PDF arsip ${source.record.spmNumber || source.record.originalId}`;
 
     return [{ name: fallbackLabel, size: 0, type: "application/pdf" }];
+  };
+
+  const buildArchiveExportRows = () =>
+    records.map((record) => {
+      const archivedData = record.archivedData;
+      const archivedTitle =
+        archivedData && typeof archivedData === "object"
+          ? (() => {
+              const candidate = archivedData as Record<string, unknown>;
+              const value = candidate.title || candidate.name || candidate.subject || candidate.recipient || candidate.description;
+              return typeof value === "string" ? value : null;
+            })()
+          : null;
+
+      return {
+        dataType: formatDataType(record.dataType),
+        spmNumber: record.spmNumber || `#${record.originalId}`,
+        summary: archivedTitle || "-",
+        status: formatStatus(record.archiveStatus),
+        archivedBy: record.archivedBy?.name || "-",
+        archivedUsername: record.archivedBy?.username || "-",
+        archivedAt: formatDate(record.createdAt),
+        disposalScheduledAt: formatDate(record.disposalScheduledAt),
+        disposalScheduledDate: formatDate(record.disposalScheduledDate),
+      };
+    });
+
+  const exportArchiveCsv = () => {
+    if (records.length === 0) return;
+
+    const rows = buildArchiveExportRows();
+    const headers = [
+      "Tipe Data",
+      "SPM / Arsip",
+      "Ringkasan",
+      "Status",
+      "Diarsipkan Oleh",
+      "Username Petugas",
+      "Tanggal Arsip",
+      "Jadwal Pemusnahan",
+      "Tanggal Jadwal",
+    ];
+    const csvContent = [headers, ...rows.map((row) => [
+      row.dataType,
+      row.spmNumber,
+      row.summary,
+      row.status,
+      row.archivedBy,
+      row.archivedUsername,
+      row.archivedAt,
+      row.disposalScheduledAt,
+      row.disposalScheduledDate,
+    ].map(csvEscape).join(","))].join("\n");
+
+    downloadBlob(new Blob([csvContent], { type: "text/csv;charset=utf-8;" }), `bupot_panrb_arsip_${new Date().toISOString().split("T")[0]}.csv`);
+  };
+
+  const exportArchivePdf = () => {
+    if (records.length === 0) return;
+
+    const rows = buildArchiveExportRows();
+    const doc = new jsPDF("l", "pt", "a4");
+    const fileDate = new Date().toISOString().split("T")[0];
+    const filterSummary = [
+      selectedStatus ? `Status: ${formatStatus(selectedStatus)}` : "Status: semua",
+      selectedDataType ? `Tipe: ${formatDataType(selectedDataType)}` : "Tipe: semua",
+      `Baris: ${rows.length}`,
+    ].join(" | ");
+
+    doc.setFontSize(16);
+    doc.text("Bupot PANRB - Export Arsip", 40, 40);
+    doc.setFontSize(10);
+    doc.text(filterSummary, 40, 58);
+
+    autoTable(doc, {
+      head: [[
+        "Tipe Data",
+        "SPM / Arsip",
+        "Ringkasan",
+        "Status",
+        "Diarsipkan Oleh",
+        "Tanggal Arsip",
+      ]],
+      body: rows.map((row) => [
+        row.dataType,
+        row.spmNumber,
+        row.summary,
+        row.status,
+        row.archivedBy,
+        row.archivedAt,
+      ]),
+      startY: 72,
+      theme: "grid",
+      styles: { fontSize: 8, cellPadding: 4, valign: "top" },
+      headStyles: { fillColor: [15, 23, 42] },
+      columnStyles: {
+        0: { cellWidth: 95 },
+        1: { cellWidth: 120 },
+        2: { cellWidth: 180 },
+        3: { cellWidth: 90 },
+        4: { cellWidth: 110 },
+        5: { cellWidth: 85 },
+      },
+    });
+
+    doc.save(`bupot_panrb_arsip_${fileDate}.pdf`);
   };
 
   const selectedDossierAttachments = selectedDossierKey ? attachmentDrafts[selectedDossierKey] ?? [] : [];
@@ -1887,9 +2014,31 @@ export default function ArchivePage() {
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-          <Download className="h-3.5 w-3.5" />
-          Export PDF/CSV masih placeholder sampai model retensi, pemindahan, dan pemusnahan disepakati.
+        <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Download className="mt-0.5 h-3.5 w-3.5" />
+            <span>Export PDF/CSV mengikuti filter status dan tipe yang sedang aktif di arsip permanen.</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={exportArchiveCsv}
+              disabled={records.length === 0}
+              className="inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-xs font-semibold text-foreground transition hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={exportArchivePdf}
+              disabled={records.length === 0}
+              className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export PDF
+            </button>
+          </div>
         </div>
       </div>
     </div>
