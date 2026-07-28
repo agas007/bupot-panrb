@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseExcel, mergeExcelData } from "@/lib/excel";
+import { parseExcel, mergeExcelData, type PotonganRow, type SPP_SPM_SP2D_Row } from "@/lib/excel";
 import { prisma } from "@/lib/prisma";
 import { applyRateLimit } from "@/lib/rate-limit";
 import { getRequestSessionUser } from "@/lib/session-cookie";
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     // 1. Administrative Security Check
     const reqUsername = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
-    const adminUser = reqUsername ? await (prisma.colleague as any).findFirst({ where: { username: reqUsername } }) : null;
+    const adminUser = reqUsername ? await prisma.colleague.findFirst({ where: { username: reqUsername } }) : null;
     
     if (!adminUser || adminUser.role !== "ADMIN") {
       return NextResponse.json({ error: "Access Denied: Administrative role required" }, { status: 403 });
@@ -48,13 +48,13 @@ export async function POST(req: NextRequest) {
     const potonganBuffer = Buffer.from(await potonganFile.arrayBuffer());
     const sppBuffer = Buffer.from(await sppFile.arrayBuffer());
 
-    const potonganData = parseExcel(potonganBuffer);
-    const sppData = parseExcel(sppBuffer);
+    const potonganData = parseExcel(potonganBuffer) as PotonganRow[];
+    const sppData = parseExcel(sppBuffer) as SPP_SPM_SP2D_Row[];
 
     if (potonganData.length === 0) return NextResponse.json({ error: "Potongan file is empty or invalid" }, { status: 400 });
     if (sppData.length === 0) return NextResponse.json({ error: "SPP file is empty or invalid" }, { status: 400 });
 
-    const mergedData = mergeExcelData(potonganData as any, sppData as any);
+    const mergedData = mergeExcelData(potonganData, sppData);
 
     if (isPreview) {
       return NextResponse.json({
@@ -113,10 +113,11 @@ export async function POST(req: NextRequest) {
       success: true,
       count: resultsCount,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Import Error] Global catch:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Validation Failed: " + error.message },
+      { error: "Validation Failed: " + message },
       { status: 500 }
     );
   }

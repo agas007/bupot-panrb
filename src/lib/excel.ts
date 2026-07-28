@@ -9,13 +9,13 @@ export interface PotonganRow {
   "Tgl. SP2D"?: string | number;
   "Uraian SPM"?: string;
   "Atas Nama"?: string;
-  [key: string]: any;
+  [key: string]: string | number | null | undefined;
 }
 
 export interface SPP_SPM_SP2D_Row {
   "No. SPP/SPM": string;
   "Jumlah Pengeluaran": number;
-  [key: string]: any;
+  [key: string]: string | number | null | undefined;
 }
 
 export interface CoretaxExcelRow {
@@ -28,57 +28,41 @@ export interface CoretaxExcelRow {
   taxObjectCode: string;
 }
 
-export const parseExcel = (buffer: Buffer) => {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
-  const sheetName = workbook.SheetNames[0];
-  const worksheet = workbook.Sheets[sheetName];
-  // Skip 2 rows for title, headers on row 3 (range: 2)
-  // Use raw: true to avoid library pre-formatting dates
-  return XLSX.utils.sheet_to_json(worksheet, { range: 2, raw: true, defval: null });
-};
-
-const safeDateID = (val: any) => {
+const safeDateID = (val: unknown) => {
   if (!val || val === "-" || val === "") return null;
-  
-  // Handle Excel serial numbers (numbers)
+
   if (typeof val === "number") {
     const date = XLSX.SSF.parse_date_code(val);
     return new Date(date.y, date.m - 1, date.d);
   }
 
-  // Handle strings 
   if (typeof val === "string") {
     const cleanStr = val.trim();
-    
-    // Case 1: YYYY-MM-DD (SPP File)
+
     if (cleanStr.includes("-") && cleanStr.length >= 10 && cleanStr.split("-")[0].length === 4) {
       const d = new Date(cleanStr);
       return isNaN(d.getTime()) ? null : d;
     }
 
-    // Case 2: D/M/YYYY (Potongan File - User's gold standard)
     const parts = cleanStr.split(/[\/\-]/);
     if (parts.length === 3) {
       const d = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10) - 1; // Month 0-indexed
+      const m = parseInt(parts[1], 10) - 1;
       const y = parseInt(parts[2], 10);
-      
+
       const date = new Date(y, m, d);
       return isNaN(date.getTime()) ? null : date;
     }
   }
 
-  const d = new Date(val);
+  const d = new Date(val as string | number);
   return isNaN(d.getTime()) ? null : d;
 };
 
-const safeIndoNum = (val: any) => {
+const safeIndoNum = (val: unknown) => {
   if (typeof val === "number") return val;
   if (!val) return 0;
-  
-  // Indonesian style: 1.000,50 
-  // Step 1: Remove all dots (thousands separator)
-  // Step 2: Replace comma with dot (decimal separator)
+
   const clean = val.toString().replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(/,/g, ".");
   const num = parseFloat(clean);
   return isNaN(num) ? 0 : num;
@@ -143,6 +127,38 @@ function getShiftedRowValue(row: unknown[], columnIndex: number, shift: number) 
     return null;
   }
   return row[columnIndex] ?? null;
+}
+
+function findMonitoringHeaderRow(rows: unknown[][]) {
+  const headerSignals = [
+    "NO.SPM",
+    "AKUN",
+    "JUMLAH",
+    "NO. SPP/SPM",
+    "JUMLAH PENGELUARAN",
+    "NAMA SATKER",
+    "KODE SATKER",
+    "JENIS SPP/SPM",
+    "STATUS SPP/SPM",
+    "NO SP2D",
+    "TGL SPM",
+    "TGL SP2D",
+  ];
+
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    const row = rows[rowIndex] ?? [];
+    const normalizedCells = row.map((cell) => normalizeHeaderText(cell)).filter(Boolean);
+    const matchCount = headerSignals.reduce((count, signal) => {
+      const normalizedSignal = normalizeHeaderText(signal);
+      return count + (normalizedCells.some((cell) => cell === normalizedSignal || cell.includes(normalizedSignal)) ? 1 : 0);
+    }, 0);
+
+    if (matchCount >= 3) {
+      return rowIndex;
+    }
+  }
+
+  return -1;
 }
 
 export const parseCoretaxExcel = (input: Buffer | ArrayBuffer | string) => {
@@ -285,11 +301,33 @@ export const parseCortexExcel = parseCoretaxExcel;
 
 export type CortexExcelRow = CoretaxExcelRow;
 
+export const parseExcel = (buffer: Buffer) => {
+  const workbook = XLSX.read(buffer, { type: "buffer", raw: true, cellDates: true });
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) {
+    throw new Error("File Excel tidak memiliki sheet.");
+  }
+
+  const worksheet = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true, defval: null, blankrows: true }) as unknown[][];
+  const headerRowIndex = findMonitoringHeaderRow(rows);
+
+  if (headerRowIndex < 0) {
+    throw new Error("Baris header file Excel tidak ditemukan. Pastikan file memakai format monitoring yang benar.");
+  }
+
+  return XLSX.utils.sheet_to_json(worksheet, {
+    range: headerRowIndex,
+    raw: true,
+    defval: null,
+    blankrows: false,
+  });
+};
+
 export const mergeExcelData = (
   potonganData: PotonganRow[],
   sppData: SPP_SPM_SP2D_Row[]
 ) => {
-  // Create a map for SPP data by short SPM number (e.g. 00005T)
   const sppMap = new Map<string, number>();
   sppData.forEach((row) => {
     const spmKey = row["No. SPP/SPM"]?.toString().trim();
@@ -302,25 +340,21 @@ export const mergeExcelData = (
     const spmFull = potongan["NO.SPM"]?.toString().trim();
     if (!spmFull) return null;
 
-    // Extract base SPM (e.g. 00005T from 00005T/427950/2026)
     const spmBase = spmFull.split("/")[0];
     const totalValue = sppMap.get(spmBase) || 0;
-
     const deductionAmount = safeIndoNum(potongan["Jumlah"]);
 
     return {
       uniqueKey: `${spmFull}-${potongan["Akun"]}-${deductionAmount}`,
       spmNumber: spmFull,
       accountCode: potongan["Akun"]?.toString() || "",
-      deductionAmount: deductionAmount,
-
-      // Use Potongan file as primary source for dates and numbers
+      deductionAmount,
       spmDate: safeDateID(potongan["TGL.SPM"]) || new Date(),
       sp2dNumber: potongan["No.SP2D/NTPN"] || "",
       sp2dDate: safeDateID(potongan["Tgl. SP2D"]),
       description: potongan["Uraian SPM"] || "",
       recipient: potongan["Atas Nama"] || "",
-      totalValue: totalValue,
+      totalValue,
     };
   }).filter((item): item is NonNullable<typeof item> => item !== null);
 };

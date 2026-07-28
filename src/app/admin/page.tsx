@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { 
   Upload, CheckCircle, AlertCircle, Loader2, 
   X, Eye, Trash2, 
-  History, Hammer
+  History, Hammer, Archive
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { readSessionUser } from "@/lib/auth-session";
@@ -158,33 +159,55 @@ export default function AdminPage() {
               </div>
 
               <div className="flex-1 overflow-auto border border-border/70 rounded-3xl bg-background/80 shadow-inner">
-                 <table className="admin-preview-table w-full text-left text-xs border-collapse">
-                    <thead className="sticky top-0 bg-card/95 backdrop-blur-md">
-                       <tr className="uppercase font-black tracking-widest text-[10px] text-muted-foreground border-b border-border/70">
-                          <th className="p-4 px-6">SPM NUMBER</th>
-                          <th className="p-4">RECIPIENT</th>
-                          <th className="p-4">DEDUCTION (IDR)</th>
-                          <th className="p-4">SP2D REF</th>
-                          <th className="p-4">DESCRIPTION</th>
-                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60">
-                       {previewData.map((row, i) => (
-                         <tr key={i} className="hover:bg-accent/5 transition-colors even:bg-muted/20">
-                            <td className="p-4 px-6 font-semibold text-foreground">{row.spmNumber}</td>
-                            <td className="p-4 font-medium text-foreground/90">{row.recipient}</td>
-                            <td className="p-4 font-black tabular-nums text-accent">{row.deductionAmount.toLocaleString("id-ID")}</td>
-                            <td className="p-4 font-mono text-muted-foreground">{row.sp2dNumber || "-"}</td>
-                            <td className="p-4 italic text-muted-foreground max-w-[200px] truncate">{row.description || "-"}</td>
+                {previewData.length === 0 ? (
+                  <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 px-6 py-12 text-center">
+                    <div className="rounded-full bg-muted px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                      Tidak ada data terbaca
+                    </div>
+                    <p className="max-w-2xl text-sm text-muted-foreground">
+                      Hasil pratinjau kosong. Biasanya ini terjadi kalau header file tidak cocok,
+                      data ada di sheet lain, atau isi file belum masuk ke format impor yang dikenali.
+                    </p>
+                    <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-5 py-4 text-left text-xs text-muted-foreground">
+                      Cek lagi:
+                      <ul className="mt-2 list-disc space-y-1 pl-5">
+                        <li>file yang diupload memang format potongan dan SPP yang benar</li>
+                        <li>sheet pertama berisi data, bukan cover atau judul</li>
+                        <li>kolom SPM, akun, jumlah, dan nomor SP2D ada di baris header</li>
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <table className="admin-preview-table w-full text-left text-xs border-collapse">
+                      <thead className="sticky top-0 bg-card/95 backdrop-blur-md">
+                         <tr className="uppercase font-black tracking-widest text-[10px] text-muted-foreground border-b border-border/70">
+                            <th className="p-4 px-6">SPM NUMBER</th>
+                            <th className="p-4">RECIPIENT</th>
+                            <th className="p-4">DEDUCTION (IDR)</th>
+                            <th className="p-4">SP2D REF</th>
+                            <th className="p-4">DESCRIPTION</th>
                          </tr>
-                       ))}
-                    </tbody>
-                 </table>
-                 {previewCount > 100 && (
-                   <div className="p-4 text-center bg-accent/5 italic text-[10px] font-bold uppercase tracking-[0.2em] text-accent">
-                      ---Showing 100 of {previewCount} items---
-                   </div>
-                 )}
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                         {previewData.map((row, i) => (
+                           <tr key={i} className="hover:bg-accent/5 transition-colors even:bg-muted/20">
+                              <td className="p-4 px-6 font-semibold text-foreground">{row.spmNumber}</td>
+                              <td className="p-4 font-medium text-foreground/90">{row.recipient}</td>
+                              <td className="p-4 font-black tabular-nums text-accent">{row.deductionAmount.toLocaleString("id-ID")}</td>
+                              <td className="p-4 font-mono text-muted-foreground">{row.sp2dNumber || "-"}</td>
+                              <td className="p-4 italic text-muted-foreground max-w-[200px] truncate">{row.description || "-"}</td>
+                           </tr>
+                         ))}
+                      </tbody>
+                    </table>
+                    {previewCount > 100 && (
+                      <div className="p-4 text-center bg-accent/5 italic text-[10px] font-bold uppercase tracking-[0.2em] text-accent">
+                         ---Showing 100 of {previewCount} items---
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               <div className="flex gap-4">
@@ -256,7 +279,7 @@ export default function AdminPage() {
       </section>
 
       {/* 🔥 NEW: Maintenance & Log Retention Section */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
          <div className="md:col-span-2 glass-card p-8 border-rose-500/10 flex flex-col gap-6 shadow-xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform duration-700"><Trash2 size={120} /></div>
             <div className="flex items-center gap-4">
@@ -296,6 +319,31 @@ export default function AdminPage() {
                <div className="flex justify-between items-center bg-white/5 p-3 rounded-2xl border border-white/5"><span className="text-[11px] font-bold opacity-60">LOGGING SYSTEM</span><span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full font-black uppercase tracking-widest">Active</span></div>
             </div>
          </div>
+      </section>
+
+      <section className="mt-8">
+        <Link href="/admin/archive" className="glass-card block p-8 border-sky-500/10 shadow-xl relative overflow-hidden group hover:border-sky-500/30 transition-all">
+          <div className="absolute right-0 top-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-500">
+            <Archive size={140} />
+          </div>
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-4 bg-sky-500/10 text-sky-500 rounded-3xl">
+                <Archive size={28} />
+              </div>
+              <div className="flex flex-col text-left">
+                <h3 className="font-black uppercase tracking-widest text-lg">Archive Menu</h3>
+                <p className="max-w-2xl text-sm text-muted-foreground font-medium">
+                  Shortcut ke menu arsip untuk lihat dosier, riwayat, dan lampiran dalam satu tempat.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-2xl bg-sky-500/10 px-5 py-3">
+              <span className="text-[10px] font-black uppercase tracking-widest text-sky-500">Open Archive</span>
+              <span className="text-[10px] font-bold text-muted-foreground">{language === "ID" ? "Masuk" : "Enter"}</span>
+            </div>
+          </div>
+        </Link>
       </section>
     </div>
   );

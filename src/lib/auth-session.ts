@@ -1,4 +1,5 @@
 import type { AuthSession } from "@/types";
+import { getPrimaryRole, normalizeUserRoles } from "@/lib/roles";
 
 export const SESSION_STORAGE_KEY = "sim_user";
 export const SESSION_MAX_AGE_MS = 30 * 60 * 1000;
@@ -16,7 +17,7 @@ const isAuthSession = (value: unknown): value is AuthSession => {
     typeof candidate.id === "number" &&
     typeof candidate.name === "string" &&
     typeof candidate.username === "string" &&
-    (candidate.role === "ADMIN" || candidate.role === "USER")
+    candidate.role !== undefined
   );
 };
 
@@ -27,7 +28,11 @@ const isStoredAuthSession = (value: unknown): value is StoredAuthSession => {
 };
 
 export const createStoredSession = (user: AuthSession, lastActivityAt = Date.now()): StoredAuthSession => ({
-  user,
+  user: {
+    ...user,
+    role: getPrimaryRole(user.roles ?? user.role),
+    roles: normalizeUserRoles(user.roles ?? user.role),
+  },
   lastActivityAt,
 });
 

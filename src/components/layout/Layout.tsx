@@ -22,17 +22,17 @@ import {
   FileText,
   PanelLeftClose,
   PanelLeftOpen,
-  ShieldCheck,
   Settings2,
   Bell,
   CheckCircle2,
   AlertCircle,
-  FileType,
-  Scale
-  ,ReceiptText
+  Scale,
+  Archive,
+  ReceiptText
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { clearSession, readSession, touchSession, SESSION_MAX_AGE_MS, getSessionUser } from "@/lib/auth-session";
+import { canAccessArchive, isAdminRole } from "@/lib/roles";
 
 interface Colleague {
   id: number;
@@ -299,11 +299,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/reconciliation", label: t.nav.rekonsiliasi_spt, icon: Scale, minRole: "USER" },
     { href: "/colleagues", label: t.nav.daftar_rekan, icon: Users, minRole: "ADMIN" },
     { href: "/logs", label: t.nav.log_aktivitas, icon: History, minRole: "ADMIN" },
+    { href: "/admin/archive", label: t.nav.arsip, icon: Archive, minRole: "ARCHIVIST" },
     { href: "/api-docs", label: t.nav.dokumentasi_api, icon: FileText },
     { href: "/admin", label: t.nav.panel_admin, icon: Settings, minRole: "ADMIN" },
     { href: "/settings", label: t.nav.pengaturan, icon: Settings2, minRole: "USER" },
   ].filter(item => {
-    if (item.minRole === "ADMIN") return currentUser?.role === "ADMIN";
+    if (item.minRole === "ADMIN") return isAdminRole(currentUser?.role);
+    if (item.minRole === "ARCHIVIST") return canAccessArchive(currentUser?.role);
     if (item.minRole === "USER") return currentUser !== null;
     return true;
   });
@@ -311,8 +313,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   if (pathname === "/login") return <>{children}</>;
 
   const shellSurfaceClass = theme === "light"
-    ? "bg-white/96 border-border/80 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.18)]"
-    : "bg-card/90 border-white/10 shadow-[0_20px_70px_-28px_rgba(0,0,0,0.45)]";
+    ? "bg-gradient-to-b from-white/98 via-white/96 to-white/92 border-border/70 shadow-[0_28px_90px_-36px_rgba(15,23,42,0.22)]"
+    : "bg-gradient-to-b from-card/95 via-card/92 to-card/88 border-white/10 shadow-[0_24px_84px_-34px_rgba(0,0,0,0.5)]";
 
   const shellSurfaceSoftClass = theme === "light"
     ? "bg-white/92 border-border/70"
@@ -431,7 +433,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         fixed left-0 top-0 h-full z-120 lg:z-50 transition-all duration-500 ease-in-out flex flex-col p-4 gap-6
         ${isMobileMenuOpen ? "translate-x-0 w-[280px]" : "-translate-x-full w-[280px] lg:translate-x-0"} 
         ${isSidebarCollapsed ? "lg:w-22" : "lg:w-60"}
-        overflow-visible! lg:h-[calc(100vh-2rem)] lg:m-4 ${shellSurfaceClass}
+        overflow-visible! lg:h-screen lg:rounded-r-[1.75rem] lg:rounded-l-none lg:border-l-0 ${shellSurfaceClass}
       `}>
         <button 
           onClick={toggleSidebar}
@@ -456,8 +458,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
           href="/settings"
           className={`bg-muted/70 p-3 rounded-xl flex items-center gap-3 overflow-hidden transition-all hover:bg-accent/10 active:scale-95 group border border-transparent hover:border-accent/20 ${isSidebarCollapsed ? "justify-center" : ""}`}
         >
-          <div className={`p-2 rounded-lg shrink-0 transition-transform group-hover:scale-110 ${currentUser?.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
-            {currentUser?.role === "ADMIN" ? <Shield size={18} /> : <UserIcon size={18} />}
+          <div className={`p-2 rounded-lg shrink-0 transition-transform group-hover:scale-110 ${currentUser?.role === "ADMIN" ? "bg-accent/10 text-accent" : currentUser?.role === "ARCHIVIST" ? "bg-sky-500/10 text-sky-500" : "bg-primary/10 text-primary"}`}>
+            {currentUser?.role === "ADMIN" ? <Shield size={18} /> : currentUser?.role === "ARCHIVIST" ? <Archive size={18} /> : <UserIcon size={18} />}
           </div>
               {!isSidebarCollapsed && (
                 <div className="flex flex-col min-w-0 animate-in fade-in slide-in-from-left-4 text-left">
@@ -516,7 +518,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className={`min-w-0 flex-1 p-4 pt-24 lg:pt-12 transition-all duration-500 ${isSidebarCollapsed ? "lg:ml-20" : "lg:ml-64"}`}>
+      <main className={`min-w-0 flex-1 p-4 pt-24 lg:pt-12 transition-all duration-500 ${isSidebarCollapsed ? "lg:ml-[5.5rem]" : "lg:ml-[15rem]"}`}>
         <div className="container min-w-0 max-w-full">{children}</div>
       </main>
 

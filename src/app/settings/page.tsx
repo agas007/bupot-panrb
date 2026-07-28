@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, KeyRound, Save, Loader2, ShieldCheck, CheckCircle2, UserPen, AtSign } from "lucide-react";
+import { User, KeyRound, Save, Loader2, ShieldCheck, CheckCircle2, UserPen, AtSign, Archive, Shield } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useAuth } from "@/hooks/useAuth";
 import { saveSession } from "@/lib/auth-session";
+import { getRoleLabel } from "@/lib/roles";
 
 export default function SettingsPage() {
   const { language, t } = useLanguage();
@@ -58,6 +59,7 @@ export default function SettingsPage() {
   };
 
   if (!user) return null;
+  const roleList = user.roles?.length ? user.roles : [user.role];
 
   return (
     <div className="flex flex-col gap-8 max-w-2xl mx-auto py-10">
@@ -68,8 +70,8 @@ export default function SettingsPage() {
 
       <section className="glass-card p-10 flex flex-col gap-10">
         <div className="flex items-center gap-6">
-           <div className={`p-6 rounded-3xl ${user.role === "ADMIN" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"} border border-white/5 shadow-xl`}>
-              <User size={48} />
+           <div className={`p-6 rounded-3xl ${user.role === "ADMIN" ? "bg-accent/10 text-accent" : user.role === "ARCHIVIST" ? "bg-sky-500/10 text-sky-500" : "bg-primary/10 text-primary"} border border-white/5 shadow-xl`}>
+              {user.role === "ADMIN" ? <Shield size={48} /> : user.role === "ARCHIVIST" ? <Archive size={48} /> : <User size={48} />}
            </div>
            <div className="flex flex-col text-left">
               <h2 className="text-2xl font-bold tracking-tight">{user.name}</h2>
@@ -78,9 +80,25 @@ export default function SettingsPage() {
                     <AtSign size={10} /> {user.username}
                  </span>
                  <span className="h-4 w-px bg-white/10" />
-                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${user.role === "ADMIN" ? "bg-accent text-white" : "bg-primary text-white"}`}>
-                    {user.role} MODE
+                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${user.role === "ADMIN" ? "bg-accent text-white" : user.role === "ARCHIVIST" ? "bg-sky-500 text-white" : "bg-primary text-white"}`}>
+                    {getRoleLabel(user.role)} MODE
                  </span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {roleList.map((roleItem) => (
+                  <span
+                    key={roleItem}
+                    className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
+                      roleItem === "ADMIN"
+                        ? "bg-accent/10 text-accent"
+                        : roleItem === "ARCHIVIST"
+                          ? "bg-sky-500/10 text-sky-500"
+                          : "bg-primary/10 text-primary"
+                    }`}
+                  >
+                    {roleItem === "ADMIN" ? "Admin" : roleItem === "ARCHIVIST" ? "Petugas Arsip" : "Pengguna"}
+                  </span>
+                ))}
               </div>
            </div>
         </div>
