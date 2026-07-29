@@ -24,6 +24,9 @@ export default function AdminPage() {
   const [potonganFile, setPotonganFile] = useState<File | null>(null);
   const [sppFile, setSppFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingLabel, setProcessingLabel] = useState("");
+  const [processingProgress, setProcessingProgress] = useState<number | null>(null);
+  const [processingMode, setProcessingMode] = useState<"preview" | "import" | null>(null);
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   
   // 🔥 NEW: Preview states
@@ -57,33 +60,57 @@ export default function AdminPage() {
     return text.slice(0, 240);
   };
 
+  const startProcessing = (mode: "preview" | "import") => {
+    setIsProcessing(true);
+    setProcessingMode(mode);
+    setProcessingLabel(mode === "preview" ? "Membaca file..." : "Menyiapkan impor...");
+    setProcessingProgress(mode === "preview" ? 8 : null);
+  };
+
+  const updateProcessing = (label: string, progress: number | null) => {
+    setProcessingLabel(label);
+    setProcessingProgress(progress);
+  };
+
+  const stopProcessing = () => {
+    setIsProcessing(false);
+    setProcessingLabel("");
+    setProcessingProgress(null);
+    setProcessingMode(null);
+  };
+
   const handleProcessPreview = async () => {
     if (!potonganFile || !sppFile) return;
-    setIsProcessing(true);
+    startProcessing("preview");
     setStatus(null);
 
     try {
+      updateProcessing("Membaca file potongan...", 12);
       const [potonganBuffer, sppBuffer] = await Promise.all([
         potonganFile.arrayBuffer(),
         sppFile.arrayBuffer(),
       ]);
 
+      updateProcessing("Membaca file SPP...", 28);
       const potonganData = parseExcel(potonganBuffer) as PotonganRow[];
+      updateProcessing("Menafsirkan data monitoring...", 52);
       const sppData = parseExcel(sppBuffer) as SPP_SPM_SP2D_Row[];
+      updateProcessing("Menggabungkan data...", 78);
       const mergedData = mergeExcelData(potonganData, sppData);
 
       setPreviewData(mergedData.slice(0, 100));
       setPreviewCount(mergedData.length);
+      updateProcessing("Pratinjau siap dibuka.", 100);
       setShowPreviewModal(true);
     } catch (err: unknown) {
       setStatus({ type: "error", message: getErrorMessage(err) });
     } finally {
-      setIsProcessing(false);
+      stopProcessing();
     }
   };
 
   const handleConfirmImport = async () => {
-    setIsProcessing(true);
+    startProcessing("import");
     setShowPreviewModal(false);
     setStatus(null);
 
@@ -92,7 +119,9 @@ export default function AdminPage() {
     formData.append("spp", sppFile!);
 
     try {
+      updateProcessing("Mengirim file ke server...", null);
       const simulatedUser = readSessionUser();
+      updateProcessing("Server sedang memproses data...", null);
       const res = await fetch("/api/import", {
         method: "POST",
         headers: {
@@ -104,6 +133,7 @@ export default function AdminPage() {
       });
 
       if (res.ok) {
+        updateProcessing("Impor selesai.", 100);
         const data = await res.json() as { count?: number };
         setStatus({
           type: "success",
@@ -119,7 +149,7 @@ export default function AdminPage() {
     } catch (err: unknown) {
       setStatus({ type: "error", message: getErrorMessage(err) });
     } finally {
-      setIsProcessing(false);
+      stopProcessing();
     }
   };
 
@@ -279,6 +309,37 @@ export default function AdminPage() {
           {isProcessing ? <Loader2 className="animate-spin" size={28} /> : <Eye size={28} className="group-hover:scale-110 transition-transform" />}
           {isProcessing ? (language === "ID" ? "Menganalisis..." : "Analyzing...") : (language === "ID" ? "Pratinjau & Analisis" : "Preview & Analyze")}
         </button>
+
+        {isProcessing && (
+          <div className="rounded-3xl border border-border/70 bg-background/80 p-4 shadow-inner">
+            <div className="mb-3 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Loader2 className="animate-spin text-accent" size={16} />
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">
+                  {processingMode === "preview"
+                    ? (language === "ID" ? "Status Analisis" : "Analysis Status")
+                    : (language === "ID" ? "Status Impor" : "Import Status")}
+                </span>
+              </div>
+              <span className="text-xs font-black uppercase tracking-[0.2em] text-accent">
+                {processingProgress === null ? "..." : `${Math.min(100, Math.max(0, processingProgress))}%`}
+              </span>
+            </div>
+            <div className="h-3 w-full overflow-hidden rounded-full bg-muted/80">
+              {processingProgress === null ? (
+                <div className="h-full w-1/3 animate-[pulse_1.2s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-accent via-cyan-400 to-accent" />
+              ) : (
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-accent via-cyan-400 to-emerald-400 transition-all duration-300"
+                  style={{ width: `${Math.min(100, Math.max(0, processingProgress))}%` }}
+                />
+              )}
+            </div>
+            <div className="mt-3 text-sm font-semibold text-muted-foreground">
+              {processingLabel || (language === "ID" ? "Sedang berjalan..." : "In progress...")}
+            </div>
+          </div>
+        )}
 
         {status && (
           <div className={`p-6 rounded-3xl flex items-start gap-5 animate-in slide-in-from-bottom-6 transition-all ${status.type === "success" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shadow-lg shadow-emerald-500/5" : "bg-rose-500/10 text-rose-500 border border-rose-500/20 shadow-lg shadow-rose-500/5"}`}>
