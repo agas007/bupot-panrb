@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       await prisma.auditLog.create({
         data: {
           userName: loginUsername || "Unknown",
+          username: loginUsername || "Unknown",
           action: "Failed Login Attempt",
           target: "System Portal",
           type: "danger",
@@ -41,7 +42,8 @@ export async function POST(req: NextRequest) {
     // Audit Log for successful login
     await prisma.auditLog.create({
       data: {
-        userName: user.username,
+        userName: user.name,
+        username: user.username,
         action: "Logged In",
         target: "Dashboard",
         type: "user",

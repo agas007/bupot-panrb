@@ -168,6 +168,7 @@ model Pph21ExportItem {
 model AuditLog {
   id        Int      @id @default(autoincrement())
   userName  String
+  username  String
   action    String
   target    String
   category  String   @default("GENERAL") // AUTH, DATA, ADMIN, SECURITY, GENERAL

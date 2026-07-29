@@ -273,6 +273,7 @@ export async function POST(req: NextRequest) {
       await tx.auditLog.create({
         data: {
           userName: user.name,
+          username: user.username,
           action: "Saved Tax Reconciliation Period",
           target: `${year}-${String(month).padStart(2, "0")}`,
           category: "DATA",

@@ -85,12 +85,13 @@ const apiSpec = {
         properties: {
           id: { type: "number" },
           userName: { type: "string" },
+          username: { type: "string" },
           action: { type: "string" },
           target: { type: "string" },
-          type: { type: "string", enum: ["system", "user", "admin", "danger"] },
+          type: { type: "string", enum: ["system", "user", "admin", "danger", "info", "success", "warning"] },
           createdAt: { type: "string", format: "date-time" },
         },
-        required: ["id", "userName", "action", "target", "type", "createdAt"],
+        required: ["id", "userName", "username", "action", "target", "type", "createdAt"],
       },
       Notification: {
         type: "object",

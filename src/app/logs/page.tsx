@@ -33,9 +33,10 @@ export default function LogsPage() {
 
   const handleExportCSV = () => {
     if (logs.length === 0) return;
-    const headers = ["Timestamp", "User", "Action", "Target", "Category", "Type"];
+    const headers = ["Timestamp", "Username", "Name", "Action", "Target", "Category", "Type"];
     const rows = logs.map(log => [
       new Date(log.createdAt).toLocaleString(), 
+      log.username || "-", 
       log.userName, 
       `"${log.action}"`, 
       `"${log.target}"`,
@@ -76,6 +77,7 @@ export default function LogsPage() {
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
       const matchesSearch = 
+        (log.username || "").toLowerCase().includes(search.toLowerCase()) ||
         log.userName.toLowerCase().includes(search.toLowerCase()) ||
         log.action.toLowerCase().includes(search.toLowerCase()) ||
         log.target.toLowerCase().includes(search.toLowerCase());
@@ -181,7 +183,8 @@ export default function LogsPage() {
             <thead>
               <tr className="bg-muted font-bold uppercase tracking-widest text-[10px] text-muted-foreground">
                 <th className="p-4 px-6">{isID ? "Waktu" : "Timestamp"}</th>
-                <th className="p-4">{isID ? "Pengguna" : "User"}</th>
+                <th className="p-4">{isID ? "Username" : "Username"}</th>
+                <th className="p-4">{isID ? "Nama" : "Name"}</th>
                 <th className="p-4">{isID ? "Kategori" : "Category"}</th>
                 <th className="p-4">{isID ? "Aktivitas" : "Activity"}</th>
                 <th className="p-4">{isID ? "Objek/Target" : "Object/Target"}</th>
@@ -190,9 +193,9 @@ export default function LogsPage() {
             </thead>
             <tbody className="divide-y divide-border/5">
               {isLoading ? (
-                <tr><td colSpan={6} className="p-20 text-center text-muted-foreground animate-pulse italic font-bold">{isID ? "Memperbarui data audit..." : "Refreshing audit data..."}</td></tr>
+                <tr><td colSpan={7} className="p-20 text-center text-muted-foreground animate-pulse italic font-bold">{isID ? "Memperbarui data audit..." : "Refreshing audit data..."}</td></tr>
               ) : filteredLogs.length === 0 ? (
-                <tr><td colSpan={6} className="p-20 text-center text-muted-foreground italic font-semibold">{isID ? "Belum ada aktivitas yang tercatat untuk filter ini." : "No activity has been recorded for this filter."}</td></tr>
+                <tr><td colSpan={7} className="p-20 text-center text-muted-foreground italic font-semibold">{isID ? "Belum ada aktivitas yang tercatat untuk filter ini." : "No activity has been recorded for this filter."}</td></tr>
               ) : (
                 filteredLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-accent/20 transition-colors group">
@@ -203,8 +206,13 @@ export default function LogsPage() {
                     <td className="p-4">
                        <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent font-black text-xs">
-                             {log.userName.charAt(0)}
+                             {(log.username || log.userName || "?").charAt(0)}
                           </div>
+                          <span className="text-sm font-black">{log.username || "-"}</span>
+                       </div>
+                    </td>
+                    <td className="p-4">
+                       <div className="flex items-center gap-3">
                           <span className="text-sm font-black">{log.userName}</span>
                        </div>
                     </td>

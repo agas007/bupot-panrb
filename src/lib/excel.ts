@@ -301,8 +301,8 @@ export const parseCortexExcel = parseCoretaxExcel;
 
 export type CortexExcelRow = CoretaxExcelRow;
 
-export const parseExcel = (buffer: Buffer) => {
-  const workbook = XLSX.read(buffer, { type: "buffer", raw: true, cellDates: true });
+export const parseExcel = (input: Buffer | ArrayBuffer | string) => {
+  const workbook = XLSX.read(input, { type: getWorkbookInputType(input), raw: true, cellDates: true });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) {
     throw new Error("File Excel tidak memiliki sheet.");

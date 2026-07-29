@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
         group.status = "IMPORTED";
       }, { maxWait: 10_000, timeout: 20_000 });
     }
-    await prisma.auditLog.create({ data: { userName: user.name, action: "Imported and Checked PPh 21 XML", target: `${file.name} - ${groups.length} SP2D`, category: "DATA", type: groups.every((group) => group.status === "IMPORTED" || group.status === "ALREADY_FILLED") ? "success" : "warning" } });
+    await prisma.auditLog.create({ data: { userName: user.name, username: user.username, action: "Imported and Checked PPh 21 XML", target: `${file.name} - ${groups.length} SP2D`, category: "DATA", type: groups.every((group) => group.status === "IMPORTED" || group.status === "ALREADY_FILLED") ? "success" : "warning" } });
     return NextResponse.json({
       fileName: file.name,
       totalRows: lines.length,

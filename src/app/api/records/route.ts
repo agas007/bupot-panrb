@@ -130,6 +130,7 @@ export async function PATCH(req: NextRequest) {
     // Auth context for notifications & audit
     const reqUsername = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
     const adminName = getRequestSessionUser(req)?.name || req.headers.get("x-simulated-user") || "Admin (Simulated)";
+    const auditUsername = reqUsername || adminName;
 
     if (status) {
       updateData.status = status;
@@ -173,7 +174,7 @@ export async function PATCH(req: NextRequest) {
       }
       
       await prisma.auditLog.create({
-        data: { userName, action, target, type }
+        data: { userName, username: auditUsername, action, target, type }
       });
 
       return NextResponse.json({ count: result.count });
@@ -199,7 +200,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     await prisma.auditLog.create({
-      data: { userName, action, target: record.spmNumber, type }
+      data: { userName, username: auditUsername, action, target: record.spmNumber, type }
     });
 
     return NextResponse.json(record);

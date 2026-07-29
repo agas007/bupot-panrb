@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { readSessionUser } from "@/lib/auth-session";
+import { mergeExcelData, parseExcel, type PotonganRow, type SPP_SPM_SP2D_Row } from "@/lib/excel";
 
 interface PreviewRow {
   spmNumber: string;
@@ -41,28 +42,19 @@ export default function AdminPage() {
     setIsProcessing(true);
     setStatus(null);
 
-    const formData = new FormData();
-    formData.append("potongan", potonganFile);
-    formData.append("spp", sppFile);
-
     try {
-      const simulatedUser = readSessionUser();
-      const res = await fetch("/api/import?preview=true", {
-        method: "POST",
-        headers: {
-          "x-simulated-username": simulatedUser?.username ?? "admin"
-        },
-        body: formData,
-      });
+      const [potonganBuffer, sppBuffer] = await Promise.all([
+        potonganFile.arrayBuffer(),
+        sppFile.arrayBuffer(),
+      ]);
 
-      const data: { preview?: PreviewRow[]; count?: number; error?: string } = await res.json();
-      if (res.ok) {
-        setPreviewData(data.preview ?? []);
-        setPreviewCount(data.count ?? 0);
-        setShowPreviewModal(true);
-      } else {
-        throw new Error(data.error ?? "Failed to load preview data.");
-      }
+      const potonganData = parseExcel(potonganBuffer) as PotonganRow[];
+      const sppData = parseExcel(sppBuffer) as SPP_SPM_SP2D_Row[];
+      const mergedData = mergeExcelData(potonganData, sppData);
+
+      setPreviewData(mergedData.slice(0, 100));
+      setPreviewCount(mergedData.length);
+      setShowPreviewModal(true);
     } catch (err: unknown) {
       setStatus({ type: "error", message: getErrorMessage(err) });
     } finally {
@@ -85,7 +77,8 @@ export default function AdminPage() {
         method: "POST",
         headers: {
           "x-simulated-user": simulatedUser?.name ?? "Admin (Simulated)",
-          "x-simulated-username": simulatedUser?.username ?? "admin"
+          "x-simulated-username": simulatedUser?.username ?? "admin",
+          "x-simulated-roles": simulatedUser?.roles?.join("|") ?? simulatedUser?.role ?? "ADMIN"
         },
         body: formData,
       });

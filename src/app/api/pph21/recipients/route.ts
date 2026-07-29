@@ -155,7 +155,7 @@ export async function PATCH(req: NextRequest) {
         ...(code !== undefined ? { defaultTaxObjectCode: code } : {}),
       },
     });
-    await prisma.auditLog.create({ data: { userName: user.name, action: "Updated PPh 21 Recipient", target: `${recipient.nik} - ${recipient.name}`, category: "DATA", type: "success" } });
+    await prisma.auditLog.create({ data: { userName: user.name, username: user.username, action: "Updated PPh 21 Recipient", target: `${recipient.nik} - ${recipient.name}`, category: "DATA", type: "success" } });
     return NextResponse.json(recipient);
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memperbarui penerima" }, { status: 400 });

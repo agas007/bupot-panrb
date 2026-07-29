@@ -201,6 +201,7 @@ export async function POST(req: NextRequest) {
         await tx.auditLog.create({
           data: {
             userName: user.name,
+            username: user.username,
             action: "Imported PPh 21 PTKP Master",
             target: `${file.name} - ${uniqueValidRows.length} rows`,
             category: "DATA",

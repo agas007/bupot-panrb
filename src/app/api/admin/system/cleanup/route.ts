@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     await (prisma.auditLog as any).create({
       data: {
         userName: adminUser.name,
+        username: adminUser.username,
         action: "Executed Log Cleanup",
         target: `Logs older than ${days} days`,
         category: "ADMIN",

@@ -44,9 +44,10 @@ export interface SPMRecord {
 export interface AuditLog {
   id: number;
   userName: string;
+  username: string;
   action: string;
   target: string;
-  type: "system" | "user" | "admin" | "danger";
+  type: "system" | "user" | "admin" | "danger" | "info" | "success" | "warning";
   createdAt: string;
 }
 

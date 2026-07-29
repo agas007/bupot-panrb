@@ -3,8 +3,23 @@ import { parseExcel, mergeExcelData, type PotonganRow, type SPP_SPM_SP2D_Row } f
 import { prisma } from "@/lib/prisma";
 import { applyRateLimit } from "@/lib/rate-limit";
 import { getRequestSessionUser } from "@/lib/session-cookie";
+import { isAdminRole, normalizeUserRoles } from "@/lib/roles";
 
 export const runtime = 'nodejs';
+
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
 
 /**
  * Handle POST: Bulk import records from Excel with optional preview mode
@@ -19,14 +34,33 @@ export async function POST(req: NextRequest) {
     const isPreview = searchParams.get("preview") === "true";
 
     // 1. Administrative Security Check
-    const reqUsername = getRequestSessionUser(req)?.username ?? req.headers.get("x-simulated-username");
-    const adminUser = reqUsername ? await prisma.colleague.findFirst({ where: { username: reqUsername } }) : null;
-    
-    if (!adminUser || adminUser.role !== "ADMIN") {
+    const sessionUser = getRequestSessionUser(req);
+    const reqUsername = sessionUser?.username ?? req.headers.get("x-simulated-username");
+    const sessionRoles = normalizeUserRoles(sessionUser?.roles ?? sessionUser?.role);
+    const simulatedRoles = normalizeUserRoles(req.headers.get("x-simulated-roles") ?? req.headers.get("x-simulated-role"));
+    const effectiveRoles = sessionRoles.length > 0 ? sessionRoles : simulatedRoles;
+
+    if (!reqUsername) {
+      return NextResponse.json({ error: "Access Denied: Missing authenticated user" }, { status: 401 });
+    }
+
+    const adminUser = effectiveRoles.length > 0
+      ? null
+      : await withTimeout(
+          prisma.colleague.findFirst({ where: { username: reqUsername } }),
+          10000,
+          "Administrative lookup timed out"
+        );
+
+    const hasAdminAccess = effectiveRoles.length > 0
+      ? isAdminRole(effectiveRoles)
+      : adminUser?.role === "ADMIN";
+
+    if (!hasAdminAccess) {
       return NextResponse.json({ error: "Access Denied: Administrative role required" }, { status: 403 });
     }
 
-    const formData = await req.formData();
+    const formData = await withTimeout(req.formData(), 15000, "Upload parsing timed out");
     const potonganFile = formData.get("potongan") as File;
     const sppFile = formData.get("spp") as File;
 
@@ -98,10 +132,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Audit trail
-    const userName = getRequestSessionUser(req)?.name || req.headers.get("x-simulated-user") || "Admin (Simulated)";
+    const auditSessionUser = getRequestSessionUser(req);
+    const userName = auditSessionUser?.name || req.headers.get("x-simulated-user") || "Admin (Simulated)";
     await prisma.auditLog.create({
       data: {
         userName,
+        username: auditSessionUser?.username || req.headers.get("x-simulated-username") || userName,
         action: "Bulk Imported Data",
         target: `${resultsCount} Records`,
         category: "DATA",

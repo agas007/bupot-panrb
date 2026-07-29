@@ -68,10 +68,12 @@ export async function POST(req: NextRequest) {
     });
 
     // Audit Log
-    const reqUser = getRequestSessionUser(req)?.name || req.headers.get("x-simulated-user") || "Admin (Simulated)";
+    const sessionUser = getRequestSessionUser(req);
+    const reqUser = sessionUser?.name || req.headers.get("x-simulated-user") || "Admin (Simulated)";
     await prisma.auditLog.create({
       data: {
         userName: reqUser,
+        username: sessionUser?.username || req.headers.get("x-simulated-username") || reqUser,
         action: "Added New Member (Hashed)",
         target: `${name} (${normalizedRoles.join(", ")})`,
         type: "admin",
@@ -133,10 +135,12 @@ export async function PATCH(req: NextRequest) {
     });
 
     // Audit Log
-    const reqUserName = getRequestSessionUser(req)?.name || req.headers.get("x-simulated-user") || requester.name;
+    const sessionUser = getRequestSessionUser(req);
+    const reqUserName = sessionUser?.name || req.headers.get("x-simulated-user") || requester.name;
     await prisma.auditLog.create({
       data: {
         userName: reqUserName,
+        username: sessionUser?.username || req.headers.get("x-simulated-username") || requester.username,
         action: isSelf ? "Updated Own Profile" : "Updated Member Info (Encrypted)",
         target: isSelf ? "Self" : colleague.name,
         type: isTargetAdmin ? "admin" : "user",
@@ -180,10 +184,12 @@ export async function DELETE(req: NextRequest) {
     await prisma.colleague.delete({ where: { id: targetId } });
 
     // Audit Log
-    const reqUserName = getRequestSessionUser(req)?.name || req.headers.get("x-simulated-user") || "Admin (Simulated)";
+    const sessionUser = getRequestSessionUser(req);
+    const reqUserName = sessionUser?.name || req.headers.get("x-simulated-user") || "Admin (Simulated)";
     await prisma.auditLog.create({
       data: {
         userName: reqUserName,
+        username: sessionUser?.username || req.headers.get("x-simulated-username") || reqUserName,
         action: "Deleted Member",
         target: colleague.name,
         type: "danger",

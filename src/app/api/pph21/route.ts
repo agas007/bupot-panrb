@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
       await tx.pph21Withholding.createMany({
         data: withholdingData,
       });
-      await tx.auditLog.create({ data: { userName: user.name, action: "Saved PPh 21 Details", target: record.sp2dNumber || record.spmNumber, category: "DATA", type: "success" } });
+      await tx.auditLog.create({ data: { userName: user.name, username: user.username, action: "Saved PPh 21 Details", target: record.sp2dNumber || record.spmNumber, category: "DATA", type: "success" } });
       return savedBatch.id;
     }, { timeout: 15000, maxWait: 5000 });
     const batch = await prisma.pph21Batch.findUnique({ where: { id: savedBatchId }, include: batchInclude });
@@ -146,7 +146,7 @@ export async function PATCH(req: NextRequest) {
     const issueNotes = String(body.issueNotes || "").trim();
     if (body.status === "ISSUES" && !issueNotes) return NextResponse.json({ error: "Catatan issue wajib diisi" }, { status: 400 });
     const batch = await prisma.pph21Batch.update({ where: { id: record.pph21Batch.id }, data: { status: body.status, issueNotes: body.status === "ISSUES" ? issueNotes : null } });
-    await prisma.auditLog.create({ data: { userName: user.name, action: `Set PPh 21 Status ${body.status}`, target: record.sp2dNumber || record.spmNumber, category: "DATA", type: body.status === "ISSUES" ? "warning" : "success" } });
+    await prisma.auditLog.create({ data: { userName: user.name, username: user.username, action: `Set PPh 21 Status ${body.status}`, target: record.sp2dNumber || record.spmNumber, category: "DATA", type: body.status === "ISSUES" ? "warning" : "success" } });
     return NextResponse.json(batch);
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal mengubah status" }, { status: 400 });

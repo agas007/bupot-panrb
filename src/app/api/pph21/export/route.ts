@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       const exportLog = await tx.pph21Export.create({ data: { fileName, exportedById: user.id } });
       await tx.pph21ExportItem.createMany({ data: batches.map((batch) => ({ exportId: exportLog.id, batchId: batch.id })) });
       await tx.pph21Batch.updateMany({ where: { id: { in: batches.map((batch) => batch.id) } }, data: { status: "COMPLETED", issueNotes: null } });
-      await tx.auditLog.create({ data: { userName: user.name, action: "Exported PPh 21 XML", target: `${records.length} SP2D - ${fileName}`, category: "DATA", type: "success" } });
+      await tx.auditLog.create({ data: { userName: user.name, username: user.username, action: "Exported PPh 21 XML", target: `${records.length} SP2D - ${fileName}`, category: "DATA", type: "success" } });
     });
 
     return new NextResponse(xml, {
