@@ -46,7 +46,9 @@ const upsertMonitoringRecord = (data: {
       "description",
       "recipient",
       "totalValue",
-      "status"
+      "status",
+      "updatedAt",
+      "archiveStatus"
     )
     VALUES (
       ${data.uniqueKey},
@@ -59,7 +61,9 @@ const upsertMonitoringRecord = (data: {
       ${data.description ?? null},
       ${data.recipient ?? null},
       ${data.totalValue ?? null},
-      'PENDING'
+      'PENDING',
+      CURRENT_TIMESTAMP,
+      'ACTIVE'
     )
     ON CONFLICT ("uniqueKey")
     DO UPDATE SET
@@ -71,7 +75,18 @@ const upsertMonitoringRecord = (data: {
       "sp2dDate" = EXCLUDED."sp2dDate",
       "description" = EXCLUDED."description",
       "recipient" = EXCLUDED."recipient",
-      "totalValue" = EXCLUDED."totalValue"
+      "totalValue" = EXCLUDED."totalValue",
+      "updatedAt" = CURRENT_TIMESTAMP
+    WHERE
+      "SPMRecord"."spmNumber" IS DISTINCT FROM EXCLUDED."spmNumber"
+      OR "SPMRecord"."spmDate" IS DISTINCT FROM EXCLUDED."spmDate"
+      OR "SPMRecord"."accountCode" IS DISTINCT FROM EXCLUDED."accountCode"
+      OR "SPMRecord"."deductionAmount" IS DISTINCT FROM EXCLUDED."deductionAmount"
+      OR "SPMRecord"."sp2dNumber" IS DISTINCT FROM EXCLUDED."sp2dNumber"
+      OR "SPMRecord"."sp2dDate" IS DISTINCT FROM EXCLUDED."sp2dDate"
+      OR "SPMRecord"."description" IS DISTINCT FROM EXCLUDED."description"
+      OR "SPMRecord"."recipient" IS DISTINCT FROM EXCLUDED."recipient"
+      OR "SPMRecord"."totalValue" IS DISTINCT FROM EXCLUDED."totalValue"
     RETURNING 1 AS affected
   `);
 };
