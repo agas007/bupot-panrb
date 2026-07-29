@@ -3,6 +3,7 @@ import { getPrismaDatabaseErrorMessage, prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { createCookieSessionValue, SESSION_COOKIE_MAX_AGE_SECONDS, SESSION_COOKIE_NAME } from "@/lib/session-cookie";
 import { getPrimaryRole, normalizeUserRoles } from "@/lib/roles";
+import { createAuditLogEntry } from "@/lib/audit-log";
 
 const isBcryptHash = (password: string) => /^\$2[aby]\$\d{2}\$/.test(password);
 
@@ -27,27 +28,23 @@ export async function POST(req: NextRequest) {
 
     if (!user || !isValidPassword) {
       // Audit Log for failed attempt
-      await prisma.auditLog.create({
-        data: {
-          userName: loginUsername || "Unknown",
-          username: loginUsername || "Unknown",
-          action: "Failed Login Attempt",
-          target: "System Portal",
-          type: "danger",
-        }
+      await createAuditLogEntry(prisma, {
+        userName: loginUsername || "Unknown",
+        username: loginUsername || "Unknown",
+        action: "Failed Login Attempt",
+        target: "System Portal",
+        type: "danger",
       });
       return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
     }
 
     // Audit Log for successful login
-    await prisma.auditLog.create({
-      data: {
-        userName: user.name,
-        username: user.username,
-        action: "Logged In",
-        target: "Dashboard",
-        type: "user",
-      }
+    await createAuditLogEntry(prisma, {
+      userName: user.name,
+      username: user.username,
+      action: "Logged In",
+      target: "Dashboard",
+      type: "user",
     });
 
     // Return user without password

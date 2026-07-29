@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { parseExcel, mergeExcelData, type PotonganRow, type SPP_SPM_SP2D_Row } from "@/lib/excel";
 import { prisma } from "@/lib/prisma";
 import { applyRateLimit } from "@/lib/rate-limit";
@@ -19,6 +20,60 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, timeoutMes
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
   }
+};
+
+const upsertMonitoringRecord = (data: {
+  uniqueKey: string;
+  spmNumber: string;
+  spmDate: Date;
+  accountCode: string;
+  deductionAmount: number;
+  sp2dNumber?: string | null;
+  sp2dDate?: Date | null;
+  description?: string | null;
+  recipient?: string | null;
+  totalValue?: number | null;
+}) => {
+  return prisma.$queryRaw<Array<{ affected: number }>>(Prisma.sql`
+    INSERT INTO "SPMRecord" (
+      "uniqueKey",
+      "spmNumber",
+      "spmDate",
+      "accountCode",
+      "deductionAmount",
+      "sp2dNumber",
+      "sp2dDate",
+      "description",
+      "recipient",
+      "totalValue",
+      "status"
+    )
+    VALUES (
+      ${data.uniqueKey},
+      ${data.spmNumber},
+      ${data.spmDate},
+      ${data.accountCode},
+      ${data.deductionAmount},
+      ${data.sp2dNumber ?? null},
+      ${data.sp2dDate ?? null},
+      ${data.description ?? null},
+      ${data.recipient ?? null},
+      ${data.totalValue ?? null},
+      'PENDING'
+    )
+    ON CONFLICT ("uniqueKey")
+    DO UPDATE SET
+      "spmNumber" = EXCLUDED."spmNumber",
+      "spmDate" = EXCLUDED."spmDate",
+      "accountCode" = EXCLUDED."accountCode",
+      "deductionAmount" = EXCLUDED."deductionAmount",
+      "sp2dNumber" = EXCLUDED."sp2dNumber",
+      "sp2dDate" = EXCLUDED."sp2dDate",
+      "description" = EXCLUDED."description",
+      "recipient" = EXCLUDED."recipient",
+      "totalValue" = EXCLUDED."totalValue"
+    RETURNING 1 AS affected
+  `);
 };
 
 /**
@@ -107,28 +162,23 @@ export async function POST(req: NextRequest) {
 
     for (let i = 0; i < mergedData.length; i += CHUNK_SIZE) {
       const chunk = mergedData.slice(i, i + CHUNK_SIZE);
-      
+
       const chunkResults = await prisma.$transaction(
-        chunk.map((data) =>
-          prisma.sPMRecord.upsert({
-            where: { uniqueKey: data.uniqueKey },
-            update: {
-              spmDate: data.spmDate,
-              sp2dNumber: data.sp2dNumber,
-              sp2dDate: data.sp2dDate,
-              description: data.description,
-              recipient: data.recipient,
-              totalValue: data.totalValue,
-              deductionAmount: data.deductionAmount,
-            },
-            create: {
-              ...data,
-              status: "PENDING",
-            },
-          })
-        )
+        chunk.map((data) => upsertMonitoringRecord({
+          uniqueKey: data.uniqueKey,
+          spmNumber: data.spmNumber,
+          spmDate: data.spmDate,
+          accountCode: data.accountCode,
+          deductionAmount: data.deductionAmount,
+          sp2dNumber: data.sp2dNumber,
+          sp2dDate: data.sp2dDate,
+          description: data.description,
+          recipient: data.recipient,
+          totalValue: data.totalValue,
+        }))
       );
-      resultsCount += chunkResults.length;
+
+      resultsCount += chunkResults.reduce((count, rows) => count + rows.length, 0);
     }
 
     // Audit trail
