@@ -37,6 +37,26 @@ export default function AdminPage() {
 
   const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : "Unknown error");
 
+  const readApiError = async (res: Response) => {
+    const contentType = res.headers.get("content-type") ?? "";
+
+    if (contentType.includes("application/json")) {
+      try {
+        const data = await res.json() as { error?: string; message?: string };
+        return data.error ?? data.message ?? `Request failed with status ${res.status}`;
+      } catch {
+        return `Request failed with status ${res.status}`;
+      }
+    }
+
+    const text = (await res.text()).trim();
+    if (!text) return `Request failed with status ${res.status}`;
+    if (text.startsWith("<!DOCTYPE") || text.startsWith("<html")) {
+      return `Server returned HTML instead of JSON (${res.status}).`;
+    }
+    return text.slice(0, 240);
+  };
+
   const handleProcessPreview = async () => {
     if (!potonganFile || !sppFile) return;
     setIsProcessing(true);
@@ -83,8 +103,8 @@ export default function AdminPage() {
         body: formData,
       });
 
-      const data: { count?: number; error?: string } = await res.json();
       if (res.ok) {
+        const data = await res.json() as { count?: number };
         setStatus({
           type: "success",
           message: language === "ID" 
@@ -94,7 +114,7 @@ export default function AdminPage() {
         setPotonganFile(null);
         setSppFile(null);
       } else {
-        throw new Error(data.error ?? "Failed to import data.");
+        throw new Error(await readApiError(res));
       }
     } catch (err: unknown) {
       setStatus({ type: "error", message: getErrorMessage(err) });
@@ -116,11 +136,11 @@ export default function AdminPage() {
         },
         body: JSON.stringify({ days: retentionDays }),
       });
-      const data: { message?: string; error?: string } = await res.json();
       if (res.ok) {
+        const data = await res.json() as { message?: string };
         alert(data.message ?? "Cleanup completed.");
       } else {
-        throw new Error(data.error ?? "Failed to cleanup logs.");
+        throw new Error(await readApiError(res));
       }
     } catch (err: unknown) {
       alert(getErrorMessage(err));
