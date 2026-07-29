@@ -22,7 +22,7 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, timeoutMes
   }
 };
 
-const upsertMonitoringRecord = (data: {
+const upsertMonitoringRecord = (tx: Prisma.TransactionClient, data: {
   uniqueKey: string;
   spmNumber: string;
   spmDate: Date;
@@ -34,7 +34,7 @@ const upsertMonitoringRecord = (data: {
   recipient?: string | null;
   totalValue?: number | null;
 }) => {
-  return prisma.$queryRaw<Array<{ affected: number }>>(Prisma.sql`
+  return tx.$queryRaw<Array<{ affected: number }>>(Prisma.sql`
     INSERT INTO "SPMRecord" (
       "uniqueKey",
       "spmNumber",
@@ -172,28 +172,42 @@ export async function POST(req: NextRequest) {
     console.log(`[Import Log] Starting import for ${mergedData.length} records...`);
 
     // Batching to prevent DB connection exhaustion
-    const CHUNK_SIZE = 50; 
+    const CHUNK_SIZE = 25;
     let resultsCount = 0;
 
     for (let i = 0; i < mergedData.length; i += CHUNK_SIZE) {
       const chunk = mergedData.slice(i, i + CHUNK_SIZE);
+      const chunkNumber = Math.floor(i / CHUNK_SIZE) + 1;
+      const totalChunks = Math.ceil(mergedData.length / CHUNK_SIZE);
 
-      const chunkResults = await prisma.$transaction(
-        chunk.map((data) => upsertMonitoringRecord({
-          uniqueKey: data.uniqueKey,
-          spmNumber: data.spmNumber,
-          spmDate: data.spmDate,
-          accountCode: data.accountCode,
-          deductionAmount: data.deductionAmount,
-          sp2dNumber: data.sp2dNumber,
-          sp2dDate: data.sp2dDate,
-          description: data.description,
-          recipient: data.recipient,
-          totalValue: data.totalValue,
-        }))
-      );
+      console.log(`[Import Log] Processing chunk ${chunkNumber}/${totalChunks} (${chunk.length} rows)...`);
+
+      const chunkResults = await prisma.$transaction(async (tx) => {
+        const results = [] as Array<Array<{ affected: number }>>;
+
+        for (const data of chunk) {
+          results.push(await upsertMonitoringRecord(tx, {
+            uniqueKey: data.uniqueKey,
+            spmNumber: data.spmNumber,
+            spmDate: data.spmDate,
+            accountCode: data.accountCode,
+            deductionAmount: data.deductionAmount,
+            sp2dNumber: data.sp2dNumber,
+            sp2dDate: data.sp2dDate,
+            description: data.description,
+            recipient: data.recipient,
+            totalValue: data.totalValue,
+          }));
+        }
+
+        return results;
+      }, {
+        maxWait: 10_000,
+        timeout: 20_000,
+      });
 
       resultsCount += chunkResults.reduce((count, rows) => count + rows.length, 0);
+      console.log(`[Import Log] Finished chunk ${chunkNumber}/${totalChunks}.`);
     }
 
     // Audit trail
