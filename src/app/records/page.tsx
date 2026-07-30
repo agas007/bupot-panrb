@@ -14,7 +14,7 @@ import {
 import { useLanguage } from "@/components/LanguageProvider";
 import { useAuth } from "@/hooks/useAuth";
 import { getTaxAccountLabel } from "@/lib/tax-codes";
-import { PPH21_TAX_OBJECT_LABELS, PPH21_TAX_OBJECTS } from "@/lib/pph21";
+import { buildPph21ExportFileName, PPH21_TAX_OBJECT_LABELS, PPH21_TAX_OBJECTS } from "@/lib/pph21";
 import { SPMRecord, Colleague } from "@/types";
 import { TableSkeletonRows } from "@/components/TableSkeleton";
 import * as XLSX from 'xlsx';
@@ -113,9 +113,18 @@ const createPph21Line = (): Pph21Line => ({
   gross: "",
 });
 
+const sortPph21RecordsForExport = <T extends { sp2dDate: string | null; sp2dNumber: string | null }>(records: T[]) => {
+  return [...records].sort((a, b) => {
+    const aDate = a.sp2dDate ? new Date(a.sp2dDate).getTime() : Number.POSITIVE_INFINITY;
+    const bDate = b.sp2dDate ? new Date(b.sp2dDate).getTime() : Number.POSITIVE_INFINITY;
+    if (aDate !== bDate) return aDate - bDate;
+    return (a.sp2dNumber || "").localeCompare(b.sp2dNumber || "");
+  });
+};
+
 export default function RecordsPage() {
   const { language, t } = useLanguage();
-  const { getAuthHeaders } = useAuth();
+  const { user, getAuthHeaders } = useAuth();
   
   const [records, setRecords] = useState<SPMRecord[]>([]);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -570,6 +579,11 @@ export default function RecordsPage() {
     return Array.from(selectedIds).filter((id) => records.find((record) => record.id === id)?.accountCode === "411121");
   }, [records, selectedIds]);
 
+  const selectedPph21Records = useMemo(() => {
+    const selectedIdSet = new Set(selectedPph21Ids);
+    return sortPph21RecordsForExport(records.filter((record) => selectedIdSet.has(record.id)));
+  }, [records, selectedPph21Ids]);
+
   const selectedPph21TaxTotal = useMemo(() => {
     return selectedPph21Record?.pph21Batch?.withholdings?.reduce((sum, line) => sum + line.calculatedTax, 0) || 0;
   }, [selectedPph21Record]);
@@ -924,11 +938,15 @@ export default function RecordsPage() {
       }
 
       const blob = await res.blob();
-      const fileName = res.headers.get("X-Export-Filename") || `Bupot_PPh21_${selectedRecord.spmNumber || selectedRecord.sp2dNumber || selectedRecord.id}.xml`;
+      const fallbackFileName = buildPph21ExportFileName(
+        [{ spmNumber: selectedRecord.spmNumber, sp2dNumber: selectedRecord.sp2dNumber }],
+        user?.name || "petugas",
+      );
+      const resolvedFileName = res.headers.get("X-Export-Filename") || fallbackFileName;
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = fileName;
+      link.download = resolvedFileName;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -965,7 +983,11 @@ export default function RecordsPage() {
       }
 
       const blob = await res.blob();
-      const fileName = res.headers.get("X-Export-Filename") || `Bupot_PPh21_${new Date().toISOString().slice(0, 10)}.xml`;
+      const fallbackFileName = buildPph21ExportFileName(
+        selectedPph21Records.map((record) => ({ spmNumber: record.spmNumber, sp2dNumber: record.sp2dNumber })),
+        user?.name || "petugas",
+      );
+      const fileName = res.headers.get("X-Export-Filename") || fallbackFileName;
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, ChevronDown, Download, Loader2, Plus, ReceiptText, Save, Search, Trash2, Upload, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useAuth } from "@/hooks/useAuth";
-import { PPH21_TAX_OBJECT_LABELS, PPH21_TAX_OBJECTS } from "@/lib/pph21";
+import { buildPph21ExportFileName, PPH21_TAX_OBJECT_LABELS, PPH21_TAX_OBJECTS } from "@/lib/pph21";
 import { RecipientCardSkeletons, TableSkeletonRows } from "@/components/TableSkeleton";
 
 type Code = keyof typeof PPH21_TAX_OBJECTS;
@@ -77,6 +77,15 @@ const pph21ProcessStatusLabel = (status: string) => {
   }
 };
 
+const sortPph21RecordsForExport = <T extends { sp2dDate: string | null; sp2dNumber: string | null }>(records: T[]) => {
+  return [...records].sort((a, b) => {
+    const aDate = a.sp2dDate ? new Date(a.sp2dDate).getTime() : Number.POSITIVE_INFINITY;
+    const bDate = b.sp2dDate ? new Date(b.sp2dDate).getTime() : Number.POSITIVE_INFINITY;
+    if (aDate !== bDate) return aDate - bDate;
+    return (a.sp2dNumber || "").localeCompare(b.sp2dNumber || "");
+  });
+};
+
 export default function Pph21Page() {
   const { language } = useLanguage();
   const isID = language === "ID";
@@ -105,6 +114,10 @@ export default function Pph21Page() {
   const [savingRecipientId, setSavingRecipientId] = useState<number | null>(null);
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
   const [ptkpImportReport, setPtkpImportReport] = useState<PtkpImportReport | null>(null);
+
+  const selectedRecords = useMemo(() => {
+    return sortPph21RecordsForExport(records.filter((record) => selected.has(record.id)));
+  }, [records, selected]);
 
   const loadRecipients = useCallback(async () => {
     if (!user) return;
@@ -211,7 +224,10 @@ export default function Pph21Page() {
       if (!res.ok) { const data = await res.json(); throw new Error(data.error); }
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") || "";
-      const fileName = disposition.match(/filename="([^"]+)"/)?.[1] || "Bupot_PPh21.xml";
+      const fileName = disposition.match(/filename="([^"]+)"/)?.[1] || buildPph21ExportFileName(
+        selectedRecords.map((record) => ({ spmNumber: record.spmNumber, sp2dNumber: record.sp2dNumber })),
+        user?.name || "petugas",
+      );
       const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url);
       setSelected(new Set()); await load(); setFeedback({ type: "success", message: "XML berhasil dibuat. Status SP2D menjadi COMPLETED." });
     } catch (error) { setFeedback({ type: "error", message: error instanceof Error ? error.message : "Export gagal" }); }
