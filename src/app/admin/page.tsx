@@ -19,6 +19,19 @@ interface PreviewRow {
   description?: string;
 }
 
+interface ImportRowPayload {
+  uniqueKey: string;
+  spmNumber: string;
+  spmDate: string;
+  accountCode: string;
+  deductionAmount: number;
+  sp2dNumber?: string | null;
+  sp2dDate?: string | null;
+  description?: string | null;
+  recipient?: string | null;
+  totalValue?: number | null;
+}
+
 export default function AdminPage() {
   const { language, t } = useLanguage();
   const [potonganFile, setPotonganFile] = useState<File | null>(null);
@@ -33,6 +46,7 @@ export default function AdminPage() {
   const [previewData, setPreviewData] = useState<PreviewRow[]>([]);
   const [previewCount, setPreviewCount] = useState(0);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [mergedImportRows, setMergedImportRows] = useState<ImportRowPayload[]>([]);
 
   // 🔥 NEW: Log Retention states
   const [retentionDays, setRetentionDays] = useState(30);
@@ -97,6 +111,13 @@ export default function AdminPage() {
       const sppData = parseExcel(sppBuffer) as SPP_SPM_SP2D_Row[];
       updateProcessing("Menggabungkan data...", 78);
       const mergedData = mergeExcelData(potonganData, sppData);
+      setMergedImportRows(
+        mergedData.map((row) => ({
+          ...row,
+          spmDate: row.spmDate.toISOString(),
+          sp2dDate: row.sp2dDate ? row.sp2dDate.toISOString() : null,
+        }))
+      );
 
       setPreviewData(mergedData.slice(0, 100));
       setPreviewCount(mergedData.length);
@@ -114,38 +135,63 @@ export default function AdminPage() {
     setShowPreviewModal(false);
     setStatus(null);
 
-    const formData = new FormData();
-    formData.append("potongan", potonganFile!);
-    formData.append("spp", sppFile!);
-
     try {
-      updateProcessing("Mengirim file ke server...", null);
       const simulatedUser = readSessionUser();
-      updateProcessing("Server sedang memproses data...", null);
-      const res = await fetch("/api/import", {
-        method: "POST",
-        headers: {
-          "x-simulated-user": simulatedUser?.name ?? "Admin (Simulated)",
-          "x-simulated-username": simulatedUser?.username ?? "admin",
-          "x-simulated-roles": simulatedUser?.roles?.join("|") ?? simulatedUser?.role ?? "ADMIN"
-        },
-        body: formData,
-      });
+      const totalRows = mergedImportRows.length;
+      const chunkSize = 25;
+      let importedCount = 0;
 
-      if (res.ok) {
-        updateProcessing("Impor selesai.", 100);
-        const data = await res.json() as { count?: number };
-        setStatus({
-          type: "success",
-          message: language === "ID" 
-            ? `Berhasil mengimpor ${data.count ?? 0} data ke sistem.` 
-            : `Successfully imported ${data.count ?? 0} records.`,
-        });
-        setPotonganFile(null);
-        setSppFile(null);
-      } else {
-        throw new Error(await readApiError(res));
+      if (totalRows === 0) {
+        throw new Error(language === "ID" ? "Tidak ada data siap impor." : "No data is ready for import.");
       }
+
+      for (let offset = 0; offset < totalRows; offset += chunkSize) {
+        const chunk = mergedImportRows.slice(offset, offset + chunkSize);
+        const chunkNumber = Math.floor(offset / chunkSize) + 1;
+        const totalChunks = Math.ceil(totalRows / chunkSize);
+
+        updateProcessing(
+          language === "ID"
+            ? `Mengirim batch ${chunkNumber}/${totalChunks}...`
+            : `Sending batch ${chunkNumber}/${totalChunks}...`,
+          Math.max(1, Math.round((offset / totalRows) * 100))
+        );
+
+        const res = await fetch("/api/import", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-simulated-user": simulatedUser?.name ?? "Admin (Simulated)",
+            "x-simulated-username": simulatedUser?.username ?? "admin",
+            "x-simulated-roles": simulatedUser?.roles?.join("|") ?? simulatedUser?.role ?? "ADMIN",
+          },
+          body: JSON.stringify({ records: chunk }),
+        });
+
+        if (!res.ok) {
+          throw new Error(await readApiError(res));
+        }
+
+        const data = await res.json() as { count?: number };
+        importedCount += data.count ?? chunk.length;
+        updateProcessing(
+          language === "ID"
+            ? `Batch ${chunkNumber}/${totalChunks} selesai.`
+            : `Batch ${chunkNumber}/${totalChunks} completed.`,
+          Math.min(99, Math.round((offset + chunk.length) / totalRows * 100))
+        );
+      }
+
+      updateProcessing("Impor selesai.", 100);
+      setStatus({
+        type: "success",
+        message: language === "ID"
+          ? `Berhasil mengimpor ${importedCount} data ke sistem.`
+          : `Successfully imported ${importedCount} records.`,
+      });
+      setPotonganFile(null);
+      setSppFile(null);
+      setMergedImportRows([]);
     } catch (err: unknown) {
       setStatus({ type: "error", message: getErrorMessage(err) });
     } finally {

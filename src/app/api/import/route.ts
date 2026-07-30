@@ -22,6 +22,28 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, timeoutMes
   }
 };
 
+const withStallWarning = async <T>(
+  promise: Promise<T>,
+  warnAfterMs: number,
+  warningMessage: string
+): Promise<T> => {
+  let warnId: ReturnType<typeof setTimeout> | undefined;
+
+  const warningPromise = new Promise<void>((resolve) => {
+    warnId = setTimeout(() => {
+      console.warn(warningMessage);
+      resolve();
+    }, warnAfterMs);
+  });
+
+  try {
+    await Promise.race([promise, warningPromise]);
+    return await promise;
+  } finally {
+    if (warnId) clearTimeout(warnId);
+  }
+};
+
 const upsertMonitoringRecord = (tx: Prisma.TransactionClient, data: {
   uniqueKey: string;
   spmNumber: string;
@@ -91,6 +113,44 @@ const upsertMonitoringRecord = (tx: Prisma.TransactionClient, data: {
   `);
 };
 
+type ImportRecordPayload = {
+  uniqueKey: string;
+  spmNumber: string;
+  spmDate: string | Date;
+  accountCode: string;
+  deductionAmount: number;
+  sp2dNumber?: string | null;
+  sp2dDate?: string | Date | null;
+  description?: string | null;
+  recipient?: string | null;
+  totalValue?: number | null;
+};
+
+const isImportRecordPayload = (value: unknown): value is ImportRecordPayload => {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<ImportRecordPayload>;
+  return (
+    typeof candidate.uniqueKey === "string" &&
+    typeof candidate.spmNumber === "string" &&
+    typeof candidate.spmDate === "string" &&
+    typeof candidate.accountCode === "string" &&
+    typeof candidate.deductionAmount === "number"
+  );
+};
+
+const normalizeImportRecord = (record: ImportRecordPayload) => ({
+  uniqueKey: record.uniqueKey,
+  spmNumber: record.spmNumber,
+  spmDate: new Date(record.spmDate),
+  accountCode: record.accountCode,
+  deductionAmount: record.deductionAmount,
+  sp2dNumber: record.sp2dNumber ?? null,
+  sp2dDate: record.sp2dDate ? new Date(record.sp2dDate) : null,
+  description: record.description ?? null,
+  recipient: record.recipient ?? null,
+  totalValue: record.totalValue ?? null,
+});
+
 /**
  * Handle POST: Bulk import records from Excel with optional preview mode
  */
@@ -130,43 +190,73 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Access Denied: Administrative role required" }, { status: 403 });
     }
 
-    const formData = await withTimeout(req.formData(), 15000, "Upload parsing timed out");
-    const potonganFile = formData.get("potongan") as File;
-    const sppFile = formData.get("spp") as File;
+    const contentType = req.headers.get("content-type") ?? "";
+    const isJsonBody = contentType.includes("application/json");
+    let mergedData: Array<{
+      uniqueKey: string;
+      spmNumber: string;
+      spmDate: Date;
+      accountCode: string;
+      deductionAmount: number;
+      sp2dNumber?: string | null;
+      sp2dDate?: Date | null;
+      description?: string | null;
+      recipient?: string | null;
+      totalValue?: number | null;
+    }> = [];
 
-    if (!potonganFile || !sppFile) {
-      return NextResponse.json(
-        { error: "Both Potongan and SPP files are required" },
-        { status: 400 }
-      );
-    }
+    if (isJsonBody) {
+      const body = await withTimeout(req.json(), 15000, "Import JSON parsing timed out") as unknown;
+      const records = (body as { records?: unknown }).records;
 
-    // Validation stage
-    if (!potonganFile.name.endsWith('.xlsx') && !potonganFile.name.endsWith('.csv')) {
-      return NextResponse.json({ error: "Potongan file must be .xlsx or .csv" }, { status: 400 });
-    }
-    if (!sppFile.name.endsWith('.xlsx') && !sppFile.name.endsWith('.csv')) {
-      return NextResponse.json({ error: "SPP file must be .xlsx or .csv" }, { status: 400 });
-    }
+      if (!Array.isArray(records) || records.length === 0) {
+        return NextResponse.json({ error: "Records import payload is empty or invalid" }, { status: 400 });
+      }
 
-    const potonganBuffer = Buffer.from(await potonganFile.arrayBuffer());
-    const sppBuffer = Buffer.from(await sppFile.arrayBuffer());
+      if (!records.every(isImportRecordPayload)) {
+        return NextResponse.json({ error: "Records import payload contains invalid rows" }, { status: 400 });
+      }
 
-    const potonganData = parseExcel(potonganBuffer) as PotonganRow[];
-    const sppData = parseExcel(sppBuffer) as SPP_SPM_SP2D_Row[];
+      mergedData = records.map(normalizeImportRecord);
+    } else {
+      const formData = await withTimeout(req.formData(), 15000, "Upload parsing timed out");
+      const potonganFile = formData.get("potongan") as File;
+      const sppFile = formData.get("spp") as File;
 
-    if (potonganData.length === 0) return NextResponse.json({ error: "Potongan file is empty or invalid" }, { status: 400 });
-    if (sppData.length === 0) return NextResponse.json({ error: "SPP file is empty or invalid" }, { status: 400 });
+      if (!potonganFile || !sppFile) {
+        return NextResponse.json(
+          { error: "Both Potongan and SPP files are required" },
+          { status: 400 }
+        );
+      }
 
-    const mergedData = mergeExcelData(potonganData, sppData);
+      // Validation stage
+      if (!potonganFile.name.endsWith(".xlsx") && !potonganFile.name.endsWith(".csv")) {
+        return NextResponse.json({ error: "Potongan file must be .xlsx or .csv" }, { status: 400 });
+      }
+      if (!sppFile.name.endsWith(".xlsx") && !sppFile.name.endsWith(".csv")) {
+        return NextResponse.json({ error: "SPP file must be .xlsx or .csv" }, { status: 400 });
+      }
 
-    if (isPreview) {
-      return NextResponse.json({
-        success: true,
-        count: mergedData.length,
-        preview: mergedData.slice(0, 100), // Preview only first 100 items
-        isPartial: mergedData.length > 100
-      });
+      const potonganBuffer = Buffer.from(await potonganFile.arrayBuffer());
+      const sppBuffer = Buffer.from(await sppFile.arrayBuffer());
+
+      const potonganData = parseExcel(potonganBuffer) as PotonganRow[];
+      const sppData = parseExcel(sppBuffer) as SPP_SPM_SP2D_Row[];
+
+      if (potonganData.length === 0) return NextResponse.json({ error: "Potongan file is empty or invalid" }, { status: 400 });
+      if (sppData.length === 0) return NextResponse.json({ error: "SPP file is empty or invalid" }, { status: 400 });
+
+      mergedData = mergeExcelData(potonganData, sppData);
+
+      if (isPreview) {
+        return NextResponse.json({
+          success: true,
+          count: mergedData.length,
+          preview: mergedData.slice(0, 100), // Preview only first 100 items
+          isPartial: mergedData.length > 100
+        });
+      }
     }
 
     console.log(`[Import Log] Starting import for ${mergedData.length} records...`);
@@ -181,8 +271,10 @@ export async function POST(req: NextRequest) {
       const totalChunks = Math.ceil(mergedData.length / CHUNK_SIZE);
 
       console.log(`[Import Log] Processing chunk ${chunkNumber}/${totalChunks} (${chunk.length} rows)...`);
+      const chunkStartedAt = Date.now();
 
-      const chunkResults = await prisma.$transaction(async (tx) => {
+      const chunkResults = await withStallWarning(
+        prisma.$transaction(async (tx) => {
         const results = [] as Array<Array<{ affected: number }>>;
 
         for (const data of chunk) {
@@ -201,13 +293,16 @@ export async function POST(req: NextRequest) {
         }
 
         return results;
-      }, {
-        maxWait: 10_000,
-        timeout: 20_000,
-      });
+        }, {
+          maxWait: 10_000,
+          timeout: 20_000,
+        }),
+        8_000,
+        `[Import Log] Chunk ${chunkNumber}/${totalChunks} still running after 8s...`
+      );
 
       resultsCount += chunkResults.reduce((count, rows) => count + rows.length, 0);
-      console.log(`[Import Log] Finished chunk ${chunkNumber}/${totalChunks}.`);
+      console.log(`[Import Log] Finished chunk ${chunkNumber}/${totalChunks} in ${Date.now() - chunkStartedAt}ms.`);
     }
 
     // Audit trail
