@@ -113,7 +113,7 @@ const createPph21Line = (): Pph21Line => ({
   gross: "",
 });
 
-const sortPph21RecordsForExport = <T extends { sp2dDate: string | null; sp2dNumber: string | null }>(records: T[]) => {
+const sortPph21RecordsForExport = <T extends { sp2dDate?: string | null; sp2dNumber?: string | null }>(records: T[]) => {
   return [...records].sort((a, b) => {
     const aDate = a.sp2dDate ? new Date(a.sp2dDate).getTime() : Number.POSITIVE_INFINITY;
     const bDate = b.sp2dDate ? new Date(b.sp2dDate).getTime() : Number.POSITIVE_INFINITY;
@@ -581,7 +581,15 @@ export default function RecordsPage() {
 
   const selectedPph21Records = useMemo(() => {
     const selectedIdSet = new Set(selectedPph21Ids);
-    return sortPph21RecordsForExport(records.filter((record) => selectedIdSet.has(record.id)));
+    const selectedRecordsForExport = records
+      .filter((record) => selectedIdSet.has(record.id))
+      .map((record) => ({
+        ...record,
+        sp2dDate: record.sp2dDate ?? null,
+        sp2dNumber: record.sp2dNumber ?? null,
+      }));
+
+    return sortPph21RecordsForExport(selectedRecordsForExport);
   }, [records, selectedPph21Ids]);
 
   const selectedPph21TaxTotal = useMemo(() => {

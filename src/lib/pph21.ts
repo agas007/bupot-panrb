@@ -127,7 +127,7 @@ function normalizeFileNamePart(value: string) {
 }
 
 export function buildPph21ExportFileName(
-  records: Array<{ spmNumber: string; sp2dNumber: string | null }>,
+  records: Array<{ spmNumber: string; sp2dNumber?: string | null }>,
   exportedByName: string,
   now = new Date(),
 ) {
