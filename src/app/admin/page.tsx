@@ -137,6 +137,7 @@ export default function AdminPage() {
 
     try {
       const simulatedUser = readSessionUser();
+      const importSessionId = globalThis.crypto?.randomUUID?.() ?? `import-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const totalRows = mergedImportRows.length;
       const chunkSize = 25;
       let importedCount = 0;
@@ -164,6 +165,7 @@ export default function AdminPage() {
             "x-simulated-user": simulatedUser?.name ?? "Admin (Simulated)",
             "x-simulated-username": simulatedUser?.username ?? "admin",
             "x-simulated-roles": simulatedUser?.roles?.join("|") ?? simulatedUser?.role ?? "ADMIN",
+            "x-import-session-id": importSessionId,
           },
           body: JSON.stringify({ records: chunk }),
         });

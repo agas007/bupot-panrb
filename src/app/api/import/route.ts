@@ -156,12 +156,16 @@ const normalizeImportRecord = (record: ImportRecordPayload) => ({
  */
 export async function POST(req: NextRequest) {
   try {
-    // 0. Rate Limit Check
-    const rateLimit = await applyRateLimit(req, 10, 60 * 1000); // 10 imports/min
-    if (rateLimit) return rateLimit;
-
     const { searchParams } = new URL(req.url);
     const isPreview = searchParams.get("preview") === "true";
+    const contentType = req.headers.get("content-type") ?? "";
+    const isJsonBody = contentType.includes("application/json");
+
+    // 0. Rate Limit Check
+    // JSON batch imports can produce many small requests in one upload, so use a
+    // looser ceiling there than for legacy multipart uploads.
+    const rateLimit = await applyRateLimit(req, isJsonBody ? 120 : 10, 60 * 1000);
+    if (rateLimit) return rateLimit;
 
     // 1. Administrative Security Check
     const sessionUser = getRequestSessionUser(req);
@@ -190,8 +194,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Access Denied: Administrative role required" }, { status: 403 });
     }
 
-    const contentType = req.headers.get("content-type") ?? "";
-    const isJsonBody = contentType.includes("application/json");
     let mergedData: Array<{
       uniqueKey: string;
       spmNumber: string;

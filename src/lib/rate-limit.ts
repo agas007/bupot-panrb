@@ -8,9 +8,11 @@ const tracker = new Map<string, { count: number; lastReset: number }>();
  */
 export async function applyRateLimit(req: Request, limit: number = 100, windowMs: number = 15 * 60 * 1000) {
   const username = req.headers.get("x-simulated-username") || "anonymous";
+  const sessionScope = req.headers.get("x-import-session-id")?.trim();
+  const scopeKey = sessionScope ? `${username}:${sessionScope}` : username;
   const now = Date.now();
   
-  const entry = tracker.get(username) || { count: 0, lastReset: now };
+  const entry = tracker.get(scopeKey) || { count: 0, lastReset: now };
 
   if (now - entry.lastReset > windowMs) {
     entry.count = 0;
@@ -18,7 +20,7 @@ export async function applyRateLimit(req: Request, limit: number = 100, windowMs
   }
 
   entry.count++;
-  tracker.set(username, entry);
+  tracker.set(scopeKey, entry);
 
   if (entry.count > limit) {
     return NextResponse.json({ 
