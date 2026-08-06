@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const VALID_ACCOUNTS = ["411121", "411122", "411124"];
+const VALID_ACCOUNTS = ["411121", "411122", "411124", "411128"];
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // Build filter
-    const dateFilter: any = {};
+    const dateFilter: { spmDate?: { gte: Date; lte: Date } } = {};
     if (year) {
       const startOfYear = new Date(Number(year), 0, 1);
       const endOfYear = new Date(Number(year), 11, 31, 23, 59, 59);
@@ -41,9 +41,9 @@ export async function GET(req: NextRequest) {
     ]);
 
     // Format colleague stats
-    const colleagueStats = colleagues.map((col: any) => {
-      const completed = col.records.filter((r: any) => r.status === "COMPLETED").length;
-      const issues = col.records.filter((r: any) => r.status === "ISSUES").length;
+    const colleagueStats = colleagues.map((col) => {
+      const completed = col.records.filter((r) => r.status === "COMPLETED").length;
+      const issues = col.records.filter((r) => r.status === "ISSUES").length;
       return {
         name: col.name,
         total: col.records.length,
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     });
 
     const monthlyStatsMap: Record<string, { total: number; completed: number; issues: number }> = {};
-    allRecords.forEach((rec: any) => {
+    allRecords.forEach((rec) => {
       const date = new Date(rec.sp2dDate!);
       const monthIdx = date.getMonth() + 1; // 1-12
       const yearVal = date.getFullYear();
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
       if (!monthlyStatsMap[key]) monthlyStatsMap[key] = { total: 0, completed: 0, issues: 0 };
       monthlyStatsMap[key].total++;
       if (rec.status === "COMPLETED") monthlyStatsMap[key].completed++;
-      if (rec.status === "ISSUES") (monthlyStatsMap[key] as any).issues++;
+      if (rec.status === "ISSUES") monthlyStatsMap[key].issues++;
     });
 
     const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
       colleagueStats,
       monthlyStats: sortedMonthlyStats
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memuat dashboard" }, { status: 500 });
   }
 }

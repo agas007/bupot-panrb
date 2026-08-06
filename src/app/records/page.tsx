@@ -456,7 +456,7 @@ export default function RecordsPage() {
     return { label: `Target: ${targetDate.toLocaleDateString(language === "ID" ? "id-ID" : "en-US", { day: 'numeric', month: 'long', year: 'numeric' })}`, type: "ok", status: "ok", date: targetDate };
   };
 
-  const uniqueAccounts = ["411121", "411122", "411124", "811147"];
+  const uniqueAccounts = ["411121", "411122", "411124", "411128", "811147"];
 
   useEffect(() => {
     setCurrentPage(1);

@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRequestSessionUser } from "@/lib/session-cookie";
 
-const VALID_ACCOUNTS = ["411121", "411122", "411124", "811147"];
+const VALID_ACCOUNTS = ["411121", "411122", "411124", "411128", "811147"];
 
 export const runtime = 'nodejs';
 
