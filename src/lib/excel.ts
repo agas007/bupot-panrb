@@ -25,6 +25,7 @@ export interface CoretaxExcelRow {
   amount: number;
   reference: string;
   period: string;
+  taxArticle: string;
   taxObjectCode: string;
 }
 
@@ -78,14 +79,40 @@ function normalizeHeaderText(value: unknown) {
     .trim();
 }
 
+function matchesNormalizedHeader(normalizedHeader: string, alias: string) {
+  const normalizedAlias = normalizeHeaderText(alias);
+  if (!normalizedHeader || !normalizedAlias) return false;
+
+  if (normalizedHeader === normalizedAlias) return true;
+  if (normalizedHeader.replace(/\s+/g, "") === normalizedAlias.replace(/\s+/g, "")) return true;
+
+  const headerTokens = normalizedHeader.split(" ");
+  const aliasTokens = normalizedAlias.split(" ");
+
+  if (aliasTokens.length === 1) {
+    return headerTokens.includes(aliasTokens[0]);
+  }
+
+  for (let index = 0; index <= headerTokens.length - aliasTokens.length; index += 1) {
+    let matched = true;
+    for (let offset = 0; offset < aliasTokens.length; offset += 1) {
+      if (headerTokens[index + offset] !== aliasTokens[offset]) {
+        matched = false;
+        break;
+      }
+    }
+
+    if (matched) return true;
+  }
+
+  return false;
+}
+
 function findColumnIndex(headerRow: unknown[], aliases: string[]) {
   for (let index = 0; index < headerRow.length; index += 1) {
     const normalized = normalizeHeaderText(headerRow[index]);
     if (!normalized) continue;
-    if (aliases.some((alias) => {
-      const normalizedAlias = normalizeHeaderText(alias);
-      return normalized === normalizedAlias || normalized.includes(normalizedAlias);
-    })) {
+    if (aliases.some((alias) => matchesNormalizedHeader(normalized, alias))) {
       return index;
     }
   }
@@ -205,8 +232,6 @@ export const parseCoretaxExcel = (input: Buffer | ArrayBuffer | string) => {
     "TAXIDENTIFICATIONNUMBER",
     "NIK",
     "NPWP",
-    "IDENTITAS",
-    "NOMOR IDENTITAS",
   ]);
   const nameColumn = findColumnIndex(headerRow, [
     "NAMA",
@@ -248,6 +273,12 @@ export const parseCoretaxExcel = (input: Buffer | ArrayBuffer | string) => {
     "BULAN",
     "MONTH",
   ]);
+  const taxArticleColumn = findColumnIndex(headerRow, [
+    "TAX ARTICLE",
+    "TAXARTICLE",
+    "JENIS PAJAK",
+    "PASAL",
+  ]);
   const taxObjectCodeColumn = findColumnIndex(headerRow, [
     "KODE OBJEK PAJAK",
     "TAX OBJECT CODE",
@@ -269,6 +300,7 @@ export const parseCoretaxExcel = (input: Buffer | ArrayBuffer | string) => {
     const amount = safeIndoNum(getShiftedRowValue(row, amountColumn, rowShift));
     const reference = referenceColumn >= 0 ? String(getShiftedRowValue(row, referenceColumn, rowShift) ?? "").trim() : "";
     const period = periodColumn >= 0 ? String(getShiftedRowValue(row, periodColumn, rowShift) ?? "").trim() : "";
+    const taxArticle = taxArticleColumn >= 0 ? normalizeText(getShiftedRowValue(row, taxArticleColumn, rowShift)) : "";
     const taxObjectCode = taxObjectCodeColumn >= 0 ? normalizeText(getShiftedRowValue(row, taxObjectCodeColumn, rowShift)) : "";
 
     if (!name && !nik && !reference && amount === 0) {
@@ -286,6 +318,7 @@ export const parseCoretaxExcel = (input: Buffer | ArrayBuffer | string) => {
       amount,
       reference,
       period,
+      taxArticle,
       taxObjectCode,
     });
   }

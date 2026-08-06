@@ -20,7 +20,8 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { useAuth } from "@/hooks/useAuth";
 import { getTaxAccountLabel } from "@/lib/tax-codes";
 import {
-  buildMonthlyComparisonRows,
+  buildCoretaxComparisonReport,
+  type CoretaxComparisonReport,
   MonthlyComparisonRow,
   MonthlyComparisonTotals,
   ReconciliationSummaryRow,
@@ -73,6 +74,33 @@ type ReconciliationResponse = {
   savedPeriods: SavedPeriod[];
 };
 
+type WorksheetRecordAssignee = {
+  id: number;
+  username: string;
+  name: string;
+  role: string;
+  createdAt: string;
+};
+
+type WorksheetRecord = {
+  id: number;
+  spmNumber: string;
+  sp2dNumber: string | null;
+  sp2dDate: string | null;
+  description: string | null;
+  recipient: string | null;
+  accountCode: string;
+  deductionAmount: number;
+  totalValue: number;
+  status: string;
+  assigneeId: number | null;
+  assignee: WorksheetRecordAssignee | null;
+};
+
+type WorksheetRecordResponse = {
+  records: WorksheetRecord[];
+};
+
 type RecipientTransaction = {
   id?: number;
   spmNumber: string;
@@ -88,21 +116,13 @@ type RecipientSummary = {
   transactions: RecipientTransaction[];
 };
 
-type CortexComparisonReport = {
-  fileName: string;
-  periodLabel: string;
-  sourcePeriods: string[];
-  rows: MonthlyComparisonRow[];
-  totals: MonthlyComparisonTotals;
-  appRows: Array<{ name: string; amount: number; reference: string }>;
-  cortexRows: Array<{ name: string; amount: number; reference: string }>;
-};
-
 type EditorRow = {
   id: string;
   accountCode: string;
   coretaxAmount: string;
 };
+
+type ReconciliationFlow = "bp21" | "bppu";
 
 const numberFormatter = new Intl.NumberFormat("id-ID", {
   maximumFractionDigits: 0,
@@ -146,6 +166,26 @@ function createEmptyRow(): EditorRow {
   };
 }
 
+const reconciliationFlowMeta: Record<ReconciliationFlow, {
+  title: string;
+  subtitle: string;
+  articleHint: string;
+  sampleArticles: string[];
+}> = {
+  bp21: {
+    title: "BP 21",
+    subtitle: "Untuk PPh 21 non pegawai tetap dan pasal 21 lain yang sejenis.",
+    articleHint: "Cocokkan file yang dominan berisi Pasal 21.",
+    sampleArticles: ["Pasal 21"],
+  },
+  bppu: {
+    title: "BPPU Unifikasi",
+    subtitle: "Untuk bukti potong unifikasi seperti Pasal 4 Ayat 2, 22, 23, dan seterusnya.",
+    articleHint: "Cocokkan file yang berisi campuran pasal unifikasi.",
+    sampleArticles: ["Pasal 4 Ayat 2", "Pasal 22", "Pasal 23"],
+  },
+};
+
 export default function ReconciliationPage() {
   const { language, t } = useLanguage();
   const { user, isAdmin, getAuthHeaders, isLoading: isAuthLoading } = useAuth();
@@ -157,13 +197,14 @@ export default function ReconciliationPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [editorRows, setEditorRows] = useState<EditorRow[]>([createEmptyRow()]);
   const [selectedAccountCode, setSelectedAccountCode] = useState<string | null>(null);
+  const [selectedFlow, setSelectedFlow] = useState<ReconciliationFlow | null>(null);
   const [cortexFile, setCortexFile] = useState<File | null>(null);
-  const [cortexReport, setCortexReport] = useState<CortexComparisonReport | null>(null);
+  const [cortexReport, setCortexReport] = useState<CoretaxComparisonReport | null>(null);
   const [isComparingCortex, setIsComparingCortex] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [reconciliationView, setReconciliationView] = useState<"summary" | "compare">("summary");
 
   const monthNames = language === "ID" ? monthNamesID : monthNamesEN;
+  const selectedFlowMeta = selectedFlow ? reconciliationFlowMeta[selectedFlow] : null;
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -193,8 +234,13 @@ export default function ReconciliationPage() {
 
   useEffect(() => {
     setCortexReport(null);
-    setReconciliationView("summary");
   }, [selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    setCortexFile(null);
+    setCortexReport(null);
+    setFeedback(null);
+  }, [selectedFlow]);
 
   useEffect(() => {
     if (!data) return;
@@ -346,6 +392,15 @@ export default function ReconciliationPage() {
   };
 
   const handleCompareCortex = async () => {
+    if (!selectedFlow) {
+      setFeedback({
+        type: "error",
+        message: language === "ID" ? "Pilih jenis bukti potong dulu." : "Pick the withholding-slip type first.",
+      });
+      return;
+    }
+    const flowMeta = reconciliationFlowMeta[selectedFlow];
+
     if (!cortexFile) {
       setFeedback({
         type: "error",
@@ -358,56 +413,108 @@ export default function ReconciliationPage() {
     setFeedback(null);
 
     try {
-      const [recipientRes, cortexBuffer] = await Promise.all([
+      const monthValue = Number(selectedMonth);
+      const periodStart = selectedMonth === "all"
+        ? `${selectedYear}-01-01`
+        : `${selectedYear}-${String(monthValue).padStart(2, "0")}-01`;
+      const periodEnd = selectedMonth === "all"
+        ? `${selectedYear}-12-31`
+        : `${selectedYear}-${String(monthValue).padStart(2, "0")}-31`;
+
+      const [recipientRes, worksheetRes, cortexBuffer] = await Promise.all([
         fetch(`/api/pph21/recipients?year=${selectedYear}&month=${selectedMonth}`, {
           headers: getAuthHeaders(),
         }),
+        fetch(
+          `/api/records?status=COMPLETED&startDate=${periodStart}&endDate=${periodEnd}&pageSize=max&compact=0`,
+          {
+            headers: getAuthHeaders(),
+          }
+        ),
         cortexFile.arrayBuffer(),
       ]);
 
       if (!recipientRes.ok) {
         throw new Error(language === "ID" ? "Gagal memuat data aplikasi PPh 21." : "Failed to load PPh 21 application data.");
       }
+      if (!worksheetRes.ok) {
+        throw new Error(language === "ID" ? "Gagal memuat data aplikasi PPh 21." : "Failed to load PPh 21 application data.");
+      }
 
       const recipients: RecipientSummary[] = await recipientRes.json();
+      const worksheetPayload: WorksheetRecordResponse = await worksheetRes.json();
+      const operatorMap = new Map<string, string>();
+      worksheetPayload.records.forEach((record) => {
+        const operator = record.assignee?.name || record.assignee?.username || "";
+        if (!operator) return;
+        const keys = [
+          `${record.spmNumber}::${record.sp2dNumber || ""}`,
+          `${record.spmNumber}::`,
+          `${record.sp2dNumber || ""}::${record.recipient || ""}`,
+        ];
+        keys.forEach((key) => {
+          if (!key.trim()) return;
+          if (!operatorMap.has(key)) {
+            operatorMap.set(key, operator);
+          }
+        });
+      });
+
       const appRows = recipients.flatMap((recipient) =>
         recipient.transactions
           .filter((transaction) => transaction.status === "COMPLETED")
-          .map((transaction) => ({
-            nik: recipient.nik,
-            name: recipient.name,
-            amount: Number(transaction.calculatedTax) || 0,
-            reference: [transaction.sp2dNumber, transaction.spmNumber].filter(Boolean).join(" / "),
-          }))
+          .map((transaction) => {
+            const slipKey = `${transaction.spmNumber}::${transaction.sp2dNumber || ""}`;
+            const fallbackKey = `${transaction.spmNumber}::`;
+            const operator = operatorMap.get(slipKey) || operatorMap.get(fallbackKey) || null;
+
+            return {
+              nik: recipient.nik,
+              name: recipient.name,
+              amount: Number(transaction.calculatedTax) || 0,
+              reference: [transaction.sp2dNumber, transaction.spmNumber].filter(Boolean).join(" / "),
+              operator,
+            };
+          })
       );
 
       const coretaxInput = cortexFile.name.toLowerCase().endsWith(".csv") ? await cortexFile.text() : cortexBuffer;
       const coretaxRowsParsed = parseCoretaxExcel(coretaxInput);
       const filePeriods = Array.from(new Set(coretaxRowsParsed.map((row) => row.period).filter(Boolean)));
+      const sourceTaxArticles = Array.from(
+        new Set(coretaxRowsParsed.map((row) => row.taxArticle || row.taxObjectCode).filter(Boolean))
+      );
       const cortexRows = coretaxRowsParsed.map((row) => ({
         nik: row.nik,
         name: row.name,
         amount: Number(row.amount) || 0,
         reference: [row.reference, row.period].filter(Boolean).join(" / "),
       }));
-      const comparison = buildMonthlyComparisonRows(appRows, cortexRows);
+      setCortexReport(
+        buildCoretaxComparisonReport({
+          fileName: cortexFile.name,
+          periodLabel,
+          sourcePeriods: filePeriods,
+          sourceTaxArticles,
+          appRows,
+          cortexRows,
+        })
+      );
 
-      setCortexReport({
-        fileName: cortexFile.name,
-        periodLabel,
-        sourcePeriods: filePeriods,
-        rows: comparison.rows,
-        totals: comparison.totals,
-        appRows,
-        cortexRows,
-      });
+      const expectedArticles = new Set(flowMeta.sampleArticles.map((article) => article.toUpperCase()));
+      const detectedArticles = sourceTaxArticles.map((article) => article.toUpperCase());
+      const isFlowMismatch = detectedArticles.length > 0 && !detectedArticles.some((article) => expectedArticles.has(article));
 
       setFeedback({
         type: "success",
         message:
           language === "ID"
-            ? "Perbandingan Coretax untuk periode terpilih sudah siap."
-            : "Coretax comparison for the selected period is ready.",
+            ? isFlowMismatch
+              ? `Perbandingan siap, tapi pasal file ini kelihatannya bukan ${flowMeta.title}.`
+              : "Perbandingan Coretax untuk periode terpilih sudah siap."
+            : isFlowMismatch
+              ? `Comparison is ready, but the file appears to be outside ${flowMeta.title}.`
+              : "Coretax comparison for the selected period is ready.",
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to compare Coretax data.";
@@ -426,6 +533,7 @@ export default function ReconciliationPage() {
       NIK: row.appNik || row.cortexNik || "",
       Nama: row.name,
       "Cocok via": row.matchBy,
+      Operator: row.appOperators.join(", "),
       "Aplikasi (Bupot)": row.appAmount,
       Coretax: row.cortexAmount,
       "Selisih (Coretax - Aplikasi)": row.difference,
@@ -500,7 +608,7 @@ export default function ReconciliationPage() {
         </div>
       </header>
 
-      <section className={`glass-card p-6 md:p-8 flex flex-col gap-6 shadow-xl ${reconciliationView !== "compare" ? "hidden" : ""}`}>
+      <section className="glass-card p-6 md:p-8 flex flex-col gap-6 shadow-xl">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-2 text-left">
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
@@ -625,396 +733,121 @@ export default function ReconciliationPage() {
         )}
       </section>
 
-      <section className={`grid grid-cols-1 xl:grid-cols-[1.2fr_0.9fr] gap-8 ${reconciliationView !== "summary" ? "hidden" : ""}`}>
-        <div className="glass-card p-6 md:p-8 flex flex-col gap-6 shadow-xl">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div className="flex flex-col gap-1 text-left">
-              <h2 className="text-xl font-black uppercase tracking-tight">{t.reconciliation.summary_title}</h2>
-              <p className="text-xs text-muted-foreground uppercase tracking-[0.2em] font-black">
-                {language === "ID" ? "Klik baris untuk drilldown transaksi" : "Click a row to open the transaction drilldown"}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {Object.entries(summaryColors).map(([key, className]) => (
-                <span
-                  key={key}
-                  className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border ${className}`}
-                >
-                  {t.reconciliation[key.toLowerCase() as "balanced" | "over" | "under"]}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="overflow-hidden rounded-3xl border border-border/70">
-            <table className="premium-table w-full">
-              <thead>
-                <tr>
-                  <th>{language === "ID" ? "Akun Pajak" : "Tax Account"}</th>
-                  <th>{t.reconciliation.coretax_label}</th>
-                  <th>{t.reconciliation.done_label}</th>
-                  <th>{t.reconciliation.difference_label}</th>
-                  <th>{language === "ID" ? "Status" : "Status"}</th>
-                  <th>{language === "ID" ? "Transaksi" : "Transactions"}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={6} className="p-10 text-center text-muted-foreground italic">
-                      <span className="inline-flex items-center gap-2">
-                        <Loader2 className="animate-spin" size={16} />
-                        {language === "ID" ? "Memuat data rekonsiliasi..." : "Loading reconciliation data..."}
-                      </span>
-                    </td>
-                  </tr>
-                ) : data?.summary.length ? (
-                  data.summary.map((row) => (
-                    <tr
-                      key={row.accountCode}
-                      className={`cursor-pointer transition-colors ${
-                        selectedAccountCode === row.accountCode ? "bg-accent/10" : ""
-                      }`}
-                      onClick={() => setSelectedAccountCode(row.accountCode)}
-                    >
-                      <td>
-                        <div className="flex flex-col gap-1">
-                          <span className="font-black text-sm">{row.accountCode}</span>
-                          <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-black">
-                            {row.accountLabel}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="font-mono">IDR {numberFormatter.format(row.coretaxAmount)}</td>
-                      <td className="font-mono text-emerald-500">IDR {numberFormatter.format(row.doneAmount)}</td>
-                      <td
-                        className={`font-mono ${
-                          row.difference === 0 ? "text-foreground" : row.difference > 0 ? "text-amber-500" : "text-rose-500"
-                        }`}
-                      >
-                        IDR {numberFormatter.format(Math.abs(row.difference))}
-                        <span className="ml-1 text-[10px] font-black uppercase">
-                          {row.difference === 0 ? "" : row.difference > 0 ? "+" : "-"}
-                        </span>
-                      </td>
-                      <td>
-                        <span
-                          className={`inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border ${
-                            summaryColors[row.status]
-                          }`}
-                        >
-                          {t.reconciliation[row.status.toLowerCase() as "balanced" | "over" | "under"]}
-                        </span>
-                      </td>
-                      <td className="font-black">{row.transactionCount}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="p-10 text-center text-muted-foreground italic">
-                      {language === "ID"
-                        ? "Belum ada data completed pada periode ini."
-                        : "No completed data found for this period."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-8">
-          <section className="glass-card p-6 md:p-8 flex flex-col gap-6 shadow-xl">
-            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-              <div className="flex flex-col gap-1 text-left">
-                <h2 className="text-xl font-black uppercase tracking-tight">
-                  {language === "ID" ? "Input Nilai Coretax" : "Coretax Amount Input"}
-                </h2>
-                <p className="text-xs text-muted-foreground uppercase tracking-[0.2em] font-black">
-                  {isAdmin
-                    ? language === "ID"
-                      ? "Isi nilai Coretax per akun sebelum disimpan"
-                      : "Fill Coretax amounts per account before saving"
-                    : t.reconciliation.readonly_hint}
-                </p>
-              </div>
-              {isAdmin && (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={addEditorRow}
-                    className="px-4 py-2 rounded-2xl bg-muted/60 hover:bg-muted text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2"
-                  >
-                    <Plus size={14} />
-                    {t.reconciliation.add_row}
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="premium-button px-4 py-2 text-xs font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-60"
-                  >
-                    {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                    {t.reconciliation.save_period}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-3">
-              {editorRows.map((row, index) => {
-                const label = row.accountCode ? getTaxAccountLabel(row.accountCode) : "-";
-                return (
-                  <div key={row.id} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_140px_auto] gap-3 items-center">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                        {index + 1}. {language === "ID" ? "Kode Akun" : "Account Code"}
-                      </label>
-                      <input
-                        value={row.accountCode}
-                        onChange={(e) => handleEditorChange(row.id, "accountCode", e.target.value)}
-                        disabled={!isAdmin}
-                        placeholder="411121"
-                        className="w-full bg-muted/60 border-none rounded-2xl px-4 py-3 text-sm font-bold outline-none disabled:opacity-70"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                        {language === "ID" ? "Label Pajak" : "Tax Label"}
-                      </label>
-                      <div className="w-full rounded-2xl px-4 py-3 bg-muted/40 border border-border text-sm font-bold">
-                        {label}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                        {t.reconciliation.coretax_label}
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={row.coretaxAmount}
-                        onChange={(e) => handleEditorChange(row.id, "coretaxAmount", e.target.value)}
-                        disabled={!isAdmin}
-                        placeholder="0"
-                        className="w-full bg-muted/60 border-none rounded-2xl px-4 py-3 text-sm font-black outline-none disabled:opacity-70"
-                      />
-                    </div>
-                    <div className="flex items-end gap-2 pb-1">
-                      {isAdmin && (
-                        <button
-                          onClick={() => removeEditorRow(row.id)}
-                          className="p-3 rounded-2xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors"
-                          title={language === "ID" ? "Hapus baris" : "Remove row"}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="glass-card p-6 md:p-8 flex flex-col gap-6 shadow-xl">
-            <div className="flex flex-col gap-1 text-left">
-              <h2 className="text-xl font-black uppercase tracking-tight">{t.reconciliation.drilldown_title}</h2>
-              <p className="text-xs text-muted-foreground uppercase tracking-[0.2em] font-black">
-                {selectedSummaryRow
-                  ? `${selectedSummaryRow.accountCode} · ${selectedSummaryRow.accountLabel}`
-                  : t.reconciliation.no_detail}
-              </p>
-            </div>
-
-            {selectedSummaryRow ? (
-              <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="p-3 rounded-2xl bg-muted/50 border border-border">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      {t.reconciliation.coretax_label}
-                    </p>
-                    <p className="text-sm font-black mt-1">
-                      IDR {numberFormatter.format(selectedSummaryRow.coretaxAmount)}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-muted/50 border border-border">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      {t.reconciliation.done_label}
-                    </p>
-                    <p className="text-sm font-black mt-1 text-emerald-500">
-                      IDR {numberFormatter.format(selectedSummaryRow.doneAmount)}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-muted/50 border border-border">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      {t.reconciliation.difference_label}
-                    </p>
-                    <p
-                      className={`text-sm font-black mt-1 ${
-                        selectedSummaryRow.difference === 0
-                          ? "text-foreground"
-                          : selectedSummaryRow.difference > 0
-                          ? "text-amber-500"
-                          : "text-rose-500"
-                      }`}
-                    >
-                      IDR {numberFormatter.format(Math.abs(selectedSummaryRow.difference))}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="overflow-hidden rounded-3xl border border-border/70">
-                  <table className="premium-table w-full">
-                    <thead>
-                      <tr>
-                        <th>{language === "ID" ? "SPM" : "SPM"}</th>
-                        <th>{language === "ID" ? "SP2D" : "SP2D"}</th>
-                        <th>{language === "ID" ? "Penerima" : "Recipient"}</th>
-                        <th>{language === "ID" ? "Nominal" : "Amount"}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedSummaryRow.records.length ? (
-                        selectedSummaryRow.records.map((record) => (
-                          <tr key={record.id}>
-                            <td>
-                              <div className="flex flex-col gap-1">
-                                <span className="font-black text-sm">{record.spmNumber}</span>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                                  {record.accountCode}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="font-mono">
-                              {record.sp2dNumber || "-"}
-                              <div className="text-[10px] text-muted-foreground font-black mt-1">
-                                {record.sp2dDate
-                                  ? new Date(record.sp2dDate).toLocaleDateString(
-                                      language === "ID" ? "id-ID" : "en-US",
-                                      {
-                                        day: "2-digit",
-                                        month: "short",
-                                        year: "numeric",
-                                      }
-                                    )
-                                  : "-"}
-                              </div>
-                            </td>
-                            <td>
-                              <div className="flex flex-col gap-1">
-                                <span className="font-semibold">{record.recipient || "-"}</span>
-                                <span className="text-[10px] text-muted-foreground italic line-clamp-2">
-                                  {record.description || "-"}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="font-black text-emerald-500">
-                              IDR {numberFormatter.format(record.doneAmount)}
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={4} className="p-8 text-center text-muted-foreground italic">
-                            {language === "ID"
-                              ? "Tidak ada transaksi detail untuk akun ini."
-                              : "No transaction details available for this account."}
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : (
-              <div className="min-h-[220px] flex items-center justify-center text-muted-foreground italic text-sm">
-                {t.reconciliation.no_detail}
-              </div>
-            )}
-          </section>
-        </div>
-      </section>
-
       <section className="glass-card p-6 md:p-8 flex flex-col gap-6 shadow-xl">
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-1 text-left">
             <h2 className="text-xl font-black uppercase tracking-tight">
               {language === "ID" ? "Perbandingan File Coretax" : "Coretax File Comparison"}
             </h2>
             <p className="text-xs text-muted-foreground uppercase tracking-[0.2em] font-black">
               {language === "ID"
-                ? "Upload Excel Coretax untuk periode terpilih, lalu bandingkan NIK, nama, dan nominalnya dengan data aplikasi."
-                : "Upload a Coretax Excel file for the selected period, then compare NIK, names, and amounts against application data."}
+                ? "Alurnya lurus: pilih jenis bukti potong dulu, lalu upload file Coretax yang mau dicek."
+                : "The flow is linear: pick the withholding-slip type first, then upload the Coretax file you want to check."}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-muted/60 hover:bg-muted text-xs font-black uppercase tracking-widest cursor-pointer transition-all">
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {(Object.keys(reconciliationFlowMeta) as ReconciliationFlow[]).map((flow) => {
+            const meta = reconciliationFlowMeta[flow];
+            const active = selectedFlow === flow;
+            return (
+              <button
+                key={flow}
+                type="button"
+                onClick={() => setSelectedFlow(flow)}
+                className={`text-left rounded-3xl border p-4 md:p-5 transition-all ${
+                  active
+                    ? "border-accent bg-accent/10 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]"
+                    : "border-border bg-muted/30 hover:bg-muted/50"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-black uppercase tracking-[0.25em] text-muted-foreground">
+                      {language === "ID" ? "Langkah 1" : "Step 1"}
+                    </span>
+                    <span className="text-lg font-black tracking-tight">{meta.title}</span>
+                  </div>
+                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] bg-background/80 border border-border">
+                    {active ? (language === "ID" ? "Dipilih" : "Selected") : (language === "ID" ? "Pilih" : "Choose")}
+                  </span>
+                </div>
+                <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{meta.subtitle}</p>
+                <p className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                  {meta.articleHint}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+          <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
+            {language === "ID" ? "Langkah 2: data aplikasi sudah difilter per bulan terpilih" : "Step 2: app data is filtered by the selected month"}
+          </span>
+          <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
+            {language === "ID" ? "Langkah 3: Coretax dibandingkan per NIK, nama hanya fallback" : "Step 3: Coretax matches by NIK; name is fallback only"}
+          </span>
+          <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
+            {language === "ID" ? "Selisih = Coretax - Aplikasi" : "Difference = Coretax - App"}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_auto] gap-3 items-end">
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+              {language === "ID" ? "Langkah 2" : "Step 2"}
+            </label>
+            <label
+              className={`inline-flex items-center gap-2 px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+                selectedFlow
+                  ? "bg-muted/60 hover:bg-muted cursor-pointer"
+                  : "bg-muted/30 text-muted-foreground cursor-not-allowed pointer-events-none"
+              }`}
+            >
               <Upload size={16} />
               <span>{cortexFile ? cortexFile.name : (language === "ID" ? "Pilih File Coretax" : "Choose Coretax File")}</span>
               <input
                 type="file"
                 accept=".xlsx,.xls,.csv"
                 className="hidden"
+                disabled={!selectedFlow}
                 onChange={(event) => {
                   setCortexFile(event.target.files?.[0] || null);
                   setCortexReport(null);
-                  setReconciliationView("compare");
+                  setFeedback(null);
                 }}
               />
             </label>
-            <button
-              onClick={handleCompareCortex}
-              disabled={!cortexFile || isComparingCortex}
-              className="premium-button px-4 py-3 text-xs font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-60"
-            >
-              {isComparingCortex ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-              {language === "ID" ? "Bandingkan Coretax" : "Compare Coretax"}
-            </button>
-            <button
-              onClick={handleDownloadCortexReport}
-              disabled={!cortexReport}
-              className="px-4 py-3 rounded-2xl bg-muted/60 hover:bg-muted text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 disabled:opacity-60"
-            >
-              <Download size={14} />
-              {language === "ID" ? "Download Excel" : "Download Excel"}
-            </button>
+            <p className="text-xs text-muted-foreground">
+              {selectedFlowMeta
+                ? selectedFlowMeta.subtitle
+                : language === "ID"
+                  ? "Pilih BP 21 atau BPPU Unifikasi dulu supaya upload file aktif."
+                  : "Pick BP 21 or BPPU Unifikasi first so file upload becomes active."}
+            </p>
           </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-          <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
-            {language === "ID" ? "Data aplikasi difilter per bulan terpilih" : "Application data filtered by selected month"}
-          </span>
-          <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
-            {language === "ID" ? "Coretax dibandingkan per NIK, nama hanya fallback kalau NIK kosong" : "Coretax compared by NIK; name fallback only when NIK is missing"}
-          </span>
-          <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
-            {language === "ID" ? "Selisih = Coretax - Aplikasi" : "Difference = Coretax - App"}
-          </span>
-          <div className="ml-auto inline-flex rounded-2xl border border-border bg-muted/40 p-1">
-            <button
-              type="button"
-              onClick={() => setReconciliationView("summary")}
-              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
-                reconciliationView === "summary" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-              }`}
-            >
-              {language === "ID" ? "Ringkasan" : "Summary"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setReconciliationView("compare")}
-              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
-                reconciliationView === "compare" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-              }`}
-            >
-              {language === "ID" ? "Banding File" : "Compare File"}
-            </button>
-          </div>
+          <button
+            onClick={handleCompareCortex}
+            disabled={!selectedFlow || !cortexFile || isComparingCortex}
+            className="premium-button px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-60"
+          >
+            {isComparingCortex ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+            {language === "ID" ? "Proses Perbandingan" : "Run Comparison"}
+          </button>
+          <button
+            onClick={handleDownloadCortexReport}
+            disabled={!cortexReport}
+            className="px-4 py-3 rounded-2xl bg-muted/60 hover:bg-muted text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 disabled:opacity-60"
+          >
+            <Download size={14} />
+            {language === "ID" ? "Download Excel" : "Download Excel"}
+          </button>
         </div>
 
         {cortexReport ? (
-          <>
+          <div className="flex flex-col gap-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="glass-card p-5 border-accent/10">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -1064,6 +897,7 @@ export default function ReconciliationPage() {
                     <th>{language === "ID" ? "Coretax" : "Coretax"}</th>
                     <th>{language === "ID" ? "Selisih" : "Difference"}</th>
                     <th>{language === "ID" ? "Status" : "Status"}</th>
+                    <th>{language === "ID" ? "Operator" : "Operator"}</th>
                     <th>{language === "ID" ? "Referensi" : "References"}</th>
                   </tr>
                 </thead>
@@ -1108,6 +942,11 @@ export default function ReconciliationPage() {
                         </td>
                         <td>
                           <div className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                            <span className="line-clamp-1">{row.appOperators.join(", ") || "-"}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="flex flex-col gap-1 text-[11px] text-muted-foreground">
                             <span className="line-clamp-1">{row.appReferences.join(", ") || "-"}</span>
                             <span className="line-clamp-1">{row.cortexReferences.join(", ") || "-"}</span>
                           </div>
@@ -1134,21 +973,371 @@ export default function ReconciliationPage() {
               <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
                 {language === "ID" ? "Periode:" : "Period:"} {cortexReport.periodLabel}
               </span>
+              {cortexReport.sourceTaxArticles.length > 0 && (
+                <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
+                  {language === "ID" ? "Pasal di file:" : "Articles in file:"} {cortexReport.sourceTaxArticles.join(", ")}
+                </span>
+              )}
               {cortexReport.sourcePeriods.length > 0 && (
                 <span className="px-3 py-1 rounded-full bg-muted/60 border border-border">
                   {language === "ID" ? "Masa di file:" : "File period:"} {cortexReport.sourcePeriods.join(", ")}
                 </span>
               )}
             </div>
-          </>
+          </div>
         ) : (
           <div className="rounded-3xl border border-dashed border-border/70 bg-muted/20 p-6 text-sm text-muted-foreground leading-relaxed">
             {language === "ID"
-              ? "Pilih file Excel Coretax untuk bulan yang sedang dicek. Sistem akan mencocokkan nama dan nominal per penerima dengan data aplikasi pada periode yang sama, lalu hasilnya bisa diunduh sebagai Excel."
-              : "Choose a Coretax Excel file for the month you are checking. The system will match names and amounts per recipient against the application data for the same period, then let you download the result as Excel."}
+              ? "Pilih jenis bukti potong dulu, lalu upload file Coretax untuk periode yang sedang dicek. Sistem akan mencocokkan NIK dan nominal per penerima dengan data aplikasi pada periode yang sama."
+              : "Pick the withholding-slip type first, then upload the Coretax file for the period you are checking. The system will match NIK and amounts per recipient against the application data for the same period."}
           </div>
         )}
       </section>
+
+      <details className="glass-card p-6 md:p-8 shadow-xl">
+        <summary className="cursor-pointer list-none flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col gap-1 text-left">
+              <h2 className="text-xl font-black uppercase tracking-tight">
+                {language === "ID" ? "Data Pendukung Rekonsiliasi" : "Reconciliation Support Data"}
+              </h2>
+              <p className="text-xs text-muted-foreground uppercase tracking-[0.2em] font-black">
+                {language === "ID"
+                  ? "Buka kalau perlu cek ringkasan akun, detail transaksi, atau target Coretax tersimpan."
+                  : "Open this only if you need account summaries, transaction drilldown, or saved Coretax targets."}
+              </p>
+            </div>
+            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] bg-muted/60 border border-border text-muted-foreground">
+              {language === "ID" ? "Opsional" : "Optional"}
+            </span>
+          </div>
+        </summary>
+        <div className="mt-6 grid grid-cols-1 gap-8">
+          <div className="glass-card p-6 md:p-8 flex flex-col gap-6 shadow-xl">
+            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div className="flex flex-col gap-1 text-left">
+                <h2 className="text-xl font-black uppercase tracking-tight">{t.reconciliation.summary_title}</h2>
+                <p className="text-xs text-muted-foreground uppercase tracking-[0.2em] font-black">
+                  {language === "ID" ? "Klik baris untuk drilldown transaksi" : "Click a row to open the transaction drilldown"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {Object.entries(summaryColors).map(([key, className]) => (
+                  <span
+                    key={key}
+                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border ${className}`}
+                  >
+                    {t.reconciliation[key.toLowerCase() as "balanced" | "over" | "under"]}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-3xl border border-border/70">
+              <table className="premium-table w-full">
+                <thead>
+                  <tr>
+                    <th>{language === "ID" ? "Akun Pajak" : "Tax Account"}</th>
+                    <th>{t.reconciliation.coretax_label}</th>
+                    <th>{t.reconciliation.done_label}</th>
+                    <th>{t.reconciliation.difference_label}</th>
+                    <th>{language === "ID" ? "Status" : "Status"}</th>
+                    <th>{language === "ID" ? "Transaksi" : "Transactions"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={6} className="p-10 text-center text-muted-foreground italic">
+                        <span className="inline-flex items-center gap-2">
+                          <Loader2 className="animate-spin" size={16} />
+                          {language === "ID" ? "Memuat data rekonsiliasi..." : "Loading reconciliation data..."}
+                        </span>
+                      </td>
+                    </tr>
+                  ) : data?.summary.length ? (
+                    data.summary.map((row) => (
+                      <tr
+                        key={row.accountCode}
+                        className={`cursor-pointer transition-colors ${
+                          selectedAccountCode === row.accountCode ? "bg-accent/10" : ""
+                        }`}
+                        onClick={() => setSelectedAccountCode(row.accountCode)}
+                      >
+                        <td>
+                          <div className="flex flex-col gap-1">
+                            <span className="font-black text-sm">{row.accountCode}</span>
+                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-black">
+                              {row.accountLabel}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="font-mono">IDR {numberFormatter.format(row.coretaxAmount)}</td>
+                        <td className="font-mono text-emerald-500">IDR {numberFormatter.format(row.doneAmount)}</td>
+                        <td
+                          className={`font-mono ${
+                            row.difference === 0 ? "text-foreground" : row.difference > 0 ? "text-amber-500" : "text-rose-500"
+                          }`}
+                        >
+                          IDR {numberFormatter.format(Math.abs(row.difference))}
+                          <span className="ml-1 text-[10px] font-black uppercase">
+                            {row.difference === 0 ? "" : row.difference > 0 ? "+" : "-"}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border ${
+                              summaryColors[row.status]
+                            }`}
+                          >
+                            {t.reconciliation[row.status.toLowerCase() as "balanced" | "over" | "under"]}
+                          </span>
+                        </td>
+                        <td className="font-black">{row.transactionCount}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="p-10 text-center text-muted-foreground italic">
+                        {language === "ID"
+                          ? "Belum ada data completed pada periode ini."
+                          : "No completed data found for this period."}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <section className="glass-card p-6 md:p-8 flex flex-col gap-6 shadow-xl">
+              <div className="flex flex-col gap-1 text-left">
+                <h2 className="text-xl font-black uppercase tracking-tight">{t.reconciliation.drilldown_title}</h2>
+                <p className="text-xs text-muted-foreground uppercase tracking-[0.2em] font-black">
+                  {selectedSummaryRow
+                    ? `${selectedSummaryRow.accountCode} · ${selectedSummaryRow.accountLabel}`
+                    : t.reconciliation.no_detail}
+                </p>
+              </div>
+
+              {selectedSummaryRow ? (
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3 rounded-2xl bg-muted/50 border border-border">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        {t.reconciliation.coretax_label}
+                      </p>
+                      <p className="text-sm font-black mt-1">
+                        IDR {numberFormatter.format(selectedSummaryRow.coretaxAmount)}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-muted/50 border border-border">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        {t.reconciliation.done_label}
+                      </p>
+                      <p className="text-sm font-black mt-1 text-emerald-500">
+                        IDR {numberFormatter.format(selectedSummaryRow.doneAmount)}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-muted/50 border border-border">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        {t.reconciliation.difference_label}
+                      </p>
+                      <p
+                        className={`text-sm font-black mt-1 ${
+                          selectedSummaryRow.difference === 0
+                            ? "text-foreground"
+                            : selectedSummaryRow.difference > 0
+                            ? "text-amber-500"
+                            : "text-rose-500"
+                        }`}
+                      >
+                        IDR {numberFormatter.format(Math.abs(selectedSummaryRow.difference))}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-hidden rounded-3xl border border-border/70">
+                    <table className="premium-table w-full">
+                      <thead>
+                        <tr>
+                          <th>{language === "ID" ? "SPM" : "SPM"}</th>
+                          <th>{language === "ID" ? "SP2D" : "SP2D"}</th>
+                          <th>{language === "ID" ? "Penerima" : "Recipient"}</th>
+                          <th>{language === "ID" ? "Nominal" : "Amount"}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedSummaryRow.records.length ? (
+                          selectedSummaryRow.records.map((record) => (
+                            <tr key={record.id}>
+                              <td>
+                                <div className="flex flex-col gap-1">
+                                  <span className="font-black text-sm">{record.spmNumber}</span>
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                    {record.accountCode}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="font-mono">
+                                {record.sp2dNumber || "-"}
+                                <div className="text-[10px] text-muted-foreground font-black mt-1">
+                                  {record.sp2dDate
+                                    ? new Date(record.sp2dDate).toLocaleDateString(
+                                        language === "ID" ? "id-ID" : "en-US",
+                                        {
+                                          day: "2-digit",
+                                          month: "short",
+                                          year: "numeric",
+                                        }
+                                      )
+                                    : "-"}
+                                </div>
+                              </td>
+                              <td>
+                                <div className="flex flex-col gap-1">
+                                  <span className="font-semibold">{record.recipient || "-"}</span>
+                                  <span className="text-[10px] text-muted-foreground italic line-clamp-2">
+                                    {record.description || "-"}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="font-black text-emerald-500">
+                                IDR {numberFormatter.format(record.doneAmount)}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="p-8 text-center text-muted-foreground italic">
+                              {language === "ID"
+                                ? "Tidak ada transaksi detail untuk akun ini."
+                                : "No transaction details available for this account."}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="min-h-[220px] flex items-center justify-center text-muted-foreground italic text-sm">
+                  {t.reconciliation.no_detail}
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+      </details>
+
+      <details className="glass-card p-6 md:p-8 shadow-xl">
+        <summary className="cursor-pointer list-none flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col gap-1 text-left">
+              <h2 className="text-xl font-black uppercase tracking-tight">
+                {language === "ID" ? "Koreksi Manual (Opsional)" : "Manual Correction (Optional)"}
+              </h2>
+              <p className="text-xs text-muted-foreground uppercase tracking-[0.2em] font-black">
+                {language === "ID"
+                  ? "Dipakai hanya kalau kamu memang perlu simpan target Coretax manual per periode."
+                  : "Use only if you truly need to save a manual Coretax target per period."}
+              </p>
+            </div>
+            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] bg-muted/60 border border-border text-muted-foreground">
+              {language === "ID" ? "Legacy / Advanced" : "Legacy / Advanced"}
+            </span>
+          </div>
+        </summary>
+        <div className="mt-6 flex flex-col gap-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex flex-col gap-2 text-left">
+              <h3 className="text-lg font-black uppercase tracking-tight">
+                {language === "ID" ? "Simpan target manual" : "Save manual target"}
+              </h3>
+              <p className="text-xs text-muted-foreground uppercase tracking-[0.2em] font-black">
+                {language === "ID"
+                  ? "Ini bukan langkah utama rekonsiliasi. Pakai hanya jika kamu perlu override total pembanding."
+                  : "This is not the main reconciliation step. Use it only if you need to override the comparison total."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {editorRows.map((row, index) => {
+              const label = row.accountCode ? getTaxAccountLabel(row.accountCode) : "-";
+              return (
+                <div key={row.id} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_140px_auto] gap-3 items-center">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                      {index + 1}. {language === "ID" ? "Kode Akun" : "Account Code"}
+                    </label>
+                    <input
+                      value={row.accountCode}
+                      onChange={(e) => handleEditorChange(row.id, "accountCode", e.target.value)}
+                      disabled={!isAdmin}
+                      placeholder="411121"
+                      className="w-full bg-muted/60 border-none rounded-2xl px-4 py-3 text-sm font-bold outline-none disabled:opacity-70"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                      {language === "ID" ? "Label Pajak" : "Tax Label"}
+                    </label>
+                    <div className="w-full rounded-2xl px-4 py-3 bg-muted/40 border border-border text-sm font-bold">
+                      {label}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                      {t.reconciliation.coretax_label}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={row.coretaxAmount}
+                      onChange={(e) => handleEditorChange(row.id, "coretaxAmount", e.target.value)}
+                      disabled={!isAdmin}
+                      placeholder="0"
+                      className="w-full bg-muted/60 border-none rounded-2xl px-4 py-3 text-sm font-black outline-none disabled:opacity-70"
+                    />
+                  </div>
+                  <div className="flex items-end gap-2 pb-1">
+                    {isAdmin && (
+                      <button
+                        onClick={() => removeEditorRow(row.id)}
+                        className="p-3 rounded-2xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors"
+                        title={language === "ID" ? "Hapus baris" : "Remove row"}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={addEditorRow}
+                className="px-4 py-2 rounded-2xl bg-muted/60 hover:bg-muted text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2"
+              >
+                <Plus size={14} />
+                {t.reconciliation.add_row}
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="premium-button px-4 py-2 text-xs font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-60"
+              >
+                {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {t.reconciliation.save_period}
+              </button>
+            </div>
+          )}
+        </div>
+      </details>
     </div>
   );
 }

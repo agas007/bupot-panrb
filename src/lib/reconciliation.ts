@@ -23,6 +23,7 @@ export interface MonthlyComparisonInput {
   name: string;
   amount: number;
   reference?: string | null;
+  operator?: string | null;
 }
 
 export type MonthlyComparisonStatus = "MATCHED" | "OVER" | "UNDER" | "ONLY_IN_APP" | "ONLY_IN_CORTEX";
@@ -43,7 +44,19 @@ export interface MonthlyComparisonRow {
   cortexCount: number;
   appReferences: string[];
   cortexReferences: string[];
+  appOperators: string[];
   status: MonthlyComparisonStatus;
+}
+
+export interface CoretaxComparisonReport {
+  fileName: string;
+  periodLabel: string;
+  sourcePeriods: string[];
+  sourceTaxArticles: string[];
+  rows: MonthlyComparisonRow[];
+  totals: MonthlyComparisonTotals;
+  appRows: MonthlyComparisonInput[];
+  cortexRows: MonthlyComparisonInput[];
 }
 
 export interface MonthlyComparisonTotals {
@@ -187,6 +200,7 @@ type AggregatedComparisonRow = {
   amount: number;
   count: number;
   references: string[];
+  operators: string[];
 };
 
 function aggregateComparisonRows(rows: MonthlyComparisonInput[]) {
@@ -210,6 +224,7 @@ function aggregateComparisonRows(rows: MonthlyComparisonInput[]) {
         amount: 0,
         count: 0,
         references: [],
+        operators: [],
       };
     }
 
@@ -220,6 +235,12 @@ function aggregateComparisonRows(rows: MonthlyComparisonInput[]) {
       const reference = String(row.reference).trim();
       if (reference && !current.references.includes(reference)) {
         current.references.push(reference);
+      }
+    }
+    if (row.operator) {
+      const operator = String(row.operator).trim();
+      if (operator && !current.operators.includes(operator)) {
+        current.operators.push(operator);
       }
     }
     if (!current.name) current.name = row.name.trim();
@@ -284,6 +305,7 @@ function mergeComparisonGroups(
       cortexCount: cortexRow.count,
       appReferences: appRow.references,
       cortexReferences: cortexRow.references,
+      appOperators: appRow.operators,
       status,
     });
   };
@@ -320,6 +342,7 @@ function mergeComparisonGroups(
       cortexCount: 0,
       appReferences: appRow.references,
       cortexReferences: [],
+      appOperators: appRow.operators,
       status: "ONLY_IN_APP",
     });
   }
@@ -342,6 +365,7 @@ function mergeComparisonGroups(
       cortexCount: cortexRow.count,
       appReferences: [],
       cortexReferences: cortexRow.references,
+      appOperators: [],
       status: "ONLY_IN_CORTEX",
     });
   }
@@ -382,4 +406,33 @@ export function buildMonthlyComparisonRows(
   );
 
   return { rows, totals };
+}
+
+export function buildCoretaxComparisonReport({
+  fileName,
+  periodLabel,
+  sourcePeriods,
+  sourceTaxArticles,
+  appRows,
+  cortexRows,
+}: {
+  fileName: string;
+  periodLabel: string;
+  sourcePeriods: string[];
+  sourceTaxArticles: string[];
+  appRows: MonthlyComparisonInput[];
+  cortexRows: MonthlyComparisonInput[];
+}): CoretaxComparisonReport {
+  const comparison = buildMonthlyComparisonRows(appRows, cortexRows);
+
+  return {
+    fileName,
+    periodLabel,
+    sourcePeriods,
+    sourceTaxArticles,
+    rows: comparison.rows,
+    totals: comparison.totals,
+    appRows,
+    cortexRows,
+  };
 }

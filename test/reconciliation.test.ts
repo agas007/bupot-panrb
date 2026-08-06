@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as XLSX from "xlsx";
-import { buildMonthlyComparisonRows } from "../src/lib/reconciliation.ts";
+import { buildCoretaxComparisonReport, buildMonthlyComparisonRows } from "../src/lib/reconciliation.ts";
 import { parseCoretaxExcel } from "../src/lib/excel.ts";
 
 test("aggregates monthly comparison rows by NIK first", () => {
@@ -75,14 +75,25 @@ test("parses a Coretax CSV export with English headers", () => {
   assert.equal(rows[0].period, "Juni 2026");
   assert.equal(rows[0].reference, "");
   assert.equal(rows[0].taxObjectCode, "24-104-65");
+  assert.equal(rows[0].taxArticle, "Pasal 23");
 });
 
 test("parses a Coretax Excel sheet with NIK and tax columns", () => {
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet([
-    ["Masa Pajak", "Nomor Pemotongan", "Status", "Nomor Identitas WP", "Nama", "Pajak Penghasilan (Rp)", "Kode Objek Pajak"],
-    ["Juni 2026", null, "Disimpan", "3175086001760002", "Linda Wati", "Rp 200.000", "21-402-03"],
-    ["Juni 2026", null, "Disimpan", "3404081112750002", "Budi Santoso", "100000", "21-402-03"],
+    [
+      "Masa Pajak",
+      "Nomor Pemotongan",
+      "Status",
+      "NITKU/Nomor Identitas Sub Unit Organisasi",
+      "Nomor Identitas WP",
+      "Nama",
+      "Jenis Pajak",
+      "Pajak Penghasilan (Rp)",
+      "Kode Objek Pajak",
+    ],
+    ["Juni 2026", null, "Disimpan", "0001861061012000000000", "3175086001760002", "Linda Wati", "Pasal 21", "Rp 200.000", "21-402-03"],
+    ["Juni 2026", null, "Disimpan", "0001861061012000000000", "3404081112750002", "Budi Santoso", "Pasal 21", "100000", "21-402-03"],
   ]);
   XLSX.utils.book_append_sheet(workbook, sheet, "Sheet1");
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
@@ -93,6 +104,74 @@ test("parses a Coretax Excel sheet with NIK and tax columns", () => {
   assert.equal(rows[0].name, "Linda Wati");
   assert.equal(rows[0].amount, 200000);
   assert.equal(rows[0].period, "Juni 2026");
+  assert.equal(rows[0].taxArticle, "Pasal 21");
   assert.equal(rows[0].taxObjectCode, "21-402-03");
   assert.equal(rows[1].amount, 100000);
+});
+
+test("parses Coretax exports that include NITKU before tax columns", () => {
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.aoa_to_sheet([
+    [
+      "Masa Pajak",
+      "Nomor Pemotongan",
+      "Status",
+      "Status Tanda Tangan Elektronik",
+      "NITKU/Nomor Identitas Sub Unit Organisasi",
+      "Jenis Pajak",
+      "Kode Objek Pajak",
+      "Nomor Identitas WP",
+      "Nama",
+      "Dasar Pengenaan Pajak (Rp)",
+      "Pajak Penghasilan (Rp)",
+      "Fasilitas Pajak",
+    ],
+    [
+      "Juli 2026",
+      null,
+      "Disimpan",
+      null,
+      "0001861061012000000000",
+      "Pasal 21",
+      "21-100-18",
+      "3203181811900001",
+      "YUSUP MUNAWAR",
+      850000,
+      21250,
+      "Tanpa Fasilitas",
+    ],
+  ]);
+  XLSX.utils.book_append_sheet(workbook, sheet, "data");
+  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+  const rows = parseCoretaxExcel(buffer);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].nik, "3203181811900001");
+  assert.equal(rows[0].name, "YUSUP MUNAWAR");
+  assert.equal(rows[0].amount, 21250);
+  assert.equal(rows[0].period, "Juli 2026");
+  assert.equal(rows[0].taxObjectCode, "21-100-18");
+  assert.equal(rows[0].reference, "");
+});
+
+test("builds a Coretax comparison report with detected tax articles", () => {
+  const report = buildCoretaxComparisonReport({
+    fileName: "coretax.xlsx",
+    periodLabel: "Juni 2026",
+    sourcePeriods: ["Juni 2026"],
+    sourceTaxArticles: ["Pasal 21", "Pasal 23"],
+    appRows: [
+      { nik: "3175086001760002", name: "Linda Wati", amount: 200000, reference: "APP-01", operator: "Agas" },
+      { nik: "3175086001760002", name: "Linda Wati", amount: 50000, reference: "APP-02", operator: "Dinda" },
+    ],
+    cortexRows: [
+      { nik: "3175086001760002", name: "Linda Wati", amount: 210000, reference: "CORE-01" },
+    ],
+  });
+
+  assert.equal(report.fileName, "coretax.xlsx");
+  assert.equal(report.sourceTaxArticles.length, 2);
+  assert.equal(report.rows[0].status, "UNDER");
+  assert.equal(report.totals.difference, -40000);
+  assert.deepEqual(report.rows[0].appOperators.sort(), ["Agas", "Dinda"]);
 });
