@@ -136,6 +136,7 @@ export default function RecordsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [sp2dMonthFilter, setSp2dMonthFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [pph21ProcessFilter, setPph21ProcessFilter] = useState<"all" | "PENDING" | "DATA_ENTERED" | "COMPLETED" | "ISSUES">("all");
   const [startDate, setStartDate] = useState("");
@@ -183,6 +184,17 @@ export default function RecordsPage() {
   const [payrollImportRecords, setPayrollImportRecords] = useState<PayrollImportRecord[]>([]);
   const [payrollRecordQuery, setPayrollRecordQuery] = useState("");
   const [selectedPayrollRecordId, setSelectedPayrollRecordId] = useState<number | null>(null);
+  const sp2dMonthOptions = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat(language === "ID" ? "id-ID" : "en-US", { month: "long", year: "numeric" });
+    const months: Array<{ value: string; label: string }> = [];
+    const current = new Date();
+    for (let offset = 0; offset < 12; offset += 1) {
+      const date = new Date(current.getFullYear(), current.getMonth() - offset, 1);
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      months.push({ value, label: formatter.format(date) });
+    }
+    return months;
+  }, [language]);
 
   const getPph21BadgeClass = (status?: string | null) => {
     if (status === "COMPLETED") return "badge-completed";
@@ -239,6 +251,7 @@ export default function RecordsPage() {
       if (debouncedSearch) params.set("q", debouncedSearch);
       if (accountFilter !== "all") params.set("accountCode", accountFilter);
       if (assigneeFilter !== "all") params.set("assigneeId", assigneeFilter);
+      if (sp2dMonthFilter !== "all") params.set("sp2dMonth", sp2dMonthFilter);
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (pph21ProcessFilter !== "all") params.set("pph21Process", pph21ProcessFilter);
       if (startDate) params.set("startDate", startDate);
@@ -253,7 +266,7 @@ export default function RecordsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [accountFilter, assigneeFilter, currentPage, debouncedSearch, endDate, pph21ProcessFilter, rowsPerPage, sortConfig, startDate, statusFilter]);
+  }, [accountFilter, assigneeFilter, currentPage, debouncedSearch, endDate, pph21ProcessFilter, rowsPerPage, sortConfig, sp2dMonthFilter, startDate, statusFilter]);
 
   useEffect(() => {
     fetchData();
@@ -459,7 +472,7 @@ export default function RecordsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, accountFilter, assigneeFilter, statusFilter, pph21ProcessFilter, startDate, endDate, sortConfig]);
+  }, [searchQuery, accountFilter, assigneeFilter, sp2dMonthFilter, statusFilter, pph21ProcessFilter, startDate, endDate, sortConfig]);
 
   // Export Functions
   const exportToExcel = () => {
@@ -545,6 +558,7 @@ export default function RecordsPage() {
     setSearchQuery("");
     setAccountFilter("all");
     setAssigneeFilter("all");
+    setSp2dMonthFilter("all");
     setStatusFilter("all");
     setPph21ProcessFilter("all");
     setStartDate("");
@@ -1914,11 +1928,38 @@ export default function RecordsPage() {
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} /><input type="text" placeholder={t.worksheet.search_placeholder} className="w-full bg-muted border-none rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/20 transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}/></div>
           <div className="relative"><Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} /><select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}><option value="all">{t.worksheet.all_accounts}</option>{uniqueAccounts.map(acc => (<option key={acc} value={acc}>{acc} ({getTaxAccountLabel(acc)})</option>))}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} /></div>
-          <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} /><select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]" value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}><option value="all">{t.nav.daftar_rekan} ({t.worksheet.show_all})</option><option value="unassigned">{t.worksheet.unassigned}</option>{colleagues.map((col: Colleague) => (<option key={col.id} value={col.id}>{col.name}</option>))}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} /></div>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
+            <select
+              className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]"
+              value={assigneeFilter}
+              onChange={(e) => setAssigneeFilter(e.target.value)}
+            >
+              <option value="all">{t.nav.daftar_rekan} ({t.worksheet.show_all})</option>
+              <option value="unassigned">{t.worksheet.unassigned}</option>
+              {colleagues.map((col: Colleague) => (<option key={col.id} value={col.id}>{col.name}</option>))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
+          </div>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
+            <select
+              className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[190px]"
+              value={sp2dMonthFilter}
+              onChange={(e) => setSp2dMonthFilter(e.target.value)}
+              title="Filter SP2D berdasarkan bulan"
+            >
+              <option value="all">Semua bulan SP2D</option>
+              {sp2dMonthOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
+          </div>
           <div className="relative"><CheckCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} /><select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[140px]" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">{t.worksheet.all_status}</option><option value="PENDING">{t.worksheet.pending}</option><option value="COMPLETED">{t.worksheet.completed}</option><option value="ISSUES">{t.worksheet.issues}</option></select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} /></div>
           <div className="relative"><FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} /><select className="bg-muted border-none rounded-xl pl-10 pr-10 py-2.5 text-sm appearance-none outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all min-w-[160px]" value={pph21ProcessFilter} onChange={(e) => setPph21ProcessFilter(e.target.value as typeof pph21ProcessFilter)}><option value="all">Semua PPh 21 Process</option><option value="PENDING">{getPph21ProcessLabel("PENDING")}</option><option value="DATA_ENTERED">{getPph21ProcessLabel("DATA_ENTERED")}</option><option value="COMPLETED">{getPph21ProcessLabel("COMPLETED")}</option><option value="ISSUES">{getPph21ProcessLabel("ISSUES")}</option></select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} /></div>
           
-          {(searchQuery || accountFilter !== "all" || assigneeFilter !== "all" || statusFilter !== "all" || pph21ProcessFilter !== "all" || startDate || endDate) && (
+          {(searchQuery || accountFilter !== "all" || assigneeFilter !== "all" || sp2dMonthFilter !== "all" || statusFilter !== "all" || pph21ProcessFilter !== "all" || startDate || endDate) && (
             <button onClick={resetFilters} className="p-2.5 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500/20 transition-all" title="Reset semua filter">
               <RefreshCw size={18} />
             </button>
