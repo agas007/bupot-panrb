@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import Link from "next/link";
 import { 
   Search, Filter, ChevronDown, Calendar, 
   Clock, ArrowUpDown, Check, 
@@ -2160,7 +2159,14 @@ export default function RecordsPage() {
                         {record.accountCode === "411121" ? (
                           <div className="flex flex-col items-center gap-2">
                             <span className={`badge ${getPph21BadgeClass(record.pph21Batch?.status)}`}>{getPph21StatusLabel(record.pph21Batch?.status)}</span>
-                            <Link href={`/pph21?recordId=${record.id}`} className="text-[10px] font-black uppercase text-accent hover:underline">Kelola rincian</Link>
+                            <button
+                              type="button"
+                              onClick={() => openUpdateModal(record)}
+                              className="text-[10px] font-black uppercase text-accent hover:underline"
+                              title="Buka rincian PPh 21 di halaman yang sama"
+                            >
+                              Kelola rincian
+                            </button>
                           </div>
                         ) : <span className="text-muted-foreground">—</span>}
                       </td>
