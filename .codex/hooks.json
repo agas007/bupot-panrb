@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/private/tmp/graphify-venv/bin/graphify hook-check"
+            "command": "command -v graphify >/dev/null 2>&1 && graphify hook-check || true"
           }
         ]
       }

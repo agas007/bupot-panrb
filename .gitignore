@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+*.bak
 
 # debug
 npm-debug.log*
@@ -55,5 +56,5 @@ prisma/migrations/*
 !prisma/migrations/20260728120000_archive_module/migration.sql
 !prisma/migrations/20260729130000_audit_log_username_split/
 !prisma/migrations/20260729130000_audit_log_username_split/migration.sql
-# Added by code-review-graph
-.code-review-graph/
+# Graphify outputs
+graphify-out/

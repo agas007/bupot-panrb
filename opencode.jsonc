@@ -1,14 +1,11 @@
 {
   "mcp": {
-    "code-review-graph": {
+    "graphify": {
       "type": "local",
       "command": [
-        "/Users/agastya/Code/.venv/bin/python3.14",
-        "-m",
-        "code_review_graph",
-        "serve",
-        "--repo",
-        "/Users/agastya/Code/bupot-panrb"
+        "graphify",
+        ".",
+        "--mcp"
       ]
     }
   }

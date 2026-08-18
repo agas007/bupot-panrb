@@ -1,13 +1,12 @@
 {
   "mcpServers": {
-    "code-review-graph": {
-      "command": "/Users/agas/.nvm/versions/node/v24.12.0/lib/node_modules/@reizhafajrian/code-review-graph/.venv/bin/python3.14",
+    "graphify": {
+      "command": "graphify",
       "args": [
-        "-m",
-        "code_review_graph",
-        "serve"
+        ".",
+        "--mcp"
       ],
-      "cwd": "/Users/agas/code/bupot-panrb",
+      "cwd": "/Users/agastya/Code/bupot-panrb",
       "type": "stdio"
     }
   }

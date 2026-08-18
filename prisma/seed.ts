@@ -5,7 +5,10 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Seeding database...')
 
-  const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "PajakAman2026";
+  const defaultPassword = process.env.DEFAULT_USER_PASSWORD;
+  if (!defaultPassword) {
+    throw new Error("DEFAULT_USER_PASSWORD is required for seeding the default admin account.");
+  }
 
   // Create first Admin (agastya.arnanda)
   const admin = await prisma.colleague.upsert({

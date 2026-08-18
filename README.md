@@ -61,7 +61,8 @@ Bupot PANRB adalah aplikasi internal untuk mendata, memonitor, dan menata bukti 
    pipx install graphifyy
    # atau: uv tool install graphifyy
    graphify install
-   graphify .
+   graphify hook install
+   graphify update .
    ```
    Hasil visualisasi graph akan tersimpan di `graphify-out/graph.html` dan `graphify-out/GRAPH_REPORT.md`.
 
@@ -69,7 +70,9 @@ Bupot PANRB adalah aplikasi internal untuk mendata, memonitor, dan menata bukti 
    Buat file `.env` di root directory:
    ```env
    DATABASE_URL="postgresql://user:password@hostname:5432/neondb"
+   DEFAULT_USER_PASSWORD="ganti-dengan-password-unik"
    ```
+   `DEFAULT_USER_PASSWORD` dipakai untuk seed admin awal dan password otomatis saat kolom password dikosongkan.
 
 5. **Migrasi Database**:
    ```bash
