@@ -164,6 +164,9 @@ export default function RecordsPage() {
   const [isMonitoringImporting, setIsMonitoringImporting] = useState(false);
   const [isPayrollImportOpen, setIsPayrollImportOpen] = useState(false);
   const [isPayrollXmlImporting, setIsPayrollXmlImporting] = useState(false);
+  const [isPph21ExcelExporting, setIsPph21ExcelExporting] = useState(false);
+  const [isPph21ExcelPickerOpen, setIsPph21ExcelPickerOpen] = useState(false);
+  const [selectedPph21ExcelMonths, setSelectedPph21ExcelMonths] = useState<string[]>([]);
   const [pph21SaveError, setPph21SaveError] = useState("");
   const [pph21WithholdingDate, setPph21WithholdingDate] = useState("");
   const [pph21Lines, setPph21Lines] = useState<Pph21Line[]>([createPph21Line()]);
@@ -543,6 +546,82 @@ export default function RecordsPage() {
       styles: { fontSize: 8 }
     });
     doc.save(`Bupot_PANRB_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  const openPph21ExcelPicker = () => {
+    const initialMonths = sp2dMonthFilter === "all" ? sp2dMonthOptions.map((option) => option.value) : [sp2dMonthFilter];
+    setSelectedPph21ExcelMonths(initialMonths);
+    setIsPph21ExcelPickerOpen(true);
+  };
+
+  const togglePph21ExcelMonth = (month: string) => {
+    setSelectedPph21ExcelMonths((current) =>
+      current.includes(month) ? current.filter((item) => item !== month) : [...current, month],
+    );
+  };
+
+  const toggleAllPph21ExcelMonths = () => {
+    setSelectedPph21ExcelMonths((current) => (
+      current.length === sp2dMonthOptions.length ? [] : sp2dMonthOptions.map((option) => option.value)
+    ));
+  };
+
+  const exportPph21ToExcel = async () => {
+    const monthsToExport = selectedPph21ExcelMonths.length > 0
+      ? selectedPph21ExcelMonths
+      : sp2dMonthFilter === "all"
+        ? sp2dMonthOptions.map((option) => option.value)
+        : [sp2dMonthFilter];
+
+    if (monthsToExport.length === 0) {
+      setIsPph21ExcelPickerOpen(true);
+      return;
+    }
+
+    setIsPph21ExcelExporting(true);
+    try {
+      const res = await fetch("/api/records/pph21/export", {
+        method: "POST",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          filters: {
+            q: debouncedSearch || null,
+            assigneeId: assigneeFilter === "all" ? null : assigneeFilter,
+            status: statusFilter === "all" ? null : statusFilter,
+            pph21Process: pph21ProcessFilter === "all" ? null : pph21ProcessFilter,
+            sp2dMonths: monthsToExport,
+            startDate: startDate || null,
+            endDate: endDate || null,
+            sortKey: sortConfig?.key || null,
+            sortDirection: sortConfig?.direction || null,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Gagal mengekspor Excel PPh 21");
+      }
+
+      const blob = await res.blob();
+      const fallbackFileName = `Bupot_PANRB_PPh21_Detail_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const resolvedFileName = res.headers.get("X-Export-Filename") || fallbackFileName;
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = resolvedFileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsPph21ExcelExporting(false);
+    }
   };
 
   const SortHeader = ({ label, sortKey, className = "" }: { label: string, sortKey: string, className?: string }) => (
@@ -1029,6 +1108,101 @@ export default function RecordsPage() {
 
   return (
     <div className="flex min-w-0 max-w-full flex-col gap-8 pb-10">
+      {isPph21ExcelPickerOpen && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="glass-card w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-background/95 p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black">Export Excel PPh 21</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Pilih bulan SP2D yang mau diikutkan. Bisa satu bulan, beberapa bulan, atau semua.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPph21ExcelPickerOpen(false)}
+                className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10"
+                aria-label="Tutup picker export PPh 21"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleAllPph21ExcelMonths}
+                className="rounded-full border border-accent/20 bg-accent/10 px-4 py-2 text-xs font-bold text-accent transition-colors hover:bg-accent/15"
+              >
+                {selectedPph21ExcelMonths.length === sp2dMonthOptions.length ? "Unselect all" : "Select all"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedPph21ExcelMonths([])}
+                className="rounded-full border border-border bg-muted px-4 py-2 text-xs font-bold text-muted-foreground transition-colors hover:bg-muted/70"
+              >
+                Clear
+              </button>
+              <div className="text-xs font-medium text-muted-foreground">
+                {selectedPph21ExcelMonths.length} bulan dipilih
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {sp2dMonthOptions.map((option) => {
+                const checked = selectedPph21ExcelMonths.includes(option.value);
+                return (
+                  <label
+                    key={option.value}
+                    className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-colors ${
+                      checked ? "border-accent/30 bg-accent/10" : "border-border bg-muted/30 hover:bg-muted/60"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-border accent-accent"
+                      checked={checked}
+                      onChange={() => togglePph21ExcelMonth(option.value)}
+                    />
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold">{option.label}</div>
+                      <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                        {option.value}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs text-muted-foreground">
+                Export akan mengikuti filter lain yang sedang aktif di layar.
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPph21ExcelPickerOpen(false)}
+                  className="rounded-xl border border-border px-4 py-2 text-sm font-bold text-muted-foreground transition-colors hover:bg-muted/60"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={isPph21ExcelExporting || selectedPph21ExcelMonths.length === 0}
+                  onClick={() => {
+                    void exportPph21ToExcel();
+                    setIsPph21ExcelPickerOpen(false);
+                  }}
+                  className="rounded-xl bg-accent px-4 py-2 text-sm font-black text-accent-foreground transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isPph21ExcelExporting ? "Exporting..." : "Download Excel"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Update/Completion Modal */}
       {isUpdateModalOpen && (
         <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-1000">
@@ -1568,6 +1742,18 @@ export default function RecordsPage() {
                </button>
                {showExportOptions && (
                  <div className="absolute right-0 top-full mt-2 w-48 glass-card p-2 z-100 shadow-2xl animate-in fade-in slide-in-from-top-2 flex flex-col gap-1 border-white/5">
+                    <button
+                      onClick={() => { openPph21ExcelPicker(); setShowExportOptions(false); }}
+                      className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-cyan-500/10 transition-colors text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="p-1.5 bg-cyan-500/10 text-cyan-500 rounded-lg group-hover:scale-110 transition-transform">
+                        <Table size={16} />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold">Excel PPh 21 (.xlsx)</span>
+                        <span className="text-[10px] text-muted-foreground">Pilih bulan SP2D</span>
+                      </div>
+                    </button>
                     <button onClick={() => { exportToExcel(); setShowExportOptions(false); }} className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-emerald-500/10 transition-colors text-left group">
                       <div className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg group-hover:scale-110 transition-transform"><Table size={16} /></div>
                       <span className="text-xs font-bold">Excel (.xlsx)</span>
