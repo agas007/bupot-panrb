@@ -1,10 +1,14 @@
 export function MigrationNotice() {
+  if (process.env.NEXT_PUBLIC_MIGRATION_NOTICE !== "true") {
+    return null;
+  }
+
   return (
     <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 text-center sm:flex-row sm:text-left">
         <p className="text-sm font-medium">
-          Informasi layanan: akses Bupot sekarang melalui alamat baru
-          <span className="mx-1 font-bold">bupot.menpan.go.id</span>.
+          Aplikasi lama sekarang bersifat read-only. Untuk membuat atau mengubah transaksi,
+          akses <span className="mx-1 font-bold">bupot.menpan.go.id</span>.
         </p>
         <a
           href="https://bupot.menpan.go.id"
