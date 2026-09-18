@@ -1,0 +1,51 @@
+name: Deploy Bupot Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: bupot-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, x64, bupot-production]
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Deploy application
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          cd /opt/bupot
+          git fetch --prune origin main
+          git pull --ff-only origin main
+
+          docker compose --env-file .env \
+            -f docker-compose.production.yml build app
+
+          docker compose --env-file .env \
+            -f docker-compose.production.yml up -d --remove-orphans
+
+          for attempt in {1..30}; do
+            health="$(docker inspect --format '{{.State.Health.Status}}' bupot_app 2>/dev/null || true)"
+            if [[ "$health" == "healthy" ]]; then
+              break
+            fi
+            if [[ "$health" == "unhealthy" ]]; then
+              docker logs --tail 100 bupot_app
+              exit 1
+            fi
+            sleep 2
+          done
+
+          test "$(docker inspect --format '{{.State.Health.Status}}' bupot_app)" = "healthy"
+          curl --fail --silent --show-error \
+            --max-time 10 \
+            http://127.0.0.1:3000/ >/dev/null
