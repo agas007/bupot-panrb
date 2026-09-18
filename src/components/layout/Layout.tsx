@@ -34,6 +34,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { clearSession, readSession, touchSession, SESSION_MAX_AGE_MS, getSessionUser } from "@/lib/auth-session";
 import { canAccessArchive, isAdminRole } from "@/lib/roles";
 import { MigrationNotice } from "@/components/MigrationNotice";
+import { MigrationLandingPage } from "@/components/MigrationLandingPage";
 
 interface Colleague {
   id: number;
@@ -292,6 +293,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
       router.push("/");
     }
   }, [pathname, currentUser, mounted, router]);
+
+  if (process.env.NEXT_PUBLIC_MIGRATION_NOTICE === "true") {
+    return <MigrationLandingPage />;
+  }
 
   const filteredNavItems = [
     { href: "/", label: t.nav.beranda, icon: LayoutDashboard, minRole: "USER" },
