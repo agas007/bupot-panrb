@@ -33,6 +33,7 @@ import {
 import { useLanguage } from "@/components/LanguageProvider";
 import { clearSession, readSession, touchSession, SESSION_MAX_AGE_MS, getSessionUser } from "@/lib/auth-session";
 import { canAccessArchive, isAdminRole } from "@/lib/roles";
+import { MigrationNotice } from "@/components/MigrationNotice";
 
 interface Colleague {
   id: number;
@@ -310,7 +311,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return true;
   });
 
-  if (pathname === "/login") return <>{children}</>;
+  if (pathname === "/login") return <><MigrationNotice />{children}</>;
 
   const shellSurfaceClass = theme === "light"
     ? "bg-gradient-to-b from-white/98 via-white/96 to-white/92 border-border/70 shadow-[0_28px_90px_-36px_rgba(15,23,42,0.22)]"
@@ -519,6 +520,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <main className={`min-w-0 flex-1 p-4 pt-24 lg:pt-12 transition-all duration-500 ${isSidebarCollapsed ? "lg:ml-[5.5rem]" : "lg:ml-[15rem]"}`}>
+        <MigrationNotice />
         <div className="container min-w-0 max-w-full">{children}</div>
       </main>
 
