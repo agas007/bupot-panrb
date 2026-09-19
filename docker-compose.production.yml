@@ -1,5 +1,6 @@
 services:
   app:
+    image: ${BUPOT_IMAGE:-bupot-app}:${BUPOT_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile

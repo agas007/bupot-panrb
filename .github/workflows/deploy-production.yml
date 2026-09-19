@@ -26,26 +26,5 @@ jobs:
           cd /opt/bupot
           git fetch --prune origin main
           git pull --ff-only origin main
-
-          docker compose --env-file .env \
-            -f docker-compose.production.yml build app
-
-          docker compose --env-file .env \
-            -f docker-compose.production.yml up -d --remove-orphans
-
-          for attempt in {1..30}; do
-            health="$(docker inspect --format '{{.State.Health.Status}}' bupot_app 2>/dev/null || true)"
-            if [[ "$health" == "healthy" ]]; then
-              break
-            fi
-            if [[ "$health" == "unhealthy" ]]; then
-              docker logs --tail 100 bupot_app
-              exit 1
-            fi
-            sleep 2
-          done
-
-          test "$(docker inspect --format '{{.State.Health.Status}}' bupot_app)" = "healthy"
-          curl --fail --silent --show-error \
-            --max-time 10 \
-            http://127.0.0.1:3000/ >/dev/null
+          chmod +x scripts/deploy-production.sh
+          scripts/deploy-production.sh "${GITHUB_SHA}"

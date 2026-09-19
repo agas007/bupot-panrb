@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Bupot PostgreSQL backup
+
+[Timer]
+OnCalendar=*-*-* 02:00:00 Asia/Jakarta
+RandomizedDelaySec=15m
+Persistent=true
+Unit=bupot-backup.service
+
+[Install]
+WantedBy=timers.target

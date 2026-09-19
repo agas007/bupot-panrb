@@ -1,0 +1,13 @@
+[Unit]
+Description=Bupot PostgreSQL backup to Nextcloud
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/opt/bupot
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/bupot
+EnvironmentFile=-/opt/bupot/.env
+EnvironmentFile=-/etc/bupot-backup.env
+ExecStart=/opt/bupot/scripts/backup-postgres.sh
