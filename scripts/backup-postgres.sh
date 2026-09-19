@@ -16,6 +16,11 @@ DATABASE_URL="${BACKUP_DATABASE_URL:-${DATABASE_URL:-}}"
 RCLONE_TIMEOUT="${RCLONE_TIMEOUT:-30s}"
 RCLONE_RETRIES="${RCLONE_RETRIES:-3}"
 
+# Prisma commonly appends `schema=public`; libpq/pg_dump does not accept that
+# Prisma-only query parameter, so remove it before invoking pg_dump.
+DATABASE_URL_FOR_DUMP="$(printf '%s' "$DATABASE_URL" | sed -E \
+  's/\?schema=[^&]*&/?/; s/&schema=[^&]*//; s/\?schema=[^&]*//; s/\?&/?/; s/[?&]$//')"
+
 if [[ -z "$DATABASE_URL" ]]; then
   echo "BACKUP_DATABASE_URL or DATABASE_URL is required" >&2
   exit 1
@@ -39,7 +44,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "[$(date -Is)] Creating $local_path"
-pg_dump "$DATABASE_URL" | gzip -c > "$temporary_path"
+pg_dump "$DATABASE_URL_FOR_DUMP" | gzip -c > "$temporary_path"
 gzip -t "$temporary_path"
 mv "$temporary_path" "$local_path"
 
