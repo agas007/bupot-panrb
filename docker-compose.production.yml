@@ -5,6 +5,14 @@ services:
       dockerfile: Dockerfile
     container_name: bupot_app
     restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    mem_limit: 2g
     env_file:
       - .env
     ports:
@@ -17,7 +25,7 @@ services:
         - node
         - -e
         - >-
-          fetch('http://127.0.0.1:3000/')
+          fetch('http://127.0.0.1:3000/api/health/ready')
           .then((response) => process.exit(response.ok ? 0 : 1))
           .catch(() => process.exit(1))
       interval: 30s
