@@ -1617,7 +1617,7 @@ export default function RecordsPage() {
                         value=""
                         onChange={(e) => handleBulkAssign(e.target.value ? Number(e.target.value) : 0)}
                       >
-                        <option value="" disabled className="text-slate-900">{language === "ID" ? "--- Pilih Rekan ---" : "--- Select Colleague ---"}</option>
+                        <option value="" disabled className="text-slate-900">{language === "ID" ? "--- Pilih User ---" : "--- Select User ---"}</option>
                         <option value="0" className="text-slate-900">{t.worksheet.unassigned}</option>
                         {colleagues.map((col: Colleague) => (<option key={col.id} value={col.id} className="text-slate-900">{col.name}</option>))}
                       </select>

@@ -284,7 +284,7 @@ export default function ColleaguesPage() {
                     <button 
                       onClick={(e) => { e.stopPropagation(); deleteColleague(col.id); }}
                       className="p-3 shrink-0 transition-all hover:bg-rose-500/10 text-rose-500/40 hover:text-rose-500 rounded-xl"
-                      title={language === "ID" ? "Hapus anggota" : "Remove member"}
+                      title={language === "ID" ? "Hapus user" : "Remove user"}
                     >
                       <Trash2 size={20} />
                     </button>
@@ -300,7 +300,7 @@ export default function ColleaguesPage() {
         </section>
       </div>
 
-      {/* Edit Member Modal */}
+      {/* Edit User Modal */}
       {isEditModalOpen && selectedColleague && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-1000 flex items-center justify-center p-4">
           <div className="glass-card w-full max-w-md p-8 flex flex-col gap-6 shadow-2xl animate-in zoom-in duration-300">

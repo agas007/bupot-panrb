@@ -5,7 +5,7 @@ import { LanguageProvider } from "@/components/LanguageProvider";
 
 export const metadata: Metadata = {
   title: "e-Bupot PANRB",
-  description: "Collaborative tax withholding monitoring system for office colleagues.",
+  description: "Collaborative tax withholding monitoring system for office users.",
 };
 
 export default function RootLayout({

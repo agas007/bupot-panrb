@@ -51,7 +51,11 @@ export default function CustomApiDocs({ spec }: { spec: any }) {
               }`}
               >
               {tagIcons[tag] || <Database size={18} />}
-              {tag === "All" ? (isID ? "Semua" : "All") : tag}
+              {tag === "All"
+                ? (isID ? "Semua" : "All")
+                : tag === "Colleagues"
+                  ? (isID ? "User" : "Users")
+                  : tag}
             </button>
           ))}
         </div>
