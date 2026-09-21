@@ -282,7 +282,7 @@ export default function ColleaguesPage() {
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-left flex items-center gap-2">
-                {t.team.active_members} <span className="bg-accent/10 text-accent text-xs px-2 py-0.5 rounded-full">{colleagues.length}</span>
+                {t.team.list_title} <span className="bg-accent/10 text-accent text-xs px-2 py-0.5 rounded-full">{colleagues.length}</span>
               </h2>
               <span className="text-xs text-muted-foreground font-semibold">
                 {filteredColleagues.length} {t.team.filtered_count}
