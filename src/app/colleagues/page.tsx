@@ -25,6 +25,8 @@ export default function ColleaguesPage() {
   const [roles, setRoles] = useState<UserRole[]>(["USER"]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedFilterRoles, setSelectedFilterRoles] = useState<UserRole[]>(ROLE_OPTIONS.map((option) => option.value));
 
   // Edit Modal States
   const [selectedColleague, setSelectedColleague] = useState<Colleague | null>(null);
@@ -82,6 +84,8 @@ export default function ColleaguesPage() {
         setName("");
         setUsername("");
         setPassword("");
+        setRoles(["USER"]);
+        setIsAddModalOpen(false);
         fetchColleagues();
       }
     } catch (err) {
@@ -148,6 +152,25 @@ export default function ColleaguesPage() {
     }
   };
 
+  const filteredColleagues = colleagues.filter((colleague) => {
+    const colleagueRoles = colleague.roles?.length ? colleague.roles : [colleague.role];
+    return colleagueRoles.some((role) => selectedFilterRoles.includes(role));
+  });
+
+  const toggleFilterRole = (role: UserRole) => {
+    setSelectedFilterRoles((current) => (
+      current.includes(role)
+        ? current.filter((item) => item !== role)
+        : dedupeRoles([...current, role])
+    ));
+  };
+
+  const selectAllFilterRoles = () => {
+    setSelectedFilterRoles((current) => (
+      current.length === ROLE_OPTIONS.length ? [] : ROLE_OPTIONS.map((option) => option.value)
+    ));
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-2 text-left">
@@ -155,11 +178,24 @@ export default function ColleaguesPage() {
         <p className="text-muted-foreground">{t.team.subtitle}</p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <section className="glass-card p-6 flex flex-col gap-4 h-fit sticky top-6">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
+      <div className="flex flex-col gap-8">
+        <div className="flex justify-end">
+          <button onClick={() => setIsAddModalOpen(true)} className="premium-button flex items-center justify-center gap-2 py-3 px-5 font-bold">
+            <UserPlus size={18} /> {t.team.add_member}
+          </button>
+        </div>
+
+        {isAddModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-1000 flex items-center justify-center p-4">
+            <section className="glass-card w-full max-w-lg p-6 flex flex-col gap-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
             <UserPlus size={20} className="text-accent" /> {t.team.add_member}
-          </h2>
+                </h2>
+                <button onClick={() => setIsAddModalOpen(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all text-muted-foreground hover:text-foreground" title={language === "ID" ? "Tutup" : "Close"}>
+                  <X size={22} />
+                </button>
+              </div>
           <form onSubmit={addColleague} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2 text-left">
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
@@ -238,63 +274,114 @@ export default function ColleaguesPage() {
               {t.team.invite}
             </button>
           </form>
-        </section>
+            </section>
+          </div>
+        )}
 
-        <section className="lg:col-span-2 flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-left flex items-center gap-2">
-            {t.team.active_members} <span className="bg-accent/10 text-accent text-xs px-2 py-0.5 rounded-full">{colleagues.length}</span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <section className="flex flex-col gap-4 min-w-0">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-left flex items-center gap-2">
+                {t.team.active_members} <span className="bg-accent/10 text-accent text-xs px-2 py-0.5 rounded-full">{colleagues.length}</span>
+              </h2>
+              <span className="text-xs text-muted-foreground font-semibold">
+                {filteredColleagues.length} {t.team.filtered_count}
+              </span>
+            </div>
+            <div className="glass-card p-4 flex flex-col gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">{t.team.filter_role}</span>
+                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedFilterRoles.length === ROLE_OPTIONS.length}
+                    onChange={selectAllFilterRoles}
+                    className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                  />
+                  {t.team.all_roles}
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {ROLE_OPTIONS.map((option) => (
+                  <label key={option.value} className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/30 px-3 py-2 text-xs font-semibold cursor-pointer hover:bg-background/60">
+                    <input
+                      type="checkbox"
+                      checked={selectedFilterRoles.includes(option.value)}
+                      onChange={() => toggleFilterRole(option.value)}
+                      className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                    />
+                    {t.team[option.labelKey]}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="glass-card overflow-hidden">
             {isLoading ? (
-              <div className="col-span-full text-center p-12 text-muted-foreground italic">{t.team.loading}</div>
+              <div className="text-center p-12 text-muted-foreground italic">{t.team.loading}</div>
             ) : colleagues.length === 0 ? (
-              <div className="col-span-full text-center p-12 border-2 border-dashed border-border rounded-3xl text-muted-foreground italic">
+              <div className="text-center p-12 text-muted-foreground italic">
                 {t.team.not_found}
               </div>
+            ) : filteredColleagues.length === 0 ? (
+              <div className="text-center p-12 text-muted-foreground italic">
+                {t.team.no_filtered_results}
+              </div>
             ) : (
-              colleagues.map((col: Colleague) => (
-                <div 
-                  key={col.id} 
-                  className="glass-card p-5 flex items-center gap-4 group transition-all hover:scale-[1.02] hover:-translate-y-1 shadow-lg hover:shadow-accent/5 cursor-pointer"
-                  onClick={() => openEditModal(col)}
-                >
-                  <div className={`p-4 rounded-2xl shrink-0 ${col.role === "ADMIN" ? "bg-accent/10 text-accent" : col.role === "ARCHIVIST" ? "bg-sky-500/10 text-sky-500" : "bg-primary/10 text-primary"}`}>
-                    {col.role === "ADMIN" ? <Shield size={32} /> : col.role === "ARCHIVIST" ? <Archive size={32} /> : <User size={32} />}
-                  </div>
-                  <div className="flex flex-col flex-1 min-w-0 text-left">
-                    <span className="font-bold tracking-tight text-lg line-clamp-1 decoration-accent/50 hover:underline" title={col.name}>{col.name}</span>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] text-muted-foreground font-black uppercase tracking-wider flex items-center gap-1.5 italic">
-                        <AtSign size={10} className="text-accent"/> {col.username || "unset"} 
-                        {currentUser?.id === col.id && (
-                          <span className="bg-emerald-500/10 text-emerald-500 rounded lowercase text-[8px] border border-emerald-500/20 px-1 ml-1 font-black">You</span>
-                        )}
-                      </span>
-                      <span className="flex flex-wrap items-center gap-1 text-[9px] text-muted-foreground font-bold">
-                        {(col.roles?.length ? col.roles : [col.role]).map((roleItem) => (
-                          <span key={roleItem} className={`px-1.5 py-0.5 rounded-md ${roleItem === "ADMIN" ? "bg-accent/10 text-accent" : roleItem === "ARCHIVIST" ? "bg-sky-500/10 text-sky-500" : "bg-primary/10 text-primary"}`}>
-                            {roleItem === "ADMIN" ? t.team.role_admin : roleItem === "ARCHIVIST" ? t.team.role_archivist : t.team.role_user}
-                          </span>
-                        ))}
-                        <span>• {col._count?.records || 0} {t.team.tasks}</span>
-                      </span>
-                    </div>
-                  </div>
-                  {currentUser?.id !== col.id ? (
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); deleteColleague(col.id); }}
-                      className="p-3 shrink-0 transition-all hover:bg-rose-500/10 text-rose-500/40 hover:text-rose-500 rounded-xl"
-                      title={language === "ID" ? "Hapus user" : "Remove user"}
-                    >
-                      <Trash2 size={20} />
-                    </button>
-                  ) : (
-                    <div className="p-3 text-accent/40">
-                      <UserPen size={20} />
-                    </div>
-                  )}
-                </div>
-              ))
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[680px] text-sm">
+                  <thead className="border-b border-border/60 bg-muted/30">
+                    <tr className="text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      <th className="px-5 py-4">{t.team.table_name}</th>
+                      <th className="px-5 py-4">{t.team.table_username}</th>
+                      <th className="px-5 py-4">{t.team.table_roles}</th>
+                      <th className="px-5 py-4">{t.team.table_tasks}</th>
+                      <th className="px-5 py-4 text-right">{t.team.table_actions}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {filteredColleagues.map((col: Colleague) => (
+                      <tr key={col.id} className="group hover:bg-muted/20 transition-colors">
+                        <td className="px-5 py-4">
+                          <button onClick={() => openEditModal(col)} className="flex items-center gap-3 text-left">
+                            <span className={`p-2 rounded-xl shrink-0 ${col.role === "ADMIN" ? "bg-accent/10 text-accent" : col.role === "ARCHIVIST" ? "bg-sky-500/10 text-sky-500" : "bg-primary/10 text-primary"}`}>
+                              {col.role === "ADMIN" ? <Shield size={18} /> : col.role === "ARCHIVIST" ? <Archive size={18} /> : <User size={18} />}
+                            </span>
+                            <span className="font-bold tracking-tight hover:underline" title={col.name}>{col.name}</span>
+                            {currentUser?.id === col.id && <span className="bg-emerald-500/10 text-emerald-500 rounded text-[8px] border border-emerald-500/20 px-1 font-black">You</span>}
+                          </button>
+                        </td>
+                        <td className="px-5 py-4 text-muted-foreground font-mono text-xs">{col.username || "unset"}</td>
+                        <td className="px-5 py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {(col.roles?.length ? col.roles : [col.role]).map((roleItem) => (
+                              <span key={roleItem} className={`px-2 py-1 rounded-md text-[10px] font-bold ${roleItem === "ADMIN" ? "bg-accent/10 text-accent" : roleItem === "ARCHIVIST" ? "bg-sky-500/10 text-sky-500" : "bg-primary/10 text-primary"}`}>
+                                {roleItem === "ADMIN" ? t.team.role_admin : roleItem === "ARCHIVIST" ? t.team.role_archivist : t.team.role_user}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-muted-foreground font-semibold">{col._count?.records || 0} {t.team.tasks}</td>
+                        <td className="px-5 py-4 text-right">
+                          {currentUser?.id !== col.id ? (
+                            <button
+                              onClick={() => deleteColleague(col.id)}
+                              className="p-2 transition-all hover:bg-rose-500/10 text-rose-500/50 hover:text-rose-500 rounded-xl"
+                              title={language === "ID" ? "Hapus user" : "Remove user"}
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          ) : (
+                            <button onClick={() => openEditModal(col)} className="p-2 text-accent/60 hover:text-accent rounded-xl" title={language === "ID" ? "Edit profil" : "Edit profile"}>
+                              <UserPen size={18} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </section>
