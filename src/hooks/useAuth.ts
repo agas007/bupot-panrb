@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AuthSession } from "@/types";
-import { clearSession, readSessionUser, getSessionUser } from "@/lib/auth-session";
+import { clearSession, getSessionUser } from "@/lib/auth-session";
 
 export function useAuth() {
   const [user, setUser] = useState<AuthSession | null>(null);
@@ -12,12 +12,6 @@ export function useAuth() {
 
   const syncUser = useCallback(() => {
     if (typeof window === "undefined") return;
-    const savedUser = readSessionUser();
-    if (savedUser) {
-      setUser(savedUser);
-      setIsLoading(false);
-      return;
-    }
 
     void getSessionUser()
       .then((sessionUser) => {

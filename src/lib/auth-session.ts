@@ -78,14 +78,18 @@ export const readSession = (): StoredAuthSession | null => {
 export const readSessionUser = (): AuthSession | null => readSession()?.user ?? null;
 
 export const getSessionUser = async (): Promise<AuthSession | null> => {
-  const savedUser = readSessionUser();
-  if (savedUser) return savedUser;
   if (typeof window === "undefined") return null;
 
   if (!sessionRequestPromise) {
     sessionRequestPromise = fetch("/api/auth/session", { cache: "no-store" })
       .then(async (res) => {
-        if (!res.ok) return null;
+        if (!res.ok) {
+          // The local cache is only a client-side convenience. The HTTP-only
+          // cookie is authoritative for API authorization, so discard stale
+          // local state when the server no longer recognizes the session.
+          clearSession();
+          return null;
+        }
         const sessionUser = await res.json() as AuthSession;
         saveSession(sessionUser);
         return sessionUser;
