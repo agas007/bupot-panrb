@@ -28,7 +28,8 @@ import {
   AlertCircle,
   Scale,
   Archive,
-  ReceiptText
+  ReceiptText,
+  Database
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { clearSession, readSession, touchSession, SESSION_MAX_AGE_MS, getSessionUser } from "@/lib/auth-session";
@@ -308,6 +309,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/admin/archive", label: t.nav.arsip, icon: Archive, minRole: "ARCHIVIST" },
     { href: "/api-docs", label: t.nav.dokumentasi_api, icon: FileText },
     { href: "/admin", label: t.nav.panel_admin, icon: Settings, minRole: "ADMIN" },
+    { href: "/admin/storage", label: t.nav.storage_minio, icon: Database, minRole: "ADMIN" },
     { href: "/settings", label: t.nav.pengaturan, icon: Settings2, minRole: "USER" },
   ].filter(item => {
     if (item.minRole === "ADMIN") return isAdminRole(currentUser?.role);

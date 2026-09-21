@@ -16,6 +16,7 @@ export const translations = {
       pengaturan: "Pengaturan",
       rekonsiliasi_spt: "Rekonsiliasi Coretax",
       dokumentasi_api: "Dokumentasi API",
+      storage_minio: "Storage MinIO",
       keluar: "Keluar",
       internal_system: "Sistem Internal"
     },
@@ -142,6 +143,7 @@ export const translations = {
       pengaturan: "Settings",
       rekonsiliasi_spt: "Coretax Reconciliation",
       dokumentasi_api: "API Docs",
+      storage_minio: "MinIO Storage",
       keluar: "Logout",
       internal_system: "Internal System"
     },

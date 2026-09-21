@@ -52,7 +52,11 @@ const encodePath = (value: string) =>
     .map((part) => encodeURIComponent(part))
     .join("/");
 
-export const checkObjectStorageConnection = async () => {
+const getObjectStorageRequest = async (
+  method: "HEAD" | "GET" | "PUT" | "DELETE",
+  objectKey?: string,
+  body = "",
+) => {
   const config = readStorageConfig();
   if (!config) return null;
 
@@ -62,17 +66,21 @@ export const checkObjectStorageConnection = async () => {
   const dateStamp = amzDate.slice(0, 8);
   const host = config.forcePathStyle ? endpoint.host : `${config.bucketName}.${endpoint.host}`;
   const bucketPath = config.forcePathStyle ? `/${config.bucketName}` : "";
-  const pathname = `${endpoint.pathname.replace(/\/$/, "")}${bucketPath}` || "/";
+  const objectPath = objectKey ? `/${objectKey}` : "";
+  const pathname = `${endpoint.pathname.replace(/\/$/, "")}${bucketPath}${objectPath}` || "/";
   const canonicalUri = encodePath(pathname);
-  const payloadHash = hash("");
-  const canonicalHeaders = [
-    `host:${host}`,
-    `x-amz-content-sha256:${payloadHash}`,
-    `x-amz-date:${amzDate}`,
-  ].join("\n");
-  const signedHeaders = "host;x-amz-content-sha256;x-amz-date";
+  const payloadHash = hash(body);
+  const contentType = method === "PUT" ? "text/plain; charset=utf-8" : undefined;
+  const canonicalHeaderEntries = [
+    ["host", host],
+    ["x-amz-content-sha256", payloadHash],
+    ["x-amz-date", amzDate],
+    ...(contentType ? [["content-type", contentType]] : []),
+  ].sort(([left], [right]) => left.localeCompare(right));
+  const canonicalHeaders = canonicalHeaderEntries.map(([name, value]) => `${name}:${value}`).join("\n");
+  const signedHeaders = canonicalHeaderEntries.map(([name]) => name).join(";");
   const canonicalRequest = [
-    "HEAD",
+    method,
     canonicalUri,
     "",
     `${canonicalHeaders}\n`,
@@ -97,20 +105,64 @@ export const checkObjectStorageConnection = async () => {
   url.pathname = pathname;
 
   const response = await fetch(url, {
-    method: "HEAD",
+    method,
     headers: {
       host,
       "x-amz-content-sha256": payloadHash,
       "x-amz-date": amzDate,
+      ...(contentType ? { "content-type": contentType } : {}),
       Authorization: authorization,
     },
+    body: method === "PUT" ? body : undefined,
     cache: "no-store",
     signal: AbortSignal.timeout(5_000),
   });
 
+  return { response, bucketName: config.bucketName };
+};
+
+export const checkObjectStorageConnection = async () => {
+  const result = await getObjectStorageRequest("HEAD");
+  if (!result) return null;
+
   return {
-    ok: response.ok,
-    status: response.status,
-    bucketName: config.bucketName,
+    ok: result.response.ok,
+    status: result.response.status,
+    bucketName: result.bucketName,
   };
+};
+
+export const runObjectStorageSmokeTest = async () => {
+  const config = readStorageConfig();
+  if (!config) return null;
+
+  const objectKey = `__healthcheck/bupot-${Date.now()}.txt`;
+  const expectedBody = `bupot-minio-healthcheck:${new Date().toISOString()}`;
+  let uploaded = false;
+
+  try {
+    const put = await getObjectStorageRequest("PUT", objectKey, expectedBody);
+    if (!put || !put.response.ok) {
+      throw new Error(`MinIO upload failed with status ${put?.response.status ?? "unknown"}`);
+    }
+    uploaded = true;
+
+    const get = await getObjectStorageRequest("GET", objectKey);
+    if (!get || !get.response.ok) {
+      throw new Error(`MinIO download failed with status ${get?.response.status ?? "unknown"}`);
+    }
+    const actualBody = await get.response.text();
+    if (actualBody !== expectedBody) {
+      throw new Error("MinIO download content did not match the uploaded test object");
+    }
+
+    return { bucketName: config.bucketName, objectKey, uploaded: true, downloaded: true, deleted: true };
+  } finally {
+    if (uploaded) {
+      const deletion = await getObjectStorageRequest("DELETE", objectKey).catch(() => null);
+      if (!deletion?.response.ok && deletion?.response.status !== 404) {
+        console.error("[Object storage] Failed to delete smoke-test object:", deletion?.response.status);
+      }
+    }
+  }
 };
