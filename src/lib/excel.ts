@@ -34,15 +34,19 @@ const safeDateID = (val: unknown) => {
 
   if (typeof val === "number") {
     const date = XLSX.SSF.parse_date_code(val);
-    return new Date(date.y, date.m - 1, date.d);
+    return new Date(Date.UTC(date.y, date.m - 1, date.d));
   }
 
   if (typeof val === "string") {
     const cleanStr = val.trim();
 
     if (cleanStr.includes("-") && cleanStr.length >= 10 && cleanStr.split("-")[0].length === 4) {
-      const d = new Date(cleanStr);
-      return isNaN(d.getTime()) ? null : d;
+      const parts = cleanStr.slice(0, 10).split("-");
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      const date = new Date(Date.UTC(y, m, d));
+      return isNaN(date.getTime()) ? null : date;
     }
 
     const parts = cleanStr.split(/[\/\-]/);
@@ -51,7 +55,7 @@ const safeDateID = (val: unknown) => {
       const m = parseInt(parts[1], 10) - 1;
       const y = parseInt(parts[2], 10);
 
-      const date = new Date(y, m, d);
+      const date = new Date(Date.UTC(y, m, d));
       return isNaN(date.getTime()) ? null : date;
     }
   }

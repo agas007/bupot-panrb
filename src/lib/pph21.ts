@@ -111,10 +111,25 @@ export function normalizePph21Lines(lines: Pph21LineInput[]) {
   });
 }
 
-export function formatDateOnly(value: Date | string) {
+export function getDatePartsInTimezone(value: Date | string, timeZone = "Asia/Jakarta") {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) throw new Error("Tanggal tidak valid.");
-  return date.toISOString().slice(0, 10);
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const year = Number(parts.find((p) => p.type === "year")?.value);
+  const month = Number(parts.find((p) => p.type === "month")?.value);
+  const day = Number(parts.find((p) => p.type === "day")?.value);
+  const formatted = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return { year, month, day, formatted };
+}
+
+export function formatDateOnly(value: Date | string, timeZone = "Asia/Jakarta") {
+  return getDatePartsInTimezone(value, timeZone).formatted;
 }
 
 function normalizeFileNamePart(value: string) {
@@ -171,11 +186,12 @@ export function buildPph21Xml(batches: XmlBatch[]) {
     if (!batch.record.sp2dNumber || !batch.record.sp2dDate || !batch.withholdingDate) {
       throw new Error("Nomor SP2D, tanggal SP2D, dan tanggal potong wajib tersedia.");
     }
-    const sp2dDate = batch.record.sp2dDate;
+    const sp2dDateParts = getDatePartsInTimezone(batch.record.sp2dDate);
+    const withholdingDateFormatted = formatDateOnly(batch.withholdingDate);
     return batch.withholdings.map((line) => [
       "\t\t<Bp21>",
-      `\t\t\t<TaxPeriodMonth>${sp2dDate.getUTCMonth() + 1}</TaxPeriodMonth>`,
-      `\t\t\t<TaxPeriodYear>${sp2dDate.getUTCFullYear()}</TaxPeriodYear>`,
+      `\t\t\t<TaxPeriodMonth>${sp2dDateParts.month}</TaxPeriodMonth>`,
+      `\t\t\t<TaxPeriodYear>${sp2dDateParts.year}</TaxPeriodYear>`,
       `\t\t\t<CounterpartTin>${escapeXml(line.recipient.nik)}</CounterpartTin>`,
       `\t\t\t<IDPlaceOfBusinessActivityOfIncomeRecipient>${escapeXml(line.recipient.nik)}000000</IDPlaceOfBusinessActivityOfIncomeRecipient>`,
       "\t\t\t<StatusTaxExemption>TK/0</StatusTaxExemption>",
@@ -186,9 +202,9 @@ export function buildPph21Xml(batches: XmlBatch[]) {
       `\t\t\t<Rate>${line.rate}</Rate>`,
       "\t\t\t<Document>PaymentProof</Document>",
       `\t\t\t<DocumentNumber>${escapeXml(batch.record.sp2dNumber)}</DocumentNumber>`,
-      `\t\t\t<DocumentDate>${formatDateOnly(sp2dDate)}</DocumentDate>`,
+      `\t\t\t<DocumentDate>${sp2dDateParts.formatted}</DocumentDate>`,
       "\t\t\t<IDPlaceOfBusinessActivity>0001861061012000000000</IDPlaceOfBusinessActivity>",
-      `\t\t\t<WithholdingDate>${formatDateOnly(batch.withholdingDate)}</WithholdingDate>`,
+      `\t\t\t<WithholdingDate>${withholdingDateFormatted}</WithholdingDate>`,
       "\t\t</Bp21>",
     ].join("\n"));
   });

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getPph21User } from "@/lib/pph21-auth";
-import { getPtkpTerCategory, isPph21TaxObjectCode } from "@/lib/pph21";
+import { getDatePartsInTimezone, getPtkpTerCategory, isPph21TaxObjectCode } from "@/lib/pph21";
 import { ensurePph21RecipientPtkpTable, isMissingPtkpTableError } from "@/lib/pph21-ptkp";
 
 export const runtime = "nodejs";
@@ -72,14 +72,13 @@ export async function GET(req: NextRequest) {
       .filter((item) => {
         if (!year || !month) return true;
         if (!item.sp2dDate) return false;
-        const itemYear = item.sp2dDate.getFullYear();
-        const itemMonth = item.sp2dDate.getMonth() + 1;
-        return itemYear === year && itemMonth === month;
+        const parts = getDatePartsInTimezone(item.sp2dDate);
+        return parts.year === year && parts.month === month;
       });
     const exported = transactions.filter((item) => item.status === "COMPLETED");
     const monthly = new Map<string, { period: string; count: number; gross: number; tax: number }>();
     transactions.forEach((item) => {
-      const period = item.sp2dDate ? item.sp2dDate.toISOString().slice(0, 7) : "Tanpa periode";
+      const period = item.sp2dDate ? getDatePartsInTimezone(item.sp2dDate).formatted.slice(0, 7) : "Tanpa periode";
       const current = monthly.get(period) || { period, count: 0, gross: 0, tax: 0 };
       current.count += 1;
       current.gross += item.gross;

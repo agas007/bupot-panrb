@@ -118,3 +118,53 @@ test("builds MmPayroll XML with non-final defaults", () => {
   assert.equal(imported[0].calculatedTax, 260143);
   assert.equal(imported[0].calculatedTax, calculateMmPayrollTax(10405710, 2.5));
 });
+
+test("correctly formats TaxPeriodMonth and DocumentDate for October, November, December, and January even with UTC offset", () => {
+  const cases = [
+    {
+      sp2dDate: new Date("2024-09-30T17:00:00.000Z"), // 1 Oktober 00:00 WIB
+      expectedMonth: 10,
+      expectedYear: 2024,
+      expectedDocDate: "2024-10-01",
+    },
+    {
+      sp2dDate: new Date("2024-10-01T00:00:00.000Z"), // 1 Oktober UTC
+      expectedMonth: 10,
+      expectedYear: 2024,
+      expectedDocDate: "2024-10-01",
+    },
+    {
+      sp2dDate: new Date("2024-10-31T17:00:00.000Z"), // 1 November 00:00 WIB
+      expectedMonth: 11,
+      expectedYear: 2024,
+      expectedDocDate: "2024-11-01",
+    },
+    {
+      sp2dDate: new Date("2024-11-30T17:00:00.000Z"), // 1 Desember 00:00 WIB
+      expectedMonth: 12,
+      expectedYear: 2024,
+      expectedDocDate: "2024-12-01",
+    },
+    {
+      sp2dDate: new Date("2024-12-31T17:00:00.000Z"), // 1 Januari 00:00 WIB
+      expectedMonth: 1,
+      expectedYear: 2025,
+      expectedDocDate: "2025-01-01",
+    },
+  ];
+
+  for (const c of cases) {
+    const xml = buildPph21Xml([{
+      withholdingDate: c.sp2dDate,
+      record: { sp2dNumber: "SP2D-TEST", sp2dDate: c.sp2dDate },
+      withholdings: [
+        { recipient: { nik: "1277014308900003" }, taxObjectCode: "21-402-03", gross: 1000000, deemed: 100, rate: 15 },
+      ],
+    }]);
+
+    assert.match(xml, new RegExp(`<TaxPeriodMonth>${c.expectedMonth}</TaxPeriodMonth>`));
+    assert.match(xml, new RegExp(`<TaxPeriodYear>${c.expectedYear}</TaxPeriodYear>`));
+    assert.match(xml, new RegExp(`<DocumentDate>${c.expectedDocDate}</DocumentDate>`));
+    assert.match(xml, new RegExp(`<WithholdingDate>${c.expectedDocDate}</WithholdingDate>`));
+  }
+});
