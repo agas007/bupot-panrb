@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
 import { canManagePph21, getPph21User } from "@/lib/pph21-auth";
 import { formatDateOnly, PPH21_ACCOUNT_CODE, PPH21_TAX_OBJECT_LABELS } from "@/lib/pph21";
+import { getJakartaDateRange, getJakartaMonthRange } from "@/lib/jakarta-date-range";
 
 export const runtime = "nodejs";
 
@@ -90,16 +91,20 @@ const buildWhere = (filters: ExportFilters): Prisma.SPMRecordWhereInput => {
       : []),
   ];
 
-  if (selectedMonths.length) {
+  const selectedMonthRanges = selectedMonths
+    .map((month) => {
+      const [yearText, monthText] = month.split("-");
+      return getJakartaMonthRange(Number(yearText), Number(monthText));
+    })
+    .filter((range): range is NonNullable<typeof range> => range !== null);
+
+  if (selectedMonthRanges.length) {
     andClauses.push({
-      OR: selectedMonths.map((month) => {
-        const [yearText, monthText] = month.split("-");
-        const year = Number(yearText);
-        const monthIndex = Number(monthText);
+      OR: selectedMonthRanges.map((monthRange) => {
         return {
           sp2dDate: {
-            gte: new Date(Date.UTC(year, monthIndex - 1, 1, 0, 0, 0, 0)),
-            lt: new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0)),
+            gte: monthRange.start,
+            lt: monthRange.end,
           },
         };
       }),
@@ -107,10 +112,11 @@ const buildWhere = (filters: ExportFilters): Prisma.SPMRecordWhereInput => {
   }
 
   if (startDate || endDate) {
+    const dateRange = getJakartaDateRange(startDate, endDate);
     andClauses.push({
       sp2dDate: {
-        ...(startDate ? { gte: new Date(`${startDate}T00:00:00.000Z`) } : {}),
-        ...(endDate ? { lt: new Date(new Date(`${endDate}T00:00:00.000Z`).getTime() + 86_400_000) } : {}),
+        ...(dateRange.start ? { gte: dateRange.start } : {}),
+        ...(dateRange.end ? { lt: dateRange.end } : {}),
       },
     });
   }

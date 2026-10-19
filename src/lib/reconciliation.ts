@@ -1,4 +1,5 @@
 import { getTaxAccountLabel } from "./tax-codes.ts";
+import { getJakartaMonthRange } from "./jakarta-date-range.ts";
 
 export type ReconciliationStatus = "BALANCED" | "OVER" | "UNDER";
 
@@ -91,9 +92,9 @@ export interface ReconciliationSummaryRow {
 }
 
 export function getReconciliationPeriodRange(year: number, month: number) {
-  const start = new Date(year, month - 1, 1, 0, 0, 0, 0);
-  const end = new Date(year, month, 1, 0, 0, 0, 0);
-  return { start, end };
+  const range = getJakartaMonthRange(year, month);
+  if (!range) throw new Error("Periode tidak valid.");
+  return range;
 }
 
 function normalizeAccountCode(accountCode: string) {

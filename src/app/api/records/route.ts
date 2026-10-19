@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRequestSessionUser } from "@/lib/session-cookie";
+import { getJakartaDateRange, getJakartaMonthRange } from "@/lib/jakarta-date-range";
 
 const VALID_ACCOUNTS = ["411121", "411122", "411124", "411128", "811147"];
 
@@ -49,18 +50,18 @@ export async function GET(req: NextRequest) {
       const [monthYear, monthPart] = sp2dMonth.split("-");
       const year = Number(monthYear);
       const month = Number(monthPart);
-      if (Number.isInteger(year) && Number.isInteger(month) && month >= 1 && month <= 12) {
-        sp2dDateFilter.gte = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
-        sp2dDateFilter.lt = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+      const monthRange = getJakartaMonthRange(year, month);
+      if (monthRange) {
+        sp2dDateFilter.gte = monthRange.start;
+        sp2dDateFilter.lt = monthRange.end;
       }
     }
-    if (startDate) {
-      const start = new Date(`${startDate}T00:00:00.000Z`);
-      if (!sp2dDateFilter.gte || start > sp2dDateFilter.gte) sp2dDateFilter.gte = start;
+    const dateRange = getJakartaDateRange(startDate, endDate);
+    if (dateRange.start) {
+      if (!sp2dDateFilter.gte || dateRange.start > sp2dDateFilter.gte) sp2dDateFilter.gte = dateRange.start;
     }
-    if (endDate) {
-      const endExclusive = new Date(new Date(`${endDate}T00:00:00.000Z`).getTime() + 86_400_000);
-      if (!sp2dDateFilter.lt || endExclusive < sp2dDateFilter.lt) sp2dDateFilter.lt = endExclusive;
+    if (dateRange.end) {
+      if (!sp2dDateFilter.lt || dateRange.end < sp2dDateFilter.lt) sp2dDateFilter.lt = dateRange.end;
     }
 
     try {
