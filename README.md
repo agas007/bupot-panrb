@@ -102,13 +102,14 @@ python -m graphify.serve graphify-out/graph.json
 
 ## 🌐 Deployment
 
-Aplikasi ini dirancang untuk dideploy ke **Vercel**:
+Aplikasi dideploy ke VM produksi melalui GitHub Actions dan Docker self-hosted.
 
-1. Push kodenya ke repo (GitHub/GitLab).
-2. Hubungkan repo ke Vercel Dashboard.
-3. Masukkan `DATABASE_URL` di Environment Variables.
-4. Vercel akan otomatis melakukan build dan deploy.
-5. Pastikan database bisa diakses publik dari Vercel, atau gunakan managed database yang memang terbuka dari internet.
+1. Push perubahan ke branch `main`.
+2. Workflow `deploy-production.yml` menjalankan `npm ci` dan `npm test`. Deployment berhenti jika salah satu test gagal.
+3. Runner produksi mengambil perubahan terbaru di `/opt/bupot`, lalu menjalankan `scripts/deploy-production.sh`.
+4. Script membangun image Docker, menerapkan Prisma migration, memulai container, memeriksa health check, dan melakukan rollback otomatis jika deployment gagal.
+
+Pastikan `.env`, `docker-compose.production.yml`, Docker, dan akses PostgreSQL telah tersedia di VM produksi.
 
 ---
 Dikembangkan oleh Tim Developer Kemenpan.

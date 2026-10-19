@@ -1,13 +1,13 @@
 {
   "name": "bupot-panrb",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test --experimental-strip-types test/pph21.test.ts"
+    "test": "node --test --experimental-strip-types test/*.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",
