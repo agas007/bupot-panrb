@@ -18,6 +18,15 @@ export async function GET(req: NextRequest) {
   const user = await getPph21User(req);
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 403 });
   const q = String(req.nextUrl.searchParams.get("q") || "").trim();
+  // Autocomplete needs the whole master, without transaction/PTKP history.
+  if (req.nextUrl.searchParams.get("lookup") === "1") {
+    const recipients = await prisma.pph21Recipient.findMany({
+      where: q ? { OR: [{ nik: { contains: q } }, { name: { contains: q, mode: "insensitive" } }] } : undefined,
+      select: { id: true, nik: true, name: true, defaultTaxObjectCode: true },
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    });
+    return NextResponse.json(recipients);
+  }
   const year = parsePeriodParam(req.nextUrl.searchParams.get("year"));
   const month = parsePeriodParam(req.nextUrl.searchParams.get("month"));
   await ensurePph21RecipientPtkpTable();

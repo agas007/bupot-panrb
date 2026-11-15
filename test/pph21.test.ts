@@ -1,6 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildMmPayrollXml, buildPph21ExportFileName, buildPph21Xml, calculateMmPayrollTax, calculatePph21Tax, getPtkpTerCategory, normalizePph21Lines, normalizePtkpStatus, parseMmPayrollXml, parsePph21Xml } from "../src/lib/pph21.ts";
+import { buildMmPayrollXml, buildPph21ExportFileName, buildPph21Xml, calculateMmPayrollTax, calculatePph21Tax, findPph21Recipient, getPtkpTerCategory, normalizePph21Lines, normalizePtkpStatus, parseMmPayrollXml, parsePph21Xml } from "../src/lib/pph21.ts";
+
+test("recipient autocomplete resolves names regardless of case and whitespace", () => {
+  const recipient = { nik: "1234567890123456", name: "Penerima   Satu" };
+  assert.equal(findPph21Recipient([recipient], "  PENERIMA satu ", "name"), recipient);
+  assert.equal(findPph21Recipient([recipient], "1234 5678 9012 3456", "nik"), recipient);
+  assert.equal(findPph21Recipient([recipient], "Penerima", "name"), undefined);
+  assert.equal(findPph21Recipient([recipient], "", "name"), undefined);
+});
+
+test("shared names require a NIK to disambiguate recipients", () => {
+  const recipients = [
+    { nik: "1234567890123456", name: "Nama Sama" },
+    { nik: "2345678901234567", name: "NAMA SAMA" },
+  ];
+  assert.equal(findPph21Recipient(recipients, "nama sama", "name"), undefined);
+  assert.equal(findPph21Recipient(recipients, recipients[1].nik, "nik"), recipients[1]);
+});
 
 test("maps supported tax objects and rounds each calculated tax", () => {
   const lines = normalizePph21Lines([

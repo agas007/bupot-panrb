@@ -13,7 +13,7 @@ import {
 import { useLanguage } from "@/components/LanguageProvider";
 import { useAuth } from "@/hooks/useAuth";
 import { getTaxAccountLabel } from "@/lib/tax-codes";
-import { buildPph21ExportFileName, PPH21_TAX_OBJECT_LABELS, PPH21_TAX_OBJECTS } from "@/lib/pph21";
+import { buildPph21ExportFileName, findPph21Recipient, PPH21_TAX_OBJECT_LABELS, PPH21_TAX_OBJECTS } from "@/lib/pph21";
 import { SPMRecord, Colleague } from "@/types";
 import { TableSkeletonRows } from "@/components/TableSkeleton";
 import * as XLSX from 'xlsx';
@@ -284,12 +284,15 @@ export default function RecordsPage() {
     void fetch("/api/colleagues").then((res) => res.json()).then(setColleagues).catch(console.error);
   }, []);
 
-  useEffect(() => {
-    void fetch("/api/pph21/recipients", { headers: getAuthHeaders() })
-      .then((res) => res.ok ? res.json() : [])
-      .then((data) => setPph21Recipients(Array.isArray(data) ? data : []))
-      .catch(console.error);
+  const loadPph21Recipients = useCallback(async () => {
+    const res = await fetch("/api/pph21/recipients?lookup=1", { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error("Gagal memuat master penerima. Buka ulang rincian untuk mencoba lagi.");
+    setPph21Recipients(await res.json());
   }, [getAuthHeaders]);
+
+  useEffect(() => {
+    void loadPph21Recipients().catch(console.error);
+  }, [loadPph21Recipients]);
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -309,7 +312,10 @@ export default function RecordsPage() {
     if (record.accountCode !== "411121") return;
     setIsPph21DetailLoading(true);
     try {
-      const res = await fetch(`/api/pph21?recordId=${record.id}`, { headers: getAuthHeaders() });
+      const [res] = await Promise.all([
+        fetch(`/api/pph21?recordId=${record.id}`, { headers: getAuthHeaders() }),
+        loadPph21Recipients(),
+      ]);
       if (res.ok) {
         const data = await res.json();
         setSelectedPph21Record(data);
@@ -329,6 +335,7 @@ export default function RecordsPage() {
       }
     } catch (err) {
       console.error(err);
+      setPph21SaveError(err instanceof Error ? err.message : "Gagal memuat rincian PPh 21");
     } finally {
       setIsPph21DetailLoading(false);
     }
@@ -771,14 +778,8 @@ export default function RecordsPage() {
     return selectedPph21TaxTotal === selectedRecord.deductionAmount;
   }, [selectedPph21Record, selectedPph21TaxTotal, selectedRecord]);
 
-  const normalizeRecipientQuery = (value: string) => value.trim().toLowerCase().replace(/\s+/g, " ");
-
   const choosePph21Recipient = (index: number, value: string, field: "nik" | "name") => {
-    const normalized = normalizeRecipientQuery(value);
-    const recipient =
-      field === "nik"
-        ? pph21Recipients.find((item) => normalizeRecipientQuery(item.nik) === normalized)
-        : pph21Recipients.find((item) => normalizeRecipientQuery(item.name) === normalized);
+    const recipient = findPph21Recipient(pph21Recipients, value, field);
     setPph21Lines((current) => current.map((line, i) => i === index ? {
       ...line,
       nik: recipient ? recipient.nik : (field === "nik" ? value : line.nik),

@@ -55,6 +55,15 @@ export function normalizeNik(value: unknown) {
   return String(value ?? "").replace(/\D/g, "");
 }
 
+export function findPph21Recipient<T extends { nik: string; name: string }>(recipients: T[], value: string, field: "nik" | "name") {
+  const normalize = (text: string) => text.trim().toLowerCase().replace(/\s+/g, " ");
+  const query = field === "nik" ? normalizeNik(value) : normalize(value);
+  if (!query) return undefined;
+  const matches = recipients.filter((recipient) => (field === "nik" ? recipient.nik : normalize(recipient.name)) === query);
+  // A shared name is not sufficient to choose someone's NIK.
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
 export function calculatePph21Tax(gross: number, deemed: number, rate: number) {
   return Math.round(gross * (deemed / 100) * (rate / 100));
 }

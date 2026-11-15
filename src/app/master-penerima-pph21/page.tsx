@@ -40,7 +40,7 @@ function MasterPenerimaPph21Content() {
     if (!user) return;
     setIsLoading(true);
     try {
-      const response = await fetch("/api/pph21/recipients", { headers: getAuthHeaders() });
+      const response = await fetch("/api/pph21/recipients?lookup=1", { headers: getAuthHeaders() });
       if (!response.ok) throw new Error("Gagal memuat master pegawai");
       setRecipients(await response.json());
     } finally {

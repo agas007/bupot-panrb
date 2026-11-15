@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       const existingRecipients = await tx.pph21Recipient.findMany({ where: { nik: { in: uniqueNik } } });
       const existingByNik = new Map(existingRecipients.map((recipient) => [recipient.nik, recipient]));
       const missingRecipients = lines
-        .filter((line) => !existingByNik.has(line.nik))
+        .filter((line) => line.nik && !existingByNik.has(line.nik))
         .map((line) => ({ nik: line.nik, name: line.name, defaultTaxObjectCode: line.taxObjectCode }));
       if (missingRecipients.length > 0) {
         await tx.pph21Recipient.createMany({ data: missingRecipients, skipDuplicates: true });
@@ -107,6 +107,13 @@ export async function POST(req: NextRequest) {
 
         if (!recipient) {
           throw new Error(`Penerima baris ${index + 1} tidak ditemukan di master data. Isi NIK atau cocokkan nama penerima.`);
+        }
+
+        // XML imports can create a NIK-only placeholder. Keep the real name
+        // entered with that NIK available for later autocomplete searches.
+        if (line.nik && /^NIK\s+\d+$/i.test(recipient.name.trim()) && !/^NIK\s+\d+$/i.test(line.name.trim())) {
+          recipient = await tx.pph21Recipient.update({ where: { id: recipient.id }, data: { name: line.name } });
+          recipientsByNik.set(recipient.nik, recipient);
         }
 
         withholdingData.push({
