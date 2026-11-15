@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { readSessionUser } from "@/lib/auth-session";
+import { sendImportBatch } from "@/lib/import-retry";
 import { mergeExcelData, parseExcel, type PotonganRow, type SPP_SPM_SP2D_Row } from "@/lib/excel";
 
 interface PreviewRow {
@@ -134,6 +135,7 @@ export default function AdminPage() {
     startProcessing("import");
     setShowPreviewModal(false);
     setStatus(null);
+    let processedCount = 0;
 
     try {
       const simulatedUser = readSessionUser();
@@ -158,7 +160,7 @@ export default function AdminPage() {
           Math.max(1, Math.round((offset / totalRows) * 100))
         );
 
-        const res = await fetch("/api/import", {
+        const sendChunk = () => fetch("/api/import", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -169,6 +171,14 @@ export default function AdminPage() {
           },
           body: JSON.stringify({ records: chunk }),
         });
+        const res = await sendImportBatch(sendChunk, (secondsRemaining) => {
+          updateProcessing(
+            language === "ID"
+              ? `Batas request tercapai. ${processedCount}/${totalRows} baris selesai. Batch ${chunkNumber}/${totalChunks} dilanjutkan dalam ${secondsRemaining} detik...`
+              : `Rate limit reached. ${processedCount}/${totalRows} rows processed. Resuming batch ${chunkNumber}/${totalChunks} in ${secondsRemaining} seconds...`,
+            Math.min(99, Math.round(processedCount / totalRows * 100)),
+          );
+        });
 
         if (!res.ok) {
           throw new Error(await readApiError(res));
@@ -176,6 +186,7 @@ export default function AdminPage() {
 
         const data = await res.json() as { count?: number };
         importedCount += data.count ?? chunk.length;
+        processedCount += chunk.length;
         updateProcessing(
           language === "ID"
             ? `Batch ${chunkNumber}/${totalChunks} selesai.`
@@ -195,7 +206,10 @@ export default function AdminPage() {
       setSppFile(null);
       setMergedImportRows([]);
     } catch (err: unknown) {
-      setStatus({ type: "error", message: getErrorMessage(err) });
+      const progressMessage = language === "ID"
+        ? `${processedCount}/${mergedImportRows.length} baris sudah selesai diproses. Batch yang gagal belum dikonfirmasi selesai.`
+        : `${processedCount}/${mergedImportRows.length} rows have been processed. The failed batch has not been confirmed complete.`;
+      setStatus({ type: "error", message: `${getErrorMessage(err)} ${progressMessage}` });
     } finally {
       stopProcessing();
     }

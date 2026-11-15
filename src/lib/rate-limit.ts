@@ -14,7 +14,7 @@ export async function applyRateLimit(req: Request, limit: number = 100, windowMs
   
   const entry = tracker.get(scopeKey) || { count: 0, lastReset: now };
 
-  if (now - entry.lastReset > windowMs) {
+  if (now - entry.lastReset >= windowMs) {
     entry.count = 0;
     entry.lastReset = now;
   }
@@ -23,13 +23,14 @@ export async function applyRateLimit(req: Request, limit: number = 100, windowMs
   tracker.set(scopeKey, entry);
 
   if (entry.count > limit) {
+    const retryAfter = Math.max(1, Math.ceil((entry.lastReset + windowMs - now) / 1000));
     return NextResponse.json({ 
-      error: "Rate limit exceeded. Try again in 15 minutes.",
-      retryAfter: Math.ceil((entry.lastReset + windowMs - now) / 1000)
+      error: `Rate limit exceeded. Try again in ${retryAfter} seconds.`,
+      retryAfter,
     }, { 
       status: 429,
       headers: {
-        "Retry-After": String(Math.ceil((entry.lastReset + windowMs - now) / 1000))
+        "Retry-After": String(retryAfter)
       }
     });
   }
