@@ -1,6 +1,27 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildMmPayrollXml, buildPph21ExportFileName, buildPph21Xml, calculateMmPayrollTax, calculatePph21Tax, findPph21Recipient, getPtkpTerCategory, normalizePph21Lines, normalizePtkpStatus, parseMmPayrollXml, parsePph21Xml } from "../src/lib/pph21.ts";
+import { buildMmPayrollXml, buildPph21ExportFileName, buildPph21Xml, calculateMmPayrollTax, calculatePph21Tax, findPph21Recipient, formatDateOnly, getPtkpTerCategory, normalizePph21Lines, normalizePtkpStatus, parseMmPayrollXml, parsePph21Xml } from "../src/lib/pph21.ts";
+
+test("editing and saving a Jakarta withholding date preserves its calendar day in XML", () => {
+  const cases = [
+    { stored: "2026-09-30T17:00:00.000Z", expected: "2026-10-01" },
+    { stored: "2026-12-31T17:00:00.000Z", expected: "2027-01-01" },
+    { stored: "2026-10-01T00:00:00.000Z", expected: "2026-10-01" },
+  ];
+
+  for (const { stored, expected } of cases) {
+    const editorDate = formatDateOnly(stored);
+    assert.equal(editorDate, expected);
+    const savedDate = new Date(editorDate);
+    assert.equal(formatDateOnly(savedDate.toISOString()), expected);
+    const xml = buildPph21Xml([{
+      withholdingDate: savedDate,
+      record: { sp2dNumber: "261330000100791", sp2dDate: new Date(stored) },
+      withholdings: [{ recipient: { nik: "1234567890123456" }, taxObjectCode: "21-402-02", gross: 1000, deemed: 100, rate: 5 }],
+    }]);
+    assert.equal(parsePph21Xml(xml)[0].withholdingDate, expected);
+  }
+});
 
 test("recipient autocomplete resolves names regardless of case and whitespace", () => {
   const recipient = { nik: "1234567890123456", name: "Penerima   Satu" };

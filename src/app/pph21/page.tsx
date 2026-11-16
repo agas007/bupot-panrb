@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, ChevronDown, Download, Loader2, Plus, ReceiptText, Save, Search, Trash2, Upload, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useAuth } from "@/hooks/useAuth";
-import { buildPph21ExportFileName, findPph21Recipient, PPH21_TAX_OBJECT_LABELS, PPH21_TAX_OBJECTS } from "@/lib/pph21";
+import { buildPph21ExportFileName, findPph21Recipient, formatDateOnly, PPH21_TAX_OBJECT_LABELS, PPH21_TAX_OBJECTS } from "@/lib/pph21";
 import { RecipientCardSkeletons, TableSkeletonRows } from "@/components/TableSkeleton";
 
 type Code = keyof typeof PPH21_TAX_OBJECTS;
@@ -154,7 +154,7 @@ export default function Pph21Page() {
       if (!detailRes.ok) throw new Error("Gagal memuat rincian PPh 21");
       const detail: RecordRow = await detailRes.json();
       setEditing(detail);
-      setWithholdingDate(detail.pph21Batch?.withholdingDate?.slice(0, 10) || "");
+      setWithholdingDate(detail.pph21Batch?.withholdingDate ? formatDateOnly(detail.pph21Batch.withholdingDate) : "");
       setLines(detail.pph21Batch?.withholdings?.length ? detail.pph21Batch.withholdings.map((line) => ({ nik: line.recipient.nik, name: line.recipientName, taxObjectCode: line.taxObjectCode, gross: String(line.gross) })) : [emptyLine()]);
       setIssueNotes(detail.pph21Batch?.issueNotes || "");
     } catch (error) { setFeedback({ type: "error", message: error instanceof Error ? error.message : "Gagal memuat rincian" }); }
